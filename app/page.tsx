@@ -102,8 +102,8 @@ export default function Home() {
         {/* Feature Cards Grid */}
         <div id="features" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-7xl">
           <FeatureCard
-            title="Community Agents"
-            description="Deploy tokenized AI agents that represent your community across social platforms. Built on Virtuals Protocol and elizaOS, with revenue sharing for token holders."
+            title="Public Facing Community Agents"
+            description="Deploy tokenized AI agents—powered by Virtuals Protocol and elizaOS—that represent your community across social platforms."
             icon={Bot}
             glowColor="bg-gradient-to-r from-primary/50 to-accent/50"
           />
@@ -111,29 +111,29 @@ export default function Home() {
             title="Points & Streaming Rewards"
             description="Recognize contributions with points and automatically stream tokens to contributors. Members can propose point awards for aligned actions."
             icon={Trophy}
-            glowColor="bg-gradient-to-r from-accent/50 to-secondary/50"
+            glowColor="bg-gradient-to-r from-accent/80 via-purple-500/80 to-secondary/80"
           />
           <FeatureCard
             title="Flexible Access Control"
             description="Gate your community your way. Combine token requirements, email domains, whitelists, and Guild.xyz integration to create the perfect entry criteria."
             icon={Shield}
-            glowColor="bg-gradient-to-r from-secondary/50 to-primary/50"
+            glowColor="bg-gradient-to-r from-secondary/80 via-blue-500/80 to-primary/80"
           />
           <FeatureCard
             title="Voice-First Experience"
             description="Natural voice conversations with your community's AI agents. Train them on your content and let them engage with members and represent you across platforms."
             icon={Mic}
-            glowColor="bg-gradient-to-r from-primary/50 to-accent/50"
+            glowColor="bg-gradient-to-r from-primary/80 via-indigo-500/80 to-accent/80"
           />
           <FeatureCard
             title="Collective Intelligence"
             description="Harness your community's knowledge with AI-powered tools. Automatically organize discussions, surface insights, and make better decisions together."
             icon={Brain}
-            glowColor="bg-gradient-to-r from-accent/50 to-secondary/50"
+            glowColor="bg-gradient-to-r from-accent/80 via-fuchsia-500/80 to-secondary/80"
           />
           <FeatureCard
-            title="Community-Owned"
-            description="True ownership for contributors. Earn points for valuable contributions, redeem them for tokens, and participate in governance decisions."
+            title="Expanding Integrations"
+            description="Connect with a growing ecosystem of AI and Web3 tools. From LLMs to token streaming protocols, we're building the infrastructure for communities to create and earn together."
             icon={Users}
             glowColor="bg-gradient-to-r from-secondary/50 to-primary/50"
           />

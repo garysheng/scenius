@@ -13,7 +13,8 @@ import {
   updateDoc,
   deleteDoc,
   setDoc,
-  increment
+  increment,
+  limit
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Space, SpaceFrontend, Member, SpaceSettings } from '@/types/spaces';
@@ -403,5 +404,30 @@ export const spacesService = {
 
   async revokeInviteLink(spaceId: string, inviteId: string): Promise<void> {
     return accessControlService.revokeInviteLink(spaceId, inviteId);
+  },
+
+  async getPublicSpaces(): Promise<SpaceFrontend[]> {
+    const spacesRef = collection(db, 'spaces');
+    const spacesQuery = query(
+      spacesRef,
+      where('isPublic', '==', true),
+      orderBy('metadata.memberCount', 'desc'),
+      limit(6)
+    );
+    
+    const spaceDocs = await getDocs(spacesQuery);
+    const spaces: SpaceFrontend[] = [];
+
+    for (const spaceDoc of spaceDocs.docs) {
+      const data = spaceDoc.data();
+      spaces.push({
+        id: spaceDoc.id,
+        ...data,
+        createdAt: (data.createdAt as Timestamp).toDate(),
+        updatedAt: (data.updatedAt as Timestamp).toDate()
+      } as SpaceFrontend);
+    }
+
+    return spaces;
   }
 }; 
