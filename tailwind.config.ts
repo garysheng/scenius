@@ -9,6 +9,19 @@ export default {
   ],
   theme: {
   	extend: {
+  		keyframes: {
+  			'gradient-x': {
+  				'0%, 100%': {
+  					'background-position': '200% 0',
+  				},
+  				'50%': {
+  					'background-position': '0% 0',
+  				},
+  			},
+  		},
+  		animation: {
+  			'gradient-x': 'gradient-x 15s ease infinite',
+  		},
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',

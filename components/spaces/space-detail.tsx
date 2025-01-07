@@ -25,8 +25,9 @@ import { MessageList } from '@/components/messages/message-list';
 import { VoiceRecorder } from '@/components/messages/voice-recorder';
 import { MemberList } from '@/components/spaces/member-list';
 import { UserStatusMenu } from '@/components/user/user-status-menu';
-import { SpaceSettingsDialog } from '@/components/spaces/space-settings-dialog';
 import { SpaceActionMenu } from './space-action-menu';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface SpaceDetailProps {
   id: string;
@@ -44,6 +45,29 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
   const [isSending, setIsSending] = useState(false);
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+
+  // Load and select first channel
+  useEffect(() => {
+    const loadFirstChannel = async () => {
+      try {
+        const channelsRef = collection(db, 'spaces', id, 'channels');
+        const q = query(channelsRef, orderBy('createdAt', 'asc'));
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+          const firstChannel = snapshot.docs[0].data() as ChannelFrontend;
+          firstChannel.id = snapshot.docs[0].id;
+          setSelectedChannel(firstChannel);
+        }
+      } catch (err) {
+        console.error('Failed to load first channel:', err);
+      }
+    };
+
+    if (space && !selectedChannel) {
+      loadFirstChannel();
+    }
+  }, [id, space, selectedChannel]);
 
   // Subscribe to messages when channel changes
   useEffect(() => {
@@ -270,11 +294,6 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
               <MemberList spaceId={space.id} />
             </div>
           </nav>
-
-          {/* Space Settings */}
-          <div className="p-3 border-t border-border/50">
-            <SpaceSettingsDialog space={space} />
-          </div>
 
           {/* User Status Menu */}
           <div className="border-t border-border/50">

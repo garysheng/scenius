@@ -1,10 +1,17 @@
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User, UserFrontend } from '@/types';
+
+interface UpdateUserData {
+  username?: string;
+  fullName?: string;
+  avatarUrl?: string;
+}
 
 interface UserService {
   getUser(userId: string): Promise<UserFrontend>;
   getUsers(userIds: string[]): Promise<Record<string, UserFrontend>>;
+  updateUser(userId: string, data: UpdateUserData): Promise<void>;
 }
 
 export const usersService: UserService = {
@@ -45,5 +52,13 @@ export const usersService: UserService = {
     );
 
     return users;
+  },
+
+  async updateUser(userId: string, data: UpdateUserData): Promise<void> {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      ...data,
+      updatedAt: serverTimestamp()
+    });
   }
 }; 

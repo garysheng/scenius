@@ -53,7 +53,10 @@ export function MessageItem({ message, user }: MessageItemProps) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="font-medium text-foreground">
-            {user?.username || user?.fullName || 'Unknown User'}
+            {user?.fullName || user?.username || 'Unknown User'}
+            {user?.fullName && user?.username && (
+              <span className="text-muted-foreground text-xs ml-1">@{user.username}</span>
+            )}
           </span>
           <span className="text-xs text-muted-foreground">
             {message.createdAt.toLocaleTimeString([], {

@@ -1,22 +1,55 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { User } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { User, Pencil, Check, X } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/use-auth';
+import { usersService } from '@/lib/services/client/users';
 
 export default function ProfilePage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const [isEditing, setIsEditing] = useState(false);
+  const [displayName, setDisplayName] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      setDisplayName(user.fullName || '');
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push('/signin');
     }
   }, [isLoading, isAuthenticated, router]);
+
+  const handleUpdateDisplayName = async () => {
+    if (!user || !displayName.trim() || isUpdating) return;
+
+    try {
+      setIsUpdating(true);
+      setError(null);
+      await usersService.updateUser(user.id, { fullName: displayName.trim() });
+      setIsEditing(false);
+      router.refresh();
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Failed to update display name');
+      }
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -66,9 +99,60 @@ export default function ProfilePage() {
                   )}
                 </div>
                 
-                <h1 className="mt-6 text-2xl font-semibold bg-gradient-to-r from-[hsl(var(--text-primary))] to-[hsl(var(--accent-nebula))] bg-clip-text text-transparent">
-                  {user.username || user.fullName}
-                </h1>
+                <div className="mt-6 space-y-4">
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="displayName" className="text-[hsl(var(--text-primary))]">Display Name</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="displayName"
+                          value={displayName}
+                          onChange={(e) => setDisplayName(e.target.value)}
+                          className="cosmic-input"
+                          placeholder="Enter your display name"
+                          disabled={isUpdating}
+                        />
+                        <Button
+                          size="icon"
+                          onClick={handleUpdateDisplayName}
+                          disabled={isUpdating || !displayName.trim()}
+                          className="shrink-0"
+                        >
+                          <Check className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setIsEditing(false);
+                            setDisplayName(user.fullName || '');
+                          }}
+                          disabled={isUpdating}
+                          className="shrink-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      {error && (
+                        <p className="text-xs text-[hsl(var(--destructive))]">{error}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <h1 className="text-2xl font-semibold bg-gradient-to-r from-[hsl(var(--text-primary))] to-[hsl(var(--accent-nebula))] bg-clip-text text-transparent">
+                        {user.fullName || user.username}
+                      </h1>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setIsEditing(true)}
+                        className="h-8 w-8"
+                      >
+                        <Pencil className="w-4 h-4 text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 
                 <p className="text-[hsl(var(--text-secondary))] mt-2">
                   {user.email}
@@ -78,7 +162,7 @@ export default function ProfilePage() {
                   <Button 
                     asChild 
                     variant="outline" 
-                    className="w-full hover:text-[hsl(var(--destructive))] hover:border-[hsl(var(--destructive))] transition-colors"
+                    className="w-full text-[hsl(var(--text-primary))] hover:text-[hsl(var(--destructive))] hover:border-[hsl(var(--destructive))] transition-colors"
                   >
                     <Link href="/signout">Sign Out</Link>
                   </Button>

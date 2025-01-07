@@ -191,10 +191,9 @@ export function SpaceSettingsDialog({
       {!controlledOpen && (
         <DialogTrigger asChild>
           {trigger || (
-            <div className="flex items-center gap-2 text-sm text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))] transition-colors cursor-pointer">
+            <Button variant="ghost" size="icon" className="w-8 h-8">
               <Settings className="w-4 h-4" />
-              <span>Space Settings</span>
-            </div>
+            </Button>
           )}
         </DialogTrigger>
       )}

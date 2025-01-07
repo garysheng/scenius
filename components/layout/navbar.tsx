@@ -10,12 +10,14 @@ export function Navbar() {
   const { isAuthenticated, isLoading, user } = useAuth();
 
   return (
-    <nav className="h-14 border-b border-[hsl(var(--border-dim))] bg-black/90 backdrop-blur supports-[backdrop-filter]:bg-black/80 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
+    <nav className="h-14 border-b border-[hsl(var(--border-dim))] bg-[#7C3AED] backdrop-blur supports-[backdrop-filter]:bg-[#7C3AED] sticky top-0 z-50 relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-r from-[#7C3AED]/80 via-[#9D5BF0]/60 to-[#7C3AED]/80 animate-gradient-x" />
+      <div className="absolute inset-0 bg-[#7C3AED] mix-blend-overlay opacity-50" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between relative z-10">
         {/* Logo/Brand - Always visible */}
         <Link 
           href="/" 
-          className="font-semibold text-xl bg-gradient-to-r from-[hsl(var(--text-primary))] to-[hsl(var(--accent-nebula))] bg-clip-text text-transparent hover:to-[hsl(var(--accent-aurora))] transition-all duration-300"
+          className="font-semibold text-xl text-[hsl(var(--text-primary))] hover:text-[hsl(var(--text-primary))/90] transition-colors"
         >
           Scenius
         </Link>
@@ -29,7 +31,7 @@ export function Navbar() {
               <Button 
                 variant="ghost" 
                 asChild 
-                className="text-[hsl(var(--text-primary))] hover:text-[hsl(var(--text-primary))] hover:bg-[hsl(var(--elevation-2))]"
+                className="text-[hsl(var(--text-primary))] hover:text-[hsl(var(--text-primary))] hover:bg-[#8B4EF5]"
               >
                 <Link href="/spaces">Spaces</Link>
               </Button>
@@ -64,13 +66,13 @@ export function Navbar() {
               <Button 
                 variant="ghost" 
                 asChild 
-                className="text-[hsl(var(--text-primary))] hover:text-[hsl(var(--text-primary))] hover:bg-[hsl(var(--elevation-2))]"
+                className="text-[hsl(var(--text-primary))] hover:text-[hsl(var(--text-primary))] hover:bg-[#8B4EF5]"
               >
                 <Link href="/signin">Sign In</Link>
               </Button>
               <Button 
                 asChild 
-                className="bg-gradient-to-r from-[hsl(var(--human-primary))] to-[hsl(var(--human-secondary))] text-[hsl(var(--text-primary))] hover:from-[hsl(var(--human-primary))] hover:to-[hsl(var(--accent-aurora))] transition-all duration-300"
+                className="bg-[hsl(var(--text-primary))] text-[#7C3AED] hover:bg-[hsl(var(--text-primary))/90] transition-all duration-300"
               >
                 <Link href="/signup">Sign Up</Link>
               </Button>

@@ -116,13 +116,18 @@ export function MemberList({ spaceId }: MemberListProps) {
                       </div>
                     </div>
                     <span className="text-sm font-medium text-foreground group-hover:text-foreground/80">
-                      {user.username || user.fullName || 'Unknown User'}
+                      {user.fullName || user.username || 'Unknown User'}
                     </span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="right" align="center">
                   <div className="text-xs">
-                    <p className="font-medium">{user.username || user.fullName}</p>
+                    <p className="font-medium">
+                      {user.fullName || user.username}
+                      {user.fullName && user.username && (
+                        <span className="text-muted-foreground ml-1">@{user.username}</span>
+                      )}
+                    </p>
                     {userPresence?.customStatus && (
                       <p className="text-muted-foreground mt-1">{userPresence.customStatus}</p>
                     )}

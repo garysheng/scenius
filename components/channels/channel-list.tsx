@@ -70,22 +70,42 @@ export function ChannelList({ spaceId, selectedChannel, onChannelSelect }: Chann
 
   return (
     <div className="space-y-1">
-      {channels.map((channel) => (
-        <button
-          key={channel.id}
-          className={cn(
-            "w-full text-left px-2 py-1 rounded hover:bg-[hsl(var(--card-hover))] transition-colors",
-            "flex items-center gap-2",
-            selectedChannel?.id === channel.id && "bg-[hsl(var(--card-hover))]"
-          )}
-          onClick={() => onChannelSelect(channel)}
-        >
-          <Hash className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm truncate text-foreground">
-            {channel.name}
-          </span>
-        </button>
-      ))}
+      {channels.map((channel) => {
+        const isSelected = selectedChannel?.id === channel.id;
+        return (
+          <button
+            key={channel.id}
+            className={cn(
+              "w-full text-left px-2 py-1.5 rounded-md transition-all duration-200",
+              "flex items-center gap-2 group relative",
+              isSelected ? [
+                "bg-[hsl(var(--accent))/0.1",
+                "hover:bg-[hsl(var(--accent))/0.15]",
+                "text-[hsl(var(--accent))]"
+              ] : [
+                "hover:bg-[hsl(var(--card-hover))]",
+                "text-[hsl(var(--text-secondary))]",
+                "hover:text-[hsl(var(--text-primary))]"
+              ]
+            )}
+            onClick={() => onChannelSelect(channel)}
+          >
+            {isSelected && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-[hsl(var(--accent))] rounded-full" />
+            )}
+            <Hash className={cn(
+              "w-4 h-4",
+              isSelected ? "text-[hsl(var(--accent))]" : "text-[hsl(var(--text-secondary))] group-hover:text-[hsl(var(--text-primary))]"
+            )} />
+            <span className={cn(
+              "text-sm font-medium truncate transition-colors",
+              isSelected ? "text-[hsl(var(--accent))]" : "text-[hsl(var(--text-secondary))] group-hover:text-[hsl(var(--text-primary))]"
+            )}>
+              {channel.name}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 } 

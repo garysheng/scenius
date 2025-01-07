@@ -95,6 +95,11 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
         space={space} 
         open={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
+        trigger={
+          <div className="flex items-center gap-2 text-sm text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))] transition-colors cursor-pointer">
+            <Settings className="w-4 h-4" />
+          </div>
+        }
       />
 
       <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
