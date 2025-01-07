@@ -149,6 +149,7 @@ export function UserStatusMenu() {
                   alt={user.username || 'User avatar'}
                   width={32}
                   height={32}
+                  sizes="32px"
                   className="relative rounded-full ring-1 ring-[hsl(var(--border-dim))] group-hover:ring-[hsl(var(--border-glow))] transition-all duration-300"
                 />
               </div>

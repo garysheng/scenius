@@ -11,38 +11,67 @@ export const messagesService = {
     content: string, 
     userId: string,
     attachments?: FileAttachment[]
-  ) {
-    const messagesRef = collection(db, 'spaces', spaceId, 'channels', channelId, 'messages');
-    const channelRef = doc(db, 'spaces', spaceId, 'channels', channelId);
+  ): Promise<MessageFrontend> {
+    console.log('MessagesService - Starting sendMessage:', { spaceId, channelId, content, userId });
     
-    // Create message with attachments
-    await addDoc(messagesRef, {
-      content,
-      userId,
-      channelId,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      type: 'TEXT',
-      metadata: {
-        reactions: {},
-        edited: false,
-        attachments: attachments?.map(a => ({
-          fileUrl: a.fileUrl,
-          fileName: a.fileName,
-          fileSize: a.fileSize,
-          mimeType: a.mimeType,
-          thumbnailUrl: a.thumbnailUrl
-        })) || [],
-        status: 'sent'
-      }
-    });
+    try {
+      // Analyze message content
+      console.log('MessagesService - About to analyze message');
+      const semanticTags = await messageAnalysisService.analyzeMessage(content);
+      console.log('MessagesService - Semantic tags:', semanticTags);
 
-    // Update channel metadata
-    await updateDoc(channelRef, {
-      'metadata.lastMessageAt': serverTimestamp(),
-      'metadata.messageCount': increment(1),
-      'metadata.lastMessageSenderId': userId
-    });
+      const messagesRef = collection(db, 'spaces', spaceId, 'channels', channelId, 'messages');
+      const channelRef = doc(db, 'spaces', spaceId, 'channels', channelId);
+      
+      // Create message with attachments and semantic tags
+      const messageData = {
+        content,
+        userId,
+        channelId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        type: 'TEXT',
+        metadata: {
+          reactions: {},
+          edited: false,
+          attachments: attachments?.map(a => ({
+            id: a.id,
+            fileUrl: a.fileUrl,
+            fileName: a.fileName,
+            fileSize: a.fileSize,
+            mimeType: a.mimeType,
+            thumbnailUrl: a.thumbnailUrl,
+            uploadStatus: 'complete' as const,
+            uploadProgress: 100
+          })) || [],
+          semanticTags,
+          status: 'sent'
+        }
+      };
+
+      console.log('MessagesService - Creating message with data:', messageData);
+      const messageRef = await addDoc(messagesRef, messageData);
+
+      // Update channel metadata
+      console.log('MessagesService - Updating channel metadata');
+      await updateDoc(channelRef, {
+        'metadata.lastMessageAt': serverTimestamp(),
+        'metadata.messageCount': increment(1),
+        'metadata.lastMessageSenderId': userId
+      });
+
+      console.log('MessagesService - Message sent successfully');
+      
+      return {
+        id: messageRef.id,
+        ...messageData,
+        createdAt: Timestamp.now().toDate(),
+        updatedAt: Timestamp.now().toDate()
+      } as MessageFrontend;
+    } catch (error) {
+      console.error('MessagesService - Failed to send message:', error);
+      throw error;
+    }
   },
 
   async sendVoiceMessage(spaceId: string, channelId: string, audioBlob: Blob, userId: string, transcription: string) {
@@ -267,51 +296,6 @@ export const messagesService = {
       });
     } catch (error) {
       console.error('Error editing message:', error);
-      throw error;
-    }
-  },
-
-  async createMessage(spaceId: string, channelId: string, userId: string, content: string): Promise<MessageFrontend> {
-    try {
-      // Analyze message content
-      const semanticTags = await messageAnalysisService.analyzeMessage(content);
-
-      // Create message document
-      const messagesRef = collection(db, 'spaces', spaceId, 'channels', channelId, 'messages');
-      const messageData = {
-        channelId,
-        userId,
-        content,
-        type: 'TEXT',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        metadata: {
-          reactions: {},
-          edited: false,
-          attachments: [],
-          semanticTags,
-          status: 'sent'
-        }
-      };
-
-      const messageRef = await addDoc(messagesRef, messageData);
-
-      // Update channel's last message info
-      const channelRef = doc(db, 'spaces', spaceId, 'channels', channelId);
-      await updateDoc(channelRef, {
-        'metadata.lastMessageAt': serverTimestamp(),
-        'metadata.lastMessageSenderId': userId,
-        'metadata.messageCount': increment(1)
-      });
-
-      return {
-        id: messageRef.id,
-        ...messageData,
-        createdAt: Timestamp.now().toDate(),
-        updatedAt: Timestamp.now().toDate()
-      } as MessageFrontend;
-    } catch (error) {
-      console.error('Failed to create message:', error);
       throw error;
     }
   },

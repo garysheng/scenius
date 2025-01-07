@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useAccessControl } from '@/lib/hooks/use-access-control';
-import { Role, Permission, SpaceAccess } from '@/types/access-control';
+import { SpaceAccess } from '@/types/access-control';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
+import {
   CheckCircle2,
   XCircle,
   Plus,
@@ -40,7 +40,6 @@ export function AccessControlSettings({ spaceId }: AccessControlSettingsProps) {
     createInviteLink,
     revokeInviteLink,
     createRole,
-    updatePermissions
   } = useAccessControl({ spaceId });
 
   const [newEmail, setNewEmail] = useState('');
@@ -50,7 +49,6 @@ export function AccessControlSettings({ spaceId }: AccessControlSettingsProps) {
   const [inviteExpiry, setInviteExpiry] = useState<string>('');
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleColor, setNewRoleColor] = useState('#99AAB5');
-  const [permissionsModalOpen, setPermissionsModalOpen] = useState(false);
 
   if (loading) {
     return <div>Loading access control settings...</div>;
@@ -93,7 +91,7 @@ export function AccessControlSettings({ spaceId }: AccessControlSettingsProps) {
 
   const handleAddDomain = async () => {
     if (!newDomain) return;
-    
+
     const domain = {
       domain: newDomain.toLowerCase(),
       verified: false,
@@ -106,7 +104,7 @@ export function AccessControlSettings({ spaceId }: AccessControlSettingsProps) {
         domains: [...(accessConfig?.domains?.domains || []), domain]
       }
     });
-    
+
     setNewDomain('');
   };
 
@@ -116,7 +114,7 @@ export function AccessControlSettings({ spaceId }: AccessControlSettingsProps) {
       maxUses: inviteMaxUses || undefined,
       expiresAt: inviteExpiry ? new Date(inviteExpiry) : undefined
     });
-    
+
     // Reset form
     setInviteRole('member');
     setInviteMaxUses(null);

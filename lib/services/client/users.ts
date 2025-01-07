@@ -28,9 +28,19 @@ export const usersService: UserService = {
     return {
       ...userData,
       id: userDoc.id,
-      lastSeen: userData.lastSeen.toDate(),
-      createdAt: userData.createdAt.toDate(),
-      updatedAt: userData.updatedAt.toDate()
+      lastSeen: userData.lastSeen?.toDate() || new Date(),
+      createdAt: userData.createdAt?.toDate() || new Date(),
+      updatedAt: userData.updatedAt?.toDate() || new Date(),
+      email: userData.email || '',
+      username: userData.username || '',
+      fullName: userData.fullName || '',
+      avatarUrl: userData.avatarUrl || null,
+      status: userData.status || 'offline',
+      preferences: userData.preferences || {
+        notifications: true,
+        theme: 'dark',
+        language: 'en'
+      }
     };
   },
 
@@ -79,9 +89,19 @@ export const usersService: UserService = {
       users[doc.id] = {
         ...userData,
         id: doc.id,
-        lastSeen: userData.lastSeen.toDate(),
-        createdAt: userData.createdAt.toDate(),
-        updatedAt: userData.updatedAt.toDate()
+        lastSeen: userData.lastSeen?.toDate() || new Date(),
+        createdAt: userData.createdAt?.toDate() || new Date(),
+        updatedAt: userData.updatedAt?.toDate() || new Date(),
+        email: userData.email || '',
+        username: userData.username || '',
+        fullName: userData.fullName || '',
+        avatarUrl: userData.avatarUrl || null,
+        status: userData.status || 'offline',
+        preferences: userData.preferences || {
+          notifications: true,
+          theme: 'dark',
+          language: 'en'
+        }
       };
     });
 
