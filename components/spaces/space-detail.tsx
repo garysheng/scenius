@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Plus,
   Hash,
+  Bot
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MessageInput } from '@/components/messages/message-input';
@@ -26,6 +27,8 @@ import { db } from '@/lib/firebase';
 import { channelsService } from '@/lib/services/client/channels';
 import { cn } from '@/lib/utils';
 import { ThreadView } from '@/components/messages/thread-view';
+import { SceniePanel } from './scenie-panel';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 
 interface SpaceDetailProps {
   id: string;
@@ -49,6 +52,15 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
     user: UserFrontend | null;
   } | null>(null);
   const [userRole, setUserRole] = useState<'owner' | 'admin' | 'member' | null>(null);
+  const [activeTab, setActiveTab] = useState<'chat' | 'scenie'>('chat');
+
+  const getChannelDisplayName = useCallback((channel: ChannelFrontend) => {
+    if (channel.kind === 'DM' && user) {
+      const otherParticipant = channel.metadata.participants?.find(p => p.id !== user.id);
+      return otherParticipant?.fullName || otherParticipant?.username || 'Unknown User';
+    }
+    return channel.name;
+  }, [user]);
 
   // Load channels
   useEffect(() => {
@@ -395,24 +407,51 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                 {/* Main Channel Content */}
                 <div className="flex-1 flex flex-col overflow-hidden">
                   {/* Channel Header */}
-                  <div className="h-12 border-b border-border/50 flex items-center px-4">
-                    <div className="flex items-center gap-2">
-                      <Hash className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-medium text-foreground">{selectedChannel.name}</span>
+                  <div className="h-12 border-b border-border/50 flex items-center px-4 gap-4">
+                    <div 
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer transition-colors",
+                        activeTab === 'chat' ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                      )}
+                      onClick={() => setActiveTab('chat')}
+                    >
+                      <Hash className="w-4 h-4" />
+                      <span className="font-medium">{getChannelDisplayName(selectedChannel)}</span>
+                    </div>
+                    <div 
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer transition-colors",
+                        activeTab === 'scenie' ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                      )}
+                      onClick={() => setActiveTab('scenie')}
+                    >
+                      <Bot className="w-4 h-4" />
+                      <span className="font-medium">Scenie</span>
                     </div>
                   </div>
 
                   {/* Channel Content */}
-                  <div className="flex-1 overflow-y-auto p-4">
-                    <MessageList 
-                      messages={messages} 
-                      users={users} 
-                      spaceId={id}
-                      onChannelSelect={handleChannelSelect}
-                      onThreadOpen={handleThreadOpen}
-                      isThread={false}
-                      spaceRole={userRole || undefined}
-                    />
+                  <div className="flex-1 overflow-y-auto">
+                    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'chat' | 'scenie')} className="h-full">
+                      <TabsContent value="chat" className="p-4 h-full">
+                        <MessageList 
+                          messages={messages} 
+                          users={users} 
+                          spaceId={id}
+                          onChannelSelect={handleChannelSelect}
+                          onThreadOpen={handleThreadOpen}
+                          isThread={false}
+                          spaceRole={userRole || undefined}
+                        />
+                      </TabsContent>
+                      <TabsContent value="scenie" className="h-full">
+                        <SceniePanel
+                          spaceId={id}
+                          channelId={selectedChannel.id}
+                          messages={messages}
+                        />
+                      </TabsContent>
+                    </Tabs>
                   </div>
 
                   {/* Chat Input */}
@@ -420,7 +459,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                     <MessageInput 
                       placeholder={
                         selectedChannel.kind === 'DM' 
-                          ? `Message ${selectedChannel.metadata.participants?.[0]?.fullName || selectedChannel.metadata.participants?.[0]?.username || 'User'}`
+                          ? `Message ${getChannelDisplayName(selectedChannel)}`
                           : `Message #${selectedChannel.name}`
                       }
                       onSendMessage={handleSendMessage}

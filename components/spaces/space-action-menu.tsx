@@ -8,7 +8,13 @@ import {
   Search,
   MessageSquare,
   File,
-  Hash
+  Hash,
+  Calendar,
+  Volume2,
+  Loader2,
+  Sparkles,
+  Cog,
+  Tag
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,13 +27,17 @@ import {
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SpaceFrontend } from '@/types';
+import { ChatSummary, VoiceDictation } from '@/types/scenie';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { spacesService } from '@/lib/services/client/spaces';
 import { searchService, SearchResult } from '@/lib/services/client/search';
+import { scenieService } from '@/lib/services/client/scenie';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import debounce from 'lodash/debounce';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
 
 interface SpaceActionMenuProps {
   space: SpaceFrontend;
@@ -42,6 +52,10 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [isGeneratingVoice, setIsGeneratingVoice] = useState(false);
+  const [summary, setSummary] = useState<ChatSummary | null>(null);
+  const [voiceDictation, setVoiceDictation] = useState<VoiceDictation | null>(null);
 
   const debouncedSearch = useCallback(
     debounce(async (query: string) => {
@@ -99,6 +113,37 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
     }
   };
 
+  const handleGenerateSummary = async () => {
+    if (!user) return;
+    
+    setIsGeneratingSummary(true);
+    try {
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+      
+      const summary = await scenieService.generateChannelSummary(space.id, 'all', startTime, endTime);
+      setSummary(summary);
+    } catch (error) {
+      console.error('Failed to generate summary:', error);
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
+
+  const handleGenerateVoice = async () => {
+    if (!user) return;
+    
+    setIsGeneratingVoice(true);
+    try {
+      const dictation = await scenieService.generateSpaceVoiceDictation(space.id);
+      setVoiceDictation(dictation);
+    } catch (error) {
+      console.error('Failed to generate voice dictation:', error);
+    } finally {
+      setIsGeneratingVoice(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <Button variant="ghost" size="icon" onClick={() => setIsOpen(true)}>
@@ -114,9 +159,19 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
         </DialogHeader>
 
         <Tabs defaultValue="search" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="search">Search</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="search" className="flex items-center gap-2">
+              <Search className="w-4 h-4" />
+              Search
+            </TabsTrigger>
+            <TabsTrigger value="scenie" className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              Scenie
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Cog className="w-4 h-4" />
+              Settings
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="search" className="space-y-4">
@@ -172,6 +227,108 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
                     ))}
                   </div>
                 ) : null}
+              </ScrollArea>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="scenie" className="space-y-4">
+            <div className="space-y-4">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-medium">Space Summary</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Get a summary of all activity across the space
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="gap-2"
+                    onClick={handleGenerateSummary}
+                    disabled={isGeneratingSummary}
+                  >
+                    {isGeneratingSummary ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Calendar className="w-4 h-4" />
+                    )}
+                    {isGeneratingSummary ? 'Generating...' : 'Generate Summary'}
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-medium">Voice Dictation</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Convert space activity into voice narration
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="gap-2"
+                    onClick={handleGenerateVoice}
+                    disabled={isGeneratingVoice}
+                  >
+                    {isGeneratingVoice ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Volume2 className="w-4 h-4" />
+                    )}
+                    {isGeneratingVoice ? 'Generating...' : 'Generate Voice'}
+                  </Button>
+                </div>
+              </div>
+
+              <ScrollArea className="h-[300px]">
+                <div className="space-y-4 p-2">
+                  {!summary && !voiceDictation ? (
+                    <div className="text-center text-sm text-muted-foreground py-8">
+                      Select an action above to get started
+                    </div>
+                  ) : (
+                    <>
+                      {summary && (
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-medium flex items-center gap-2">
+                            <Calendar className="w-4 h-4" />
+                            Summary for {format(summary.startTime.toDate(), 'MMM d, yyyy')}
+                          </h4>
+                          <div className="text-sm text-muted-foreground space-y-2">
+                            <p>{summary.summary}</p>
+                            {summary.topics.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {summary.topics.map((topic: string, i: number) => (
+                                  <Badge key={i} variant="secondary" className="flex items-center gap-1">
+                                    <Tag className="w-3 h-3" />
+                                    {topic}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {voiceDictation && (
+                        <div className="space-y-2 mt-4">
+                          <h4 className="text-sm font-medium flex items-center gap-2">
+                            <Volume2 className="w-4 h-4" />
+                            Voice Dictation
+                          </h4>
+                          {voiceDictation.audioUrl && (
+                            <audio 
+                              controls 
+                              src={voiceDictation.audioUrl} 
+                              className="w-full"
+                            />
+                          )}
+                          <p className="text-sm text-muted-foreground">
+                            {voiceDictation.content}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               </ScrollArea>
             </div>
           </TabsContent>
