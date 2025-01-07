@@ -410,7 +410,7 @@ export const spacesService = {
     const spacesRef = collection(db, 'spaces');
     const spacesQuery = query(
       spacesRef,
-      where('isPublic', '==', true),
+      where('settings.isPublic', '==', true),
       orderBy('metadata.memberCount', 'desc'),
       limit(6)
     );

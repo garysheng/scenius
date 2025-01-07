@@ -18,11 +18,6 @@ export default function SpacesPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/signin');
-      return;
-    }
-
     const loadSpaces = async () => {
       try {
         const [userSpaces, publicSpacesList] = await Promise.all([
@@ -42,7 +37,13 @@ export default function SpacesPage() {
       }
     };
 
-    loadSpaces();
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        router.push('/signin');
+      } else {
+        loadSpaces();
+      }
+    }
   }, [isAuthenticated, authLoading, router]);
 
   const handleCreateSpace = () => {
@@ -68,7 +69,7 @@ export default function SpacesPage() {
   }
 
   if (!isAuthenticated) {
-    return null; // Will redirect in useEffect
+    return null;
   }
 
   return (

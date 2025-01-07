@@ -7,7 +7,9 @@ import {
   ChevronDown,
   Plus,
   Hash,
-  Bot
+  Bot,
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MessageInput } from '@/components/messages/message-input';
@@ -53,6 +55,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
   } | null>(null);
   const [userRole, setUserRole] = useState<'owner' | 'admin' | 'member' | null>(null);
   const [activeTab, setActiveTab] = useState<'chat' | 'scenie'>('chat');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const getChannelDisplayName = useCallback((channel: ChannelFrontend) => {
     if (channel.kind === 'DM' && user) {
@@ -185,10 +188,24 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Handler for direct channel selection (used by ChannelList and MemberList)
+  const handleDirectChannelSelect = (channel: ChannelFrontend) => {
+    setSelectedChannel(channel);
+    // Close sidebar on mobile after selection
+    if (window.innerWidth <= 768) {
+      setIsSidebarOpen(false);
+    }
+  };
+
+  // Handler for channel ID selection (used by MessageList)
   const handleChannelSelect = async (channelId: string) => {
     try {
       const channel = await channelsService.getChannel(id, channelId);
       setSelectedChannel(channel);
+      // Close sidebar on mobile after selection
+      if (window.innerWidth <= 768) {
+        setIsSidebarOpen(false);
+      }
     } catch (error) {
       console.error('Failed to load channel:', error);
     }
@@ -251,6 +268,23 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
     }
   }, [channelData]);
 
+  // Add useEffect to handle initial mobile state
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 768) {
+        setIsSidebarOpen(true);
+      } else {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    // Set initial state
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   if (authLoading || isLoading) {
     return (
       <main className="min-h-screen cosmic-bg">
@@ -300,12 +334,31 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
 
   return (
     <main className="min-h-[calc(100vh-3.5rem)] relative overflow-hidden">
-      {/* Add subtle gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--background-dark))] via-[hsl(var(--background))] to-[hsl(var(--background-light))]" />
       
       <div className="flex h-[calc(100vh-3.5rem)] relative z-10">
-        {/* Sidebar - Add subtle glow effect */}
-        <div className="w-64 relative group">
+        {/* Mobile Sidebar Toggle */}
+        <button
+          className="md:hidden fixed left-0 top-1/2 -translate-y-1/2 z-50 bg-primary/80 hover:bg-primary text-white p-1 rounded-r-md"
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        >
+          <ChevronRight className={cn(
+            "w-4 h-4 transition-transform duration-200",
+            isSidebarOpen && "rotate-180"
+          )} />
+        </button>
+
+        {/* Sidebar */}
+        <div className={cn(
+          "w-64 relative group transition-transform duration-200 ease-in-out",
+          "fixed md:relative h-full z-40",
+          !isSidebarOpen && "-translate-x-full md:translate-x-0",
+          // Only show border and glow on mobile when sidebar is open
+          isSidebarOpen && [
+            "md:border-r-0 md:shadow-none", // Remove on desktop
+            "border-r border-white/50 shadow-[1px_0_10px_0_rgba(255,255,255,0.3)]" // Show on mobile
+          ]
+        )}>
           <div className="absolute -inset-[1px] bg-gradient-to-b from-[hsl(var(--ai-primary))/10] to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 blur-sm" />
           <div className="cosmic-card h-full flex flex-col relative">
             {/* Space Header */}
@@ -326,7 +379,15 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                   {space.name}
                 </h1>
               </div>
-              <SpaceActionMenu space={space} />
+              <div className="flex items-center gap-2">
+                <SpaceActionMenu space={space} />
+                <button
+                  className="md:hidden text-muted-foreground hover:text-foreground"
+                  onClick={() => setIsSidebarOpen(false)}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Navigation */}
@@ -362,7 +423,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                   <ChannelList 
                     spaceId={space.id} 
                     selectedChannel={selectedChannel}
-                    onChannelSelect={setSelectedChannel}
+                    onChannelSelect={handleDirectChannelSelect}
                   />
                 )}
               </div>
@@ -385,7 +446,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                   <MemberList 
                     spaceId={id} 
                     selectedChannel={selectedChannel}
-                    onChannelSelect={setSelectedChannel}
+                    onChannelSelect={handleDirectChannelSelect}
                   />
                 )}
               </div>
@@ -398,105 +459,114 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
           </div>
         </div>
 
-        {/* Main Content - Add subtle glow effect */}
-        <div className="flex-1 relative group ml-[1px]">
-          <div className="absolute -inset-[1px] bg-gradient-to-br from-[hsl(var(--ai-secondary))/10] to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 blur-sm" />
-          <div className="cosmic-card h-full flex flex-col relative overflow-hidden">
-            {selectedChannel ? (
-              <div className="flex flex-1 overflow-hidden">
-                {/* Main Channel Content */}
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  {/* Channel Header */}
-                  <div className="h-12 border-b border-border/50 flex items-center px-4 gap-4">
-                    <div 
-                      className={cn(
-                        "flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer transition-colors",
-                        activeTab === 'chat' ? "bg-primary/60 text-white" : "hover:bg-primary/30"
-                      )}
-                      onClick={() => setActiveTab('chat')}
-                    >
-                      <Hash className="w-4 h-4" />
-                      <span className="font-medium">{getChannelDisplayName(selectedChannel)}</span>
-                    </div>
-                    <div 
-                      className={cn(
-                        "flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer transition-colors",
-                        activeTab === 'scenie' ? "bg-primary/60 text-white" : "hover:bg-primary/30"
-                      )}
-                      onClick={() => setActiveTab('scenie')}
-                    >
-                      <Bot className="w-4 h-4" />
-                      <span className="font-medium">Scenie</span>
-                    </div>
-                  </div>
+        {/* Overlay for mobile */}
+        {isSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
 
-                  {/* Channel Content */}
-                  <div className="flex-1 overflow-y-auto">
-                    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'chat' | 'scenie')} className="h-full">
-                      <TabsContent value="chat" className="p-4 h-full">
-                        <MessageList 
-                          messages={messages} 
-                          users={users} 
-                          spaceId={id}
-                          onChannelSelect={handleChannelSelect}
-                          onThreadOpen={handleThreadOpen}
-                          isThread={false}
-                          spaceRole={userRole || undefined}
-                        />
-                      </TabsContent>
-                      <TabsContent value="scenie" className="h-full">
-                        <SceniePanel
-                          spaceId={id}
-                          channelId={selectedChannel.id}
-                          messages={messages}
-                        />
-                      </TabsContent>
-                    </Tabs>
+        {/* Main Content */}
+        <div className={cn(
+          "flex-1 relative group",
+          "transition-[margin] duration-200 ease-in-out",
+          isSidebarOpen ? "md:ml-[1px]" : "ml-0"
+        )}>
+          {selectedChannel ? (
+            <div className="flex flex-1 overflow-hidden">
+              {/* Main Channel Content */}
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Channel Header */}
+                <div className="h-12 border-b border-border/50 flex items-center px-4 gap-4">
+                  <div 
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer transition-colors",
+                      activeTab === 'chat' ? "bg-primary/60 text-white" : "hover:bg-primary/30"
+                    )}
+                    onClick={() => setActiveTab('chat')}
+                  >
+                    <Hash className="w-4 h-4" />
+                    <span className="font-medium">{getChannelDisplayName(selectedChannel)}</span>
                   </div>
-
-                  {/* Chat Input */}
-                  <div className="p-4 border-t border-border/50">
-                    <MessageInput 
-                      placeholder={
-                        selectedChannel.kind === 'DM' 
-                          ? `Message ${getChannelDisplayName(selectedChannel)}`
-                          : `Message #${selectedChannel.name}`
-                      }
-                      onSendMessage={handleSendMessage}
-                      onSendVoiceMessage={handleSendVoiceMessage}
-                      spaceId={id}
-                      channelId={selectedChannel.id}
-                    />
+                  <div 
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer transition-colors",
+                      activeTab === 'scenie' ? "bg-primary/60 text-white" : "hover:bg-primary/30"
+                    )}
+                    onClick={() => setActiveTab('scenie')}
+                  >
+                    <Bot className="w-4 h-4" />
+                    <span className="font-medium">Scenie</span>
                   </div>
                 </div>
 
-                {/* Thread View */}
-                {activeThread && (
-                  <ThreadView
+                {/* Channel Content */}
+                <div className="flex-1 overflow-y-auto">
+                  <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'chat' | 'scenie')} className="h-full">
+                    <TabsContent value="chat" className="p-4 h-full">
+                      <MessageList 
+                        messages={messages} 
+                        users={users} 
+                        spaceId={id}
+                        onChannelSelect={handleChannelSelect}
+                        onThreadOpen={handleThreadOpen}
+                        isThread={false}
+                        spaceRole={userRole || undefined}
+                      />
+                    </TabsContent>
+                    <TabsContent value="scenie" className="h-full">
+                      <SceniePanel
+                        spaceId={id}
+                        channelId={selectedChannel.id}
+                        messages={messages}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </div>
+
+                {/* Chat Input */}
+                <div className="p-4 border-t border-border/50">
+                  <MessageInput 
+                    placeholder={
+                      selectedChannel.kind === 'DM' 
+                        ? `Message ${getChannelDisplayName(selectedChannel)}`
+                        : `Message #${selectedChannel.name}`
+                    }
+                    onSendMessage={handleSendMessage}
+                    onSendVoiceMessage={handleSendVoiceMessage}
                     spaceId={id}
                     channelId={selectedChannel.id}
-                    parentMessage={activeThread.message}
-                    parentUser={activeThread.user}
-                    onClose={handleThreadClose}
-                    spaceRole={userRole || undefined}
                   />
-                )}
-              </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center space-y-4">
-                  <h2 className="text-xl font-semibold text-foreground">Welcome to {space.name}!</h2>
-                  <p className="text-muted-foreground">
-                    {space.metadata.channelCount === 0 ? (
-                      <>Create your first channel to get started!</>
-                    ) : (
-                      <>Select a channel to start chatting</>
-                    )}
-                  </p>
                 </div>
               </div>
-            )}
-          </div>
+
+              {/* Thread View */}
+              {activeThread && (
+                <ThreadView
+                  spaceId={id}
+                  channelId={selectedChannel.id}
+                  parentMessage={activeThread.message}
+                  parentUser={activeThread.user}
+                  onClose={handleThreadClose}
+                  spaceRole={userRole || undefined}
+                />
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center space-y-4">
+                <h2 className="text-xl font-semibold text-foreground">Welcome to {space.name}!</h2>
+                <p className="text-muted-foreground">
+                  {space.metadata.channelCount === 0 ? (
+                    <>Create your first channel to get started!</>
+                  ) : (
+                    <>Select a channel to start chatting</>
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </main>
