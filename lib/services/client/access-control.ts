@@ -1,10 +1,10 @@
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  query, 
-  where, 
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  query,
+  where,
   serverTimestamp,
   Timestamp,
   updateDoc,
@@ -15,10 +15,10 @@ import {
   limit
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { 
-  SpaceAccess, 
-  InviteLink, 
-  Role, 
+import {
+  SpaceAccess,
+  InviteLink,
+  Role,
   Permission,
   PermissionType,
   ChannelRoleOverride
@@ -31,7 +31,22 @@ export const accessControlService = {
   async getSpaceAccess(spaceId: string): Promise<SpaceAccess | null> {
     const accessRef = doc(db, 'spaces', spaceId, 'access', 'config');
     const accessDoc = await getDoc(accessRef);
-    return accessDoc.exists() ? accessDoc.data() as SpaceAccess : null;
+    
+    if (!accessDoc.exists()) {
+      console.log('No access config found');
+      return null;
+    }
+    
+    const data = accessDoc.data();
+    console.log('Raw access config data:', JSON.stringify(data, null, 2));
+    
+    // Check if domains is nested and fix it
+    if (data.domains && typeof data.domains === 'object' && 'domains' in data.domains) {
+      console.log('Found nested domains structure, fixing it:', data.domains);
+      data.domains = data.domains.domains;
+    }
+    
+    return data as SpaceAccess;
   },
 
   async updateSpaceAccess(spaceId: string, access: Partial<SpaceAccess>): Promise<void> {
@@ -39,17 +54,15 @@ export const accessControlService = {
     const accessDoc = await getDoc(accessRef);
 
     if (!accessDoc.exists()) {
+      console.log('Creating initial access config');
       // Create initial access config if it doesn't exist
-      await setDoc(accessRef, {
+      const initialConfig = {
         spaceId,
         emailList: {
           enabled: false,
           emails: []
         },
-        domains: {
-          enabled: false,
-          domains: []
-        },
+        domains: [],
         inviteLinks: [],
         roleAssignment: {
           defaultRole: 'member',
@@ -58,8 +71,11 @@ export const accessControlService = {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         ...access
-      });
+      };
+      console.log('Initial config:', JSON.stringify(initialConfig, null, 2));
+      await setDoc(accessRef, initialConfig);
     } else {
+      console.log('Updating existing access config with:', JSON.stringify(access, null, 2));
       await updateDoc(accessRef, {
         ...access,
         updatedAt: serverTimestamp()
@@ -89,22 +105,27 @@ export const accessControlService = {
   },
 
   // Domain Management
-  async addDomain(spaceId: string, domain: string, autoRole?: string): Promise<void> {
+  async addDomain(spaceId: string, domain: string): Promise<void> {
     const accessRef = doc(db, 'spaces', spaceId, 'access', 'config');
+    const access = await this.getSpaceAccess(spaceId);
+    console.log('Current access:', JSON.stringify(access, null, 2));
+    
+    // Ensure domains is an array
+    const currentDomains = Array.isArray(access?.domains) ? access.domains : [];
+    console.log('Current domains:', currentDomains);
+    
+    const newDomains = [...currentDomains, domain.toLowerCase()];
+    console.log('New domains:', newDomains);
+    
     await updateDoc(accessRef, {
-      'domains.domains': [...(await this.getSpaceAccess(spaceId))?.domains.domains || [], {
-        domain,
-        autoRole,
-        allowSubdomains: false
-      }],
-      'domains.enabled': true,
+      domains: newDomains,
       updatedAt: serverTimestamp()
     });
   },
 
   // Invite Management
   async createInviteLink(
-    spaceId: string, 
+    spaceId: string,
     options: {
       maxUses?: number;
       expiresAt?: Date;
@@ -149,7 +170,7 @@ export const accessControlService = {
   } | null> {
     try {
       console.log('Verifying invite code:', code);
-      
+
       // Query for the invite using the code
       const invitesRef = collectionGroup(db, 'invites');
       const q = query(invitesRef, where('code', '==', code), limit(1));
@@ -246,8 +267,8 @@ export const accessControlService = {
 
   // Permission Management
   async updatePermissions(
-    spaceId: string, 
-    roleId: string, 
+    spaceId: string,
+    roleId: string,
     permissions: Permission[]
   ): Promise<void> {
     const roleRef = doc(db, 'spaces', spaceId, 'roles', roleId);
@@ -258,16 +279,16 @@ export const accessControlService = {
   },
 
   async checkPermission(
-    spaceId: string, 
-    userId: string, 
-    permission: PermissionType, 
+    spaceId: string,
+    userId: string,
+    permission: PermissionType,
     context?: { channelId?: string }
   ): Promise<boolean> {
     try {
       // Get user's roles in the space
       const memberRolesRef = collection(db, 'spaces', spaceId, 'members');
       const memberDoc = await getDoc(doc(memberRolesRef, userId));
-      
+
       if (!memberDoc.exists()) {
         return false; // User is not a member of the space
       }
@@ -309,12 +330,12 @@ export const accessControlService = {
       // If no direct permission, check for channel-specific overrides
       if (!hasPermission && context?.channelId) {
         const overrideRef = doc(
-          db, 
-          'spaces', 
-          spaceId, 
-          'channels', 
-          context.channelId, 
-          'roleOverrides', 
+          db,
+          'spaces',
+          spaceId,
+          'channels',
+          context.channelId,
+          'roleOverrides',
           userRole
         );
         const overrideDoc = await getDoc(overrideRef);
@@ -339,7 +360,7 @@ export const accessControlService = {
     method?: 'EMAIL_LIST' | 'DOMAIN' | 'INVITE';
   }> {
     console.log('Validating access:', { spaceId, userId, email });
-    
+
     const access = await this.getSpaceAccess(spaceId);
     if (!access) {
       console.log('No access config found for space:', spaceId);
@@ -356,7 +377,7 @@ export const accessControlService = {
     // Check email list
     if (access.emailList.enabled && access.emailList.emails.includes(email)) {
       console.log('Email found in email list');
-      const rule = access.roleAssignment.rules.find(r => 
+      const rule = access.roleAssignment.rules.find(r =>
         r.condition.accessMethod === 'EMAIL_LIST' &&
         r.priority > highestPriorityRole.priority
       );
@@ -367,43 +388,18 @@ export const accessControlService = {
     }
 
     // Check domains
-    if (access.domains.enabled) {
+    if (access.domains.length > 0) {
       console.log('Checking domain access');
       const emailDomain = email.split('@')[1];
       console.log('User email domain:', emailDomain);
-      console.log('Configured domains:', access.domains.domains);
-
-      const matchingDomain = access.domains.domains.find(d => {
-        // Exact domain match
-        if (d.domain === emailDomain) {
-          console.log(`Found exact domain match: ${d.domain}`);
-          return true;
-        }
-
-        // Check subdomain match if allowed
-        if (d.allowSubdomains && emailDomain.endsWith(`.${d.domain}`)) {
-          console.log(`Found subdomain match: ${emailDomain} is subdomain of ${d.domain}`);
-          return true;
-        }
-
-        return false;
-      });
-
-      if (matchingDomain) {
-        console.log('Matching domain found:', matchingDomain);
+      
+      // Check if domain is in the list
+      const hasMatch = access.domains.includes(emailDomain);
+      if (hasMatch) {
+        console.log(`Found domain match: ${emailDomain}`);
         
-        // First check if domain has an autoRole specified
-        if (matchingDomain.autoRole) {
-          console.log(`Using domain's autoRole: ${matchingDomain.autoRole}`);
-          return { 
-            hasAccess: true, 
-            role: matchingDomain.autoRole, 
-            method: 'DOMAIN' 
-          };
-        }
-
-        // Otherwise use role assignment rules
-        console.log('No autoRole specified, checking role assignment rules');
+        // Use role assignment rules
+        console.log('Checking role assignment rules');
         const rule = access.roleAssignment.rules.find(r => 
           r.condition.accessMethod === 'DOMAIN' &&
           r.priority > highestPriorityRole.priority
@@ -423,7 +419,7 @@ export const accessControlService = {
         console.log('No matching domain found');
       }
     } else {
-      console.log('Domain access is disabled');
+      console.log('No domains configured');
     }
 
     // Check invites
@@ -438,11 +434,11 @@ export const accessControlService = {
 
     const invitesSnapshot = await getDocs(invitesQuery);
     console.log('Found invites:', invitesSnapshot.docs.length);
-    
+
     for (const inviteDoc of invitesSnapshot.docs) {
       const invite = inviteDoc.data() as InviteLink;
       console.log('Checking invite:', invite);
-      
+
       // Skip if invite has reached max uses
       if (invite.maxUses !== null && invite.useCount >= invite.maxUses) {
         console.log('Invite has reached max uses');
@@ -455,11 +451,11 @@ export const accessControlService = {
         continue;
       }
 
-      const rule = access.roleAssignment.rules.find(r => 
+      const rule = access.roleAssignment.rules.find(r =>
         r.condition.accessMethod === 'INVITE' &&
         r.priority > highestPriorityRole.priority
       );
-      
+
       if (rule) {
         console.log('Found matching role assignment rule for invite:', rule);
         highestPriorityRole = { role: rule.role, priority: rule.priority };
@@ -471,10 +467,10 @@ export const accessControlService = {
         updatedAt: serverTimestamp()
       });
 
-      return { 
-        hasAccess: true, 
-        role: invite.assignedRole || highestPriorityRole.role, 
-        method: 'INVITE' 
+      return {
+        hasAccess: true,
+        role: invite.assignedRole || highestPriorityRole.role,
+        method: 'INVITE'
       };
     }
 

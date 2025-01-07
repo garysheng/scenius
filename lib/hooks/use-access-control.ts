@@ -77,10 +77,10 @@ export function useAccessControl({ spaceId }: UseAccessControlProps) {
   }, [spaceId]);
 
   // Domain Management
-  const addDomain = useCallback(async (domain: string, autoRole?: string) => {
+  const addDomain = useCallback(async (domain: string) => {
     if (!spaceId) return;
     try {
-      await accessControlService.addDomain(spaceId, domain, autoRole);
+      await accessControlService.addDomain(spaceId, domain);
       const updatedConfig = await accessControlService.getSpaceAccess(spaceId);
       setAccessConfig(updatedConfig);
     } catch (err) {

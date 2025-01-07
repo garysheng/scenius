@@ -3,18 +3,6 @@ import { Timestamp } from 'firebase/firestore';
 // Access Methods
 export type AccessMethod = 'EMAIL_LIST' | 'DOMAIN' | 'INVITE';
 
-// Domain Configuration
-export interface DomainConfig {
-  domain: string;
-  autoRole?: string;
-  allowSubdomains: boolean;
-}
-
-export interface DomainAccess {
-  enabled: boolean;
-  domains: DomainConfig[];
-}
-
 // Email List Configuration
 export interface EmailListAccess {
   enabled: boolean;
@@ -40,36 +28,15 @@ export interface RoleAssignment {
 // Space Access Configuration
 export interface SpaceAccess {
   spaceId: string;
-  domains: {
-    enabled: boolean;
-    domains: Array<{
-      domain: string;
-      verified: boolean;
-      autoRole?: string;
-      allowSubdomains?: boolean;
-    }>;
-  };
   emailList: {
     enabled: boolean;
     emails: string[];
   };
-  inviteLinks: Array<{
-    id: string;
-    code: string;
-    uses: number;
-    maxUses: number | null;
-    expiresAt: string | null;
-    isRevoked?: boolean;
-  }>;
+  domains: string[];
+  inviteLinks: InviteLink[];
   roleAssignment: {
     defaultRole: string;
-    rules: Array<{
-      role: string;
-      priority: number;
-      condition: {
-        accessMethod: 'EMAIL_LIST' | 'DOMAIN' | 'INVITE';
-      };
-    }>;
+    rules: RoleAssignmentRule[];
   };
   createdAt: Timestamp;
   updatedAt: Timestamp;

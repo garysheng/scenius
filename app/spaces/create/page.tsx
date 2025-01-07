@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AccessControl } from '@/types';
 import { spacesService } from '@/lib/services/client/spaces';
 import { X } from 'lucide-react';
+import { accessControlService } from '@/lib/services/client/access-control';
 
 type CreateSpaceFormValues = {
   name: string;
@@ -23,7 +24,6 @@ type CreateSpaceFormValues = {
     allowGuests: boolean;
     defaultRoleId: string;
   };
-  accessControl: AccessControl;
 };
 
 export default function CreateSpacePage() {
@@ -42,13 +42,6 @@ export default function CreateSpacePage() {
         isPublic: true,
         allowGuests: false,
         defaultRoleId: 'member'
-      },
-      accessControl: {
-        type: 'DOMAIN',
-        config: {
-          domains: []
-        },
-        combineMethod: 'OR'
       }
     },
   });
@@ -71,19 +64,10 @@ export default function CreateSpacePage() {
     setDomains([...domains, newDomain]);
     setNewDomain('');
     setError(null);
-
-    // Update form values
-    const currentDomains = form.getValues('accessControl.config.domains') || [];
-    form.setValue('accessControl.config.domains', [...currentDomains, newDomain]);
   };
 
   const handleRemoveDomain = (domain: string) => {
     setDomains(domains.filter(d => d !== domain));
-    const currentDomains = form.getValues('accessControl.config.domains') || [];
-    form.setValue(
-      'accessControl.config.domains',
-      currentDomains.filter(d => d !== domain)
-    );
   };
 
   const onSubmit = async (data: CreateSpaceFormValues) => {
@@ -91,16 +75,16 @@ export default function CreateSpacePage() {
       setIsLoading(true);
       setError(null);
 
-      // Update access control based on selected tab
+      // Create the space first
+      const spaceId = await spacesService.createSpace(data);
+
+      // Set up access control in the subcollection if domains are specified
       if (domains.length > 0) {
-        data.accessControl.type = 'DOMAIN';
-        data.accessControl.config.domains = domains;
-      } else {
-        data.accessControl.type = 'CUSTOM';
-        data.accessControl.config = {};
+        await accessControlService.updateSpaceAccess(spaceId, {
+          domains: domains
+        });
       }
 
-      const spaceId = await spacesService.createSpace(data);
       router.push(`/spaces/${spaceId}`);
     } catch (err: unknown) {
       if (err instanceof Error) {

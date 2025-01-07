@@ -37,7 +37,6 @@ export interface Space {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   ownerId: string;
-  accessControl: AccessControl;
   settings: {
     isPublic: boolean;
     allowGuests: boolean;

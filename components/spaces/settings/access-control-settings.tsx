@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useAccessControl } from '@/lib/hooks/use-access-control';
-import { SpaceAccess } from '@/types/access-control';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,8 +13,6 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  CheckCircle2,
-  XCircle,
   Plus,
   Trash2,
   Link as LinkIcon,
@@ -23,7 +20,6 @@ import {
   Globe,
   Shield,
 } from 'lucide-react';
-import { urlService } from '@/lib/services/client/url';
 
 interface AccessControlSettingsProps {
   spaceId: string;
@@ -37,7 +33,6 @@ export function AccessControlSettings({ spaceId }: AccessControlSettingsProps) {
     updateAccess,
     addEmailToList,
     removeEmailFromList,
-    verifyDomain,
     createInviteLink,
     revokeInviteLink,
     createRole,
@@ -75,12 +70,12 @@ export function AccessControlSettings({ spaceId }: AccessControlSettingsProps) {
   };
 
   const handleDomainAccessToggle = async (enabled: boolean) => {
+    console.log('Toggling domain access:', enabled);
+    console.log('Current domains:', accessConfig?.domains);
+    
+    // Keep existing domains if enabling, clear if disabling
     await updateAccess({
-      domains: {
-        ...accessConfig?.domains,
-        enabled,
-        domains: accessConfig?.domains.domains || []
-      }
+      domains: enabled ? (accessConfig?.domains || []) : []
     });
   };
 
@@ -93,20 +88,21 @@ export function AccessControlSettings({ spaceId }: AccessControlSettingsProps) {
   const handleAddDomain = async () => {
     if (!newDomain) return;
 
-    const domain = {
-      domain: newDomain.toLowerCase(),
-      verified: false,
-      allowSubdomains: false
-    };
-
     await updateAccess({
-      domains: {
-        enabled: true,
-        domains: [...(accessConfig?.domains?.domains || []), domain]
-      }
+      domains: [...(accessConfig?.domains || []), newDomain.toLowerCase()]
     });
 
     setNewDomain('');
+  };
+
+  const handleRemoveDomain = async (domainToRemove: string) => {
+    await updateAccess({
+      domains: accessConfig?.domains.filter(domain => domain !== domainToRemove) || []
+    });
+  };
+
+  const handleRevokeInvite = async (inviteId: string) => {
+    await revokeInviteLink(inviteId);
   };
 
   const handleCreateInvite = async () => {
@@ -198,19 +194,21 @@ export function AccessControlSettings({ spaceId }: AccessControlSettingsProps) {
         <TabsContent value="domains">
           <Card className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/95">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Domain Access</CardTitle>
-                <Switch
-                  checked={accessConfig?.domains.enabled}
-                  onCheckedChange={handleDomainAccessToggle}
-                />
-              </div>
+              <CardTitle>Domain Access</CardTitle>
               <CardDescription>
-                Allow access based on email domains
+                Allow users with specific email domains to join your space
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={(accessConfig?.domains?.length ?? 0) > 0}
+                    onCheckedChange={handleDomainAccessToggle}
+                  />
+                  <Label>Enable domain access</Label>
+                </div>
+
                 <div className="flex items-center space-x-2">
                   <Input
                     placeholder="Enter domain (e.g., company.com)"
@@ -224,21 +222,19 @@ export function AccessControlSettings({ spaceId }: AccessControlSettingsProps) {
                 </div>
                 <ScrollArea className="h-[200px] w-full rounded-md border p-4">
                   <div className="space-y-2">
-                    {accessConfig?.domains.domains.map((domain) => (
+                    {accessConfig?.domains?.map((domain) => (
                       <div
-                        key={domain.domain}
+                        key={domain}
                         className="flex items-center justify-between"
                       >
                         <div className="flex items-center space-x-2">
-                          <span>{domain.domain}</span>
+                          <span>{domain}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              // TODO: Implement domain removal
-                            }}
+                            onClick={() => handleRemoveDomain(domain)}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -301,49 +297,30 @@ export function AccessControlSettings({ spaceId }: AccessControlSettingsProps) {
                   <h4 className="text-sm font-medium">Active Invite Links</h4>
                   <ScrollArea className="h-[200px] w-full rounded-md border p-4">
                     <div className="space-y-4">
-                      {accessConfig?.inviteLinks?.map((link: SpaceAccess['inviteLinks'][0]) => (
+                      {accessConfig?.inviteLinks.map((invite) => (
                         <div
-                          key={link.id}
+                          key={invite.id}
                           className="flex items-center justify-between"
                         >
-                          <div className="flex flex-col">
-                            <code className="text-sm bg-muted px-2 py-1 rounded">
-                              {link.code}
-                            </code>
-                            <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                              <span>{link.uses}/{link.maxUses || '∞'} uses</span>
-                              <span>•</span>
-                              <span>
-                                {link.expiresAt ? new Date(link.expiresAt).toLocaleDateString() : 'Never expires'}
-                              </span>
-                              {link.isRevoked && (
-                                <>
-                                  <span>•</span>
-                                  <span className="text-destructive font-medium">Revoked</span>
-                                </>
-                              )}
-                            </div>
+                          <div className="flex items-center space-x-2">
+                            <span>{invite.code}</span>
+                            <Badge variant="outline">
+                              {invite.useCount} / {invite.maxUses || '∞'}
+                            </Badge>
+                            {invite.expiresAt && (
+                              <Badge variant="outline">
+                                Expires: {invite.expiresAt.toDate().toLocaleDateString()}
+                              </Badge>
+                            )}
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center space-x-2">
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => {
-                                const inviteUrl = urlService.invites.inviteWithDomain(link.code);
-                                navigator.clipboard.writeText(inviteUrl);
-                              }}
+                              onClick={() => handleRevokeInvite(invite.id)}
                             >
-                              <LinkIcon className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4" />
                             </Button>
-                            {!link.isRevoked && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => revokeInviteLink(link.id)}
-                              >
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </Button>
-                            )}
                           </div>
                         </div>
                       ))}

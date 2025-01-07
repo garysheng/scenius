@@ -94,10 +94,7 @@ export const spacesService = {
         enabled: false,
         emails: []
       },
-      domains: {
-        enabled: false,
-        domains: []
-      },
+      domains: [],
       inviteLinks: [],
       roleAssignment: {
         defaultRole: 'member',
