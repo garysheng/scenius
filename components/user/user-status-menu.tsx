@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Circle, 
   Clock, 
@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/lib/hooks/use-auth';
-import { presenceService } from '@/lib/services/client/presence';
+import { PresenceService } from '@/lib/services/client/presence';
 import { cn } from '@/lib/utils';
 import debounce from 'lodash/debounce';
 
@@ -32,12 +32,31 @@ export function UserStatusMenu() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<Status>('online');
   const [customStatus, setCustomStatus] = useState('');
+  const presenceServiceRef = useRef<PresenceService | null>(null);
+
+  // Initialize presence service when user is available
+  useEffect(() => {
+    if (user?.id && !presenceServiceRef.current) {
+      presenceServiceRef.current = new PresenceService(user.id);
+      // Set initial status
+      presenceServiceRef.current.updatePresence('online');
+    }
+
+    return () => {
+      if (presenceServiceRef.current) {
+        presenceServiceRef.current.cleanup();
+        presenceServiceRef.current = null;
+      }
+    };
+  }, [user?.id]);
 
   // Debounced function to update custom status on server
   const debouncedUpdateCustomStatus = useCallback(
-    debounce(async (status: string, currentUserStatus: Status, userId: string) => {
+    debounce(async (status: string, currentUserStatus: Status) => {
+      if (!presenceServiceRef.current) return;
+      
       try {
-        await presenceService.updatePresence(userId, currentUserStatus, status || undefined);
+        await presenceServiceRef.current.updatePresence(currentUserStatus, status || undefined);
       } catch (error) {
         console.error('Failed to update custom status:', error);
       }
@@ -45,39 +64,36 @@ export function UserStatusMenu() {
     []
   );
 
+  // Set up periodic presence updates and beforeunload handler
   useEffect(() => {
-    if (!user?.id) return;
-
-    // Initialize presence only once per user ID
-    const userId = user.id;
-    presenceService.updatePresence(userId, 'online');
+    if (!user?.id || !presenceServiceRef.current) return;
 
     // Set up beforeunload handler
     const handleBeforeUnload = () => {
-      presenceService.updatePresence(userId, 'offline');
+      presenceServiceRef.current?.updatePresence('offline');
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     // Set up periodic presence updates
     const intervalId = setInterval(() => {
-      presenceService.updatePresence(userId, currentStatus);
-    }, 5 * 60 * 1000);
+      presenceServiceRef.current?.updatePresence(currentStatus);
+    }, 5 * 60 * 1000); // Update every 5 minutes
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       clearInterval(intervalId);
-      presenceService.updatePresence(userId, 'offline');
+      presenceServiceRef.current?.updatePresence('offline');
     };
-  }, [user?.id, currentStatus]); // Add currentStatus as dependency
+  }, [user?.id, currentStatus]);
 
   if (!user) return null;
 
   const updateStatus = async (status: Status) => {
-    if (!user || isUpdating) return;
+    if (!user || isUpdating || !presenceServiceRef.current) return;
     
     try {
       setIsUpdating(true);
-      await presenceService.updatePresence(user.id, status, customStatus || undefined);
+      await presenceServiceRef.current.updatePresence(status, customStatus || undefined);
       setCurrentStatus(status);
     } catch (error) {
       console.error('Failed to update status:', error);
@@ -89,14 +105,14 @@ export function UserStatusMenu() {
   const handleCustomStatusChange = (newStatus: string) => {
     setCustomStatus(newStatus);
     if (user) {
-      debouncedUpdateCustomStatus(newStatus, currentStatus, user.id);
+      debouncedUpdateCustomStatus(newStatus, currentStatus);
     }
   };
 
   const handleClearCustomStatus = () => {
     setCustomStatus('');
-    if (user) {
-      presenceService.updatePresence(user.id, currentStatus, undefined);
+    if (user && presenceServiceRef.current) {
+      presenceServiceRef.current.updatePresence(currentStatus, undefined);
     }
   };
 

@@ -1,256 +1,227 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { 
-  Link as LinkIcon,
-  Check,
   Settings,
   MoreVertical,
-  Trash2,
   LogOut,
-  Users,
-  X
+  Search,
+  MessageSquare,
+  File,
+  Hash
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { SpaceFrontend } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Label } from '@/components/ui/label';
+import { SpaceFrontend } from '@/types';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { spacesService } from '@/lib/services/client/spaces';
+import { searchService, SearchResult } from '@/lib/services/client/search';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import debounce from 'lodash/debounce';
 
 interface SpaceActionMenuProps {
   space: SpaceFrontend;
 }
 
 export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
-  const [isActionsOpen, setIsActionsOpen] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [name, setName] = useState(space.name);
-  const [description, setDescription] = useState(space.description || '');
   const { user } = useAuth();
   const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
-  const inviteLink = typeof window !== 'undefined' 
-    ? `${window.location.origin}/spaces/join/${space.id}`
-    : '';
+  const debouncedSearch = useCallback(
+    debounce(async (query: string) => {
+      if (!query.trim()) {
+        setSearchResults([]);
+        return;
+      }
 
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(inviteLink);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch (error) {
-      console.error('Failed to copy link:', error);
-    }
+      setIsSearching(true);
+      try {
+        const results = await searchService.search(space.id, query);
+        setSearchResults(results);
+      } catch (error) {
+        console.error('Search failed:', error);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300),
+    [space.id]
+  );
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    debouncedSearch(query);
   };
 
-  const isSpaceOwner = user?.id === space.ownerId;
+  const getResultIcon = (type: SearchResult['type']) => {
+    switch (type) {
+      case 'message':
+        return <MessageSquare className="w-4 h-4" />;
+      case 'file':
+        return <File className="w-4 h-4" />;
+      case 'channel':
+        return <Hash className="w-4 h-4" />;
+    }
+  };
 
   const handleLeaveSpace = async () => {
     if (!user) return;
     
     try {
+      setIsLeaving(true);
+      setLeaveError(null);
+      
       await spacesService.leaveSpace(space.id, user.id);
+      
+      setIsOpen(false);
+      router.refresh();
       router.push('/spaces');
     } catch (error) {
       console.error('Failed to leave space:', error);
-    }
-  };
-
-  const handleDeleteSpace = async () => {
-    if (!isSpaceOwner) return;
-    
-    if (!confirm('Are you sure you want to delete this space? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      await spacesService.deleteSpace(space.id);
-      router.push('/spaces');
-    } catch (error) {
-      console.error('Failed to delete space:', error);
+      setLeaveError(error instanceof Error ? error.message : 'Failed to leave space');
     } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSaveSettings = async () => {
-    if (!name.trim() || isLoading) return;
-
-    try {
-      setIsLoading(true);
-      await spacesService.updateSpace(space.id, {
-        name: name.trim(),
-        description: description.trim() || undefined,
-      });
-      setIsActionsOpen(false);
-      router.refresh();
-    } catch (error) {
-      console.error('Failed to update space:', error);
-    } finally {
-      setIsLoading(false);
+      setIsLeaving(false);
     }
   };
 
   return (
-    <>
-      <Button 
-        variant="ghost" 
-        size="icon"
-        className="w-8 h-8 text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]"
-        onClick={() => setIsActionsOpen(true)}
-      >
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Button variant="ghost" size="icon" onClick={() => setIsOpen(true)}>
         <MoreVertical className="w-4 h-4" />
       </Button>
 
-      <Dialog open={isActionsOpen} onOpenChange={setIsActionsOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Space Actions</DialogTitle>
-            <DialogDescription>
-              Manage {space.name}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Tabs defaultValue="invite" className="mt-4">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="invite" className="flex items-center gap-2">
-                <LinkIcon className="w-4 h-4" />
-                Invite
-              </TabsTrigger>
-              {isSpaceOwner && (
-                <TabsTrigger value="settings" className="flex items-center gap-2">
-                  <Settings className="w-4 h-4" />
-                  Settings
-                </TabsTrigger>
-              )}
-              <TabsTrigger value="members" className="flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Members
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="invite" className="space-y-4">
-              <div className="space-y-2">
-                <Label>Invite Link</Label>
-                <div className="flex items-center space-x-2">
-                  <div className="relative flex-1">
-                    <Input
-                      value={inviteLink}
-                      readOnly
-                      className="pr-12 cosmic-input"
-                    />
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                      onClick={handleCopyLink}
-                    >
-                      {isCopied ? (
-                        <Check className="w-4 h-4 text-green-500" />
-                      ) : (
-                        <LinkIcon className="w-4 h-4" />
-                      )}
-                    </Button>
-                  </div>
-                  <Button onClick={handleCopyLink}>
-                    {isCopied ? 'Copied!' : 'Copy'}
-                  </Button>
-                </div>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Space Actions</DialogTitle>
+          <DialogDescription>
+            Manage your space settings and actions
+          </DialogDescription>
+        </DialogHeader>
+
+        <Tabs defaultValue="search" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="search">Search</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="search" className="space-y-4">
+            <div className="space-y-4">
+              <div className="relative">
+                <Input
+                  placeholder="Search messages, files, and more..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="pr-10"
+                />
+                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
-            </TabsContent>
-            
-            {isSpaceOwner && (
-              <TabsContent value="settings" className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Space Name</Label>
-                  <Input
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="cosmic-input"
-                  />
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="cosmic-input min-h-[100px]"
-                    placeholder="Describe your space..."
-                  />
+              {isSearching ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
+                  <p className="text-sm text-muted-foreground mt-2">Searching...</p>
                 </div>
+              ) : searchQuery && searchResults.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-sm text-muted-foreground">No results found</p>
+                </div>
+              ) : searchResults.length > 0 ? (
+                <div className="space-y-2">
+                  {searchResults.map((result) => (
+                    <Link 
+                      key={result.id} 
+                      href={result.url}
+                      className="block p-3 rounded-lg hover:bg-muted transition-colors"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="mt-1 text-muted-foreground">
+                          {getResultIcon(result.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-medium truncate">
+                            {result.title}
+                          </h4>
+                          {result.snippet && (
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {result.snippet}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {result.timestamp.toLocaleDateString()} • {result.type}
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </TabsContent>
 
-                <div className="pt-4 border-t border-[hsl(var(--border-dim))]">
-                  <Button 
-                    variant="destructive"
-                    className="w-full"
-                    onClick={handleDeleteSpace}
-                    disabled={isLoading}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Space
+          <TabsContent value="settings" className="space-y-4">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h4 className="text-sm font-medium">Space Settings</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Configure your space settings
+                  </p>
+                </div>
+                <Link href={`/spaces/${space.id}/settings`}>
+                  <Button variant="outline">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
                   </Button>
-                </div>
-              </TabsContent>
-            )}
+                </Link>
+              </div>
 
-            <TabsContent value="members" className="mt-4">
-              {isSpaceOwner ? (
-                <div className="text-center py-8 text-[hsl(var(--text-secondary))]">
-                  Member management coming soon
+              <div className="flex justify-between items-center">
+                <div>
+                  <h4 className="text-sm font-medium">Leave Space</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Leave this space permanently
+                  </p>
                 </div>
-              ) : (
                 <Button 
                   variant="destructive" 
-                  className="w-full justify-start gap-2"
                   onClick={handleLeaveSpace}
-                  disabled={isLoading}
+                  disabled={isLeaving || space.ownerId === user?.id}
                 >
-                  <LogOut className="w-4 h-4" />
-                  Leave Space
+                  {isLeaving ? (
+                    <>
+                      <span className="loading loading-spinner loading-sm mr-2"></span>
+                      Leaving...
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Leave Space
+                    </>
+                  )}
                 </Button>
+              </div>
+              {leaveError && (
+                <p className="text-sm text-destructive mt-2">{leaveError}</p>
               )}
-            </TabsContent>
-          </Tabs>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="ghost"
-              onClick={() => setIsActionsOpen(false)}
-              disabled={isLoading}
-            >
-              <X className="w-4 h-4 mr-2" />
-              Cancel
-            </Button>
-            {isSpaceOwner && (
-              <Button
-                onClick={handleSaveSettings}
-                disabled={isLoading}
-                className="gap-2"
-              >
-                <Settings className="w-4 h-4" />
-                Save Changes
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
   );
 } 

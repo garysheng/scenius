@@ -1,4 +1,4 @@
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User, UserFrontend } from '@/types';
 
@@ -12,29 +12,25 @@ interface UserService {
   getUser(userId: string): Promise<UserFrontend>;
   getUsers(userIds: string[]): Promise<Record<string, UserFrontend>>;
   updateUser(userId: string, data: UpdateUserData): Promise<void>;
+  getSpaceUsers(spaceId: string): Promise<Record<string, UserFrontend>>;
 }
 
 export const usersService: UserService = {
   async getUser(userId: string): Promise<UserFrontend> {
-    const userDoc = await getDoc(doc(db, 'users', userId));
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
     
     if (!userDoc.exists()) {
       throw new Error('User not found');
     }
 
-    const data = userDoc.data() as User;
+    const userData = userDoc.data() as User;
     return {
-      email: data.email,
-      username: data.username,
-      fullName: data.fullName,
-      avatarUrl: data.avatarUrl,
-      status: data.status,
-      preferences: data.preferences,
-      walletAddresses: data.walletAddresses,
+      ...userData,
       id: userDoc.id,
-      lastSeen: data.lastSeen?.toDate() || new Date(),
-      createdAt: data.createdAt?.toDate() || new Date(),
-      updatedAt: data.updatedAt?.toDate() || new Date(),
+      lastSeen: userData.lastSeen.toDate(),
+      createdAt: userData.createdAt.toDate(),
+      updatedAt: userData.updatedAt.toDate()
     };
   },
 
@@ -60,5 +56,35 @@ export const usersService: UserService = {
       ...data,
       updatedAt: serverTimestamp()
     });
+  },
+
+  async getSpaceUsers(spaceId: string): Promise<Record<string, UserFrontend>> {
+    // First get all members of the space
+    const membersRef = collection(db, 'spaces', spaceId, 'members');
+    const membersSnapshot = await getDocs(membersRef);
+    const memberIds = membersSnapshot.docs.map(doc => doc.id);
+
+    if (memberIds.length === 0) {
+      return {};
+    }
+
+    // Then get all user documents
+    const usersRef = collection(db, 'users');
+    const usersQuery = query(usersRef, where('__name__', 'in', memberIds));
+    const usersSnapshot = await getDocs(usersQuery);
+
+    const users: Record<string, UserFrontend> = {};
+    usersSnapshot.forEach(doc => {
+      const userData = doc.data() as User;
+      users[doc.id] = {
+        ...userData,
+        id: doc.id,
+        lastSeen: userData.lastSeen.toDate(),
+        createdAt: userData.createdAt.toDate(),
+        updatedAt: userData.updatedAt.toDate()
+      };
+    });
+
+    return users;
   }
 }; 

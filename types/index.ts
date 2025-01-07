@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+export * from './spaces';
 
 // Auth & User Types
 export interface AuthConfig {
@@ -37,26 +38,6 @@ export interface User {
     language: string;
   };
   walletAddresses?: string[];
-}
-
-export interface Space {
-  id: string;
-  name: string;
-  description: string;
-  avatarUrl: string | null;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  ownerId: string;
-  accessControl: AccessControl;
-  settings: {
-    isPublic: boolean;
-    allowGuests: boolean;
-    defaultRoleId: string;
-  };
-  metadata: {
-    memberCount: number;
-    channelCount: number;
-  };
 }
 
 export interface Channel {
@@ -129,11 +110,6 @@ export interface UserFrontend extends Omit<User, 'lastSeen' | 'createdAt' | 'upd
   updatedAt: Date;
 }
 
-export interface SpaceFrontend extends Omit<Space, 'createdAt' | 'updatedAt'> {
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface ChannelFrontend extends Omit<Channel, 'createdAt' | 'updatedAt' | 'metadata'> {
   createdAt: Date;
   updatedAt: Date;
@@ -172,13 +148,6 @@ export type UserPresenceFrontend = Omit<UserPresence, 'updatedAt'> & {
   updatedAt: Date;
 };
 
-export type SpaceMember = {
-  userId: string;
-  spaceId: string;
-  role: 'owner' | 'admin' | 'member';
-  joinedAt: Date;
-};
-
 export interface FileAttachment {
   id: string;
   fileUrl: string;
@@ -203,4 +172,9 @@ interface MessageMetadata {
   };
   status: 'sending' | 'sent' | 'delivered' | 'read';
   editedAt?: Timestamp;
+  semanticTags: Array<{
+    type: 'topic' | 'entity' | 'sentiment' | 'intent' | 'category';
+    value: string;
+    confidence: number;
+  }>;
 } 

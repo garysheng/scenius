@@ -5,7 +5,7 @@ import { Circle, Clock, MinusCircle, User } from 'lucide-react';
 import Image from 'next/image';
 import { UserFrontend, UserPresenceFrontend, ChannelFrontend } from '@/types';
 import { usersService } from '@/lib/services/client/users';
-import { presenceService } from '@/lib/services/client/presence';
+import { PresenceService } from '@/lib/services/client/presence';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { channelsService } from '@/lib/services/client/channels';
@@ -26,38 +26,45 @@ export function MemberList({ spaceId, selectedChannel, onChannelSelect }: Member
   const [readStatus, setReadStatus] = useState<Record<string, Date | null>>({});
   const [isLoading, setIsLoading] = useState(true);
   const { user: currentUser } = useAuth();
+  const [presenceService, setPresenceService] = useState<PresenceService | null>(null);
+
+  // Initialize presence service when user is available
+  useEffect(() => {
+    if (currentUser) {
+      const service = new PresenceService(currentUser.id);
+      setPresenceService(service);
+      return () => service.cleanup();
+    }
+  }, [currentUser]);
 
   useEffect(() => {
-    const unsubscribe = presenceService.subscribeToSpacePresence(spaceId, async (newPresence) => {
-      setPresence(newPresence);
-      
-      // Load user data for any new users
-      const userIds = Object.keys(newPresence);
-      const newUsers: Record<string, UserFrontend> = { ...users };
-      let hasNewUsers = false;
+    if (!presenceService || !currentUser) return;
 
-      await Promise.all(
-        userIds.map(async (userId) => {
-          if (!users[userId]) {
-            try {
-              const userData = await usersService.getUser(userId);
-              newUsers[userId] = userData;
-              hasNewUsers = true;
-            } catch (err) {
-              console.error(`Failed to load user ${userId}:`, err);
+    const unsubscribePromises: Promise<() => void>[] = [];
+
+    // Subscribe to presence for each user
+    Object.keys(users).forEach(userId => {
+      const promise = new Promise<() => void>((resolve) => {
+        const unsubscribe = presenceService.subscribeToPresence(userId, (newPresence) => {
+          setPresence(prev => ({
+            ...prev,
+            [userId]: {
+              ...newPresence,
+              updatedAt: newPresence.updatedAt || new Date()
             }
-          }
-        })
-      );
-
-      if (hasNewUsers) {
-        setUsers(newUsers);
-      }
-      setIsLoading(false);
+          }));
+        });
+        resolve(unsubscribe);
+      });
+      unsubscribePromises.push(promise);
     });
 
-    return () => unsubscribe();
-  }, [spaceId, users]);
+    Promise.all(unsubscribePromises).then(unsubscribeFunctions => {
+      return () => {
+        unsubscribeFunctions.forEach(unsubscribe => unsubscribe());
+      };
+    });
+  }, [presenceService, users, currentUser]);
 
   // Load DM channels and subscribe to read status
   useEffect(() => {
@@ -105,6 +112,22 @@ export function MemberList({ spaceId, selectedChannel, onChannelSelect }: Member
       }));
     }
   }, [selectedChannel, spaceId, currentUser]);
+
+  // Load users for the space
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const spaceUsers = await usersService.getSpaceUsers(spaceId);
+        setUsers(spaceUsers);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Failed to load users:', error);
+        setIsLoading(false);
+      }
+    };
+
+    loadUsers();
+  }, [spaceId]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

@@ -16,8 +16,9 @@ import {
   increment
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Space, SpaceFrontend } from '@/types';
+import { Space, SpaceFrontend, Member, SpaceSettings } from '@/types/spaces';
 import { getAuth } from 'firebase/auth';
+import { accessControlService } from './access-control';
 
 /**
  * Client-side service for managing spaces in Firebase
@@ -239,5 +240,168 @@ export const spacesService = {
       console.error('Error getting member role:', error);
       return null;
     }
+  },
+
+  async getSpaceSettings(spaceId: string): Promise<SpaceSettings> {
+    const auth = getAuth();
+    if (!auth.currentUser) {
+      throw new Error('You must be signed in to view space settings');
+    }
+
+    const settingsDoc = await getDoc(doc(db, 'spaces', spaceId, 'settings', 'preferences'));
+    if (!settingsDoc.exists()) {
+      return {};
+    }
+
+    return settingsDoc.data() as SpaceSettings;
+  },
+
+  async updateSpaceSettings(spaceId: string, settings: SpaceSettings) {
+    const auth = getAuth();
+    if (!auth.currentUser) {
+      throw new Error('You must be signed in to update space settings');
+    }
+
+    const settingsRef = doc(db, 'spaces', spaceId, 'settings', 'preferences');
+    await setDoc(settingsRef, settings, { merge: true });
+  },
+
+  async getSpaceMembers(spaceId: string): Promise<Member[]> {
+    const auth = getAuth();
+    if (!auth.currentUser) {
+      throw new Error('You must be signed in to view members');
+    }
+
+    const membersRef = collection(db, 'spaces', spaceId, 'members');
+    const membersSnapshot = await getDocs(membersRef);
+    
+    const members: Member[] = [];
+    for (const memberDoc of membersSnapshot.docs) {
+      const memberData = memberDoc.data();
+      const userDoc = await getDoc(doc(db, 'users', memberData.userId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        members.push({
+          id: memberData.userId,
+          name: userData.fullName,
+          email: userData.email,
+          role: memberData.role as 'owner' | 'admin' | 'member'
+        });
+      }
+    }
+
+    return members;
+  },
+
+  async inviteMember(spaceId: string, email: string): Promise<void> {
+    const auth = getAuth();
+    if (!auth.currentUser) {
+      throw new Error('You must be signed in to invite members');
+    }
+
+    // Check if user has permission to invite
+    const currentMemberDoc = await getDoc(doc(db, 'spaces', spaceId, 'members', auth.currentUser.uid));
+    if (!currentMemberDoc.exists()) {
+      throw new Error('You do not have permission to invite members');
+    }
+    const currentMemberRole = currentMemberDoc.data().role;
+    if (currentMemberRole !== 'owner' && currentMemberRole !== 'admin') {
+      throw new Error('Only owners and admins can invite members');
+    }
+
+    // Find user by email
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('email', '==', email));
+    const userSnapshot = await getDocs(q);
+
+    if (userSnapshot.empty) {
+      throw new Error('User not found');
+    }
+
+    const userId = userSnapshot.docs[0].id;
+
+    // Check if user is already a member
+    const memberRef = doc(db, 'spaces', spaceId, 'members', userId);
+    const memberDoc = await getDoc(memberRef);
+    if (memberDoc.exists()) {
+      throw new Error('User is already a member of this space');
+    }
+
+    // Add user as member
+    await setDoc(memberRef, {
+      userId,
+      role: 'member',
+      joinedAt: serverTimestamp()
+    });
+
+    // Update member count
+    const spaceRef = doc(db, 'spaces', spaceId);
+    await updateDoc(spaceRef, {
+      'metadata.memberCount': increment(1)
+    });
+  },
+
+  async updateMemberRole(spaceId: string, memberId: string, newRole: 'admin' | 'member'): Promise<void> {
+    const auth = getAuth();
+    if (!auth.currentUser) {
+      throw new Error('You must be signed in to update member roles');
+    }
+
+    // Check if current user has permission
+    const currentMemberDoc = await getDoc(doc(db, 'spaces', spaceId, 'members', auth.currentUser.uid));
+    if (!currentMemberDoc.exists() || currentMemberDoc.data().role !== 'owner') {
+      throw new Error('Only the space owner can update member roles');
+    }
+
+    // Update member role
+    const memberRef = doc(db, 'spaces', spaceId, 'members', memberId);
+    await updateDoc(memberRef, {
+      role: newRole
+    });
+  },
+
+  async removeMember(spaceId: string, memberId: string): Promise<void> {
+    const auth = getAuth();
+    if (!auth.currentUser) {
+      throw new Error('You must be signed in to remove members');
+    }
+
+    // Check if current user has permission
+    const currentMemberDoc = await getDoc(doc(db, 'spaces', spaceId, 'members', auth.currentUser.uid));
+    if (!currentMemberDoc.exists()) {
+      throw new Error('You do not have permission to remove members');
+    }
+    const currentMemberRole = currentMemberDoc.data().role;
+
+    // Get target member's role
+    const targetMemberDoc = await getDoc(doc(db, 'spaces', spaceId, 'members', memberId));
+    if (!targetMemberDoc.exists()) {
+      throw new Error('Member not found');
+    }
+    const targetMemberRole = targetMemberDoc.data().role;
+
+    // Check permissions
+    if (currentMemberRole !== 'owner') {
+      if (currentMemberRole !== 'admin' || targetMemberRole === 'owner' || targetMemberRole === 'admin') {
+        throw new Error('You do not have permission to remove this member');
+      }
+    }
+
+    if (targetMemberRole === 'owner') {
+      throw new Error('Cannot remove the space owner');
+    }
+
+    // Remove member
+    await deleteDoc(doc(db, 'spaces', spaceId, 'members', memberId));
+
+    // Update member count
+    const spaceRef = doc(db, 'spaces', spaceId);
+    await updateDoc(spaceRef, {
+      'metadata.memberCount': increment(-1)
+    });
+  },
+
+  async revokeInviteLink(spaceId: string, inviteId: string): Promise<void> {
+    return accessControlService.revokeInviteLink(spaceId, inviteId);
   }
 }; 

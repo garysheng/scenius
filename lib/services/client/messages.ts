@@ -1,7 +1,8 @@
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc, increment, runTransaction, where, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc, increment, runTransaction, where, deleteDoc, Timestamp } from 'firebase/firestore';
 import { ref, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 import { FileAttachment, MessageFrontend } from '@/types';
+import { messageAnalysisService } from './message-analysis';
 
 export const messagesService = {
   async sendMessage(
@@ -266,6 +267,70 @@ export const messagesService = {
       });
     } catch (error) {
       console.error('Error editing message:', error);
+      throw error;
+    }
+  },
+
+  async createMessage(spaceId: string, channelId: string, userId: string, content: string): Promise<MessageFrontend> {
+    try {
+      // Analyze message content
+      const semanticTags = await messageAnalysisService.analyzeMessage(content);
+
+      // Create message document
+      const messagesRef = collection(db, 'spaces', spaceId, 'channels', channelId, 'messages');
+      const messageData = {
+        channelId,
+        userId,
+        content,
+        type: 'TEXT',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        metadata: {
+          reactions: {},
+          edited: false,
+          attachments: [],
+          semanticTags,
+          status: 'sent'
+        }
+      };
+
+      const messageRef = await addDoc(messagesRef, messageData);
+
+      // Update channel's last message info
+      const channelRef = doc(db, 'spaces', spaceId, 'channels', channelId);
+      await updateDoc(channelRef, {
+        'metadata.lastMessageAt': serverTimestamp(),
+        'metadata.lastMessageSenderId': userId,
+        'metadata.messageCount': increment(1)
+      });
+
+      return {
+        id: messageRef.id,
+        ...messageData,
+        createdAt: Timestamp.now().toDate(),
+        updatedAt: Timestamp.now().toDate()
+      } as MessageFrontend;
+    } catch (error) {
+      console.error('Failed to create message:', error);
+      throw error;
+    }
+  },
+
+  async updateMessage(spaceId: string, messageId: string, content: string): Promise<void> {
+    try {
+      // Re-analyze updated content
+      const semanticTags = await messageAnalysisService.analyzeMessage(content);
+
+      const messageRef = doc(db, 'spaces', spaceId, 'messages', messageId);
+      await updateDoc(messageRef, {
+        content,
+        updatedAt: serverTimestamp(),
+        'metadata.edited': true,
+        'metadata.editedAt': serverTimestamp(),
+        'metadata.semanticTags': semanticTags
+      });
+    } catch (error) {
+      console.error('Failed to update message:', error);
       throw error;
     }
   }
