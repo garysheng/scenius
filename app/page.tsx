@@ -78,11 +78,11 @@ export default function Home() {
         <div className="text-center space-y-6 max-w-4xl">
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
             <span className="bg-gradient-to-r from-white via-purple-400 to-white bg-clip-text text-transparent animate-gradient">
-              Built for Next Generation Tokenized Communities
+              For Communities Building & Embracing The Future
             </span>
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-            Scenius is an AI & crypto-first community platform where members earn points and tokens for valuable contributions, and deploy blockchain-integrated AI agents that represent and take actions on behalf of the community.
+            Scenius is an AI & crypto-first community platform where members earn points and tokens for valuable contributions, deploy blockchain-integrated AI agents, and communicate securely with voice anonymization - perfect for anon communities and DAOs.
           </p>
           <div className="flex items-center justify-center gap-4 pt-4">
             <Button
@@ -125,7 +125,7 @@ export default function Home() {
           />
           <FeatureCard
             title="Voice-First Experience"
-            description="Natural voice conversations with your community's AI agents. Train them on your content and let them engage with members and represent you across platforms."
+            description="Natural voice conversations with privacy-first features. Keep your identity private with voice anonymization, custom voice filters, and secure audio processing - perfect for anon contributors."
             icon={Mic}
             glowColor="bg-gradient-to-r from-primary/80 via-indigo-500/80 to-accent/80"
           />

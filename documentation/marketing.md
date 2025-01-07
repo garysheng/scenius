@@ -3,7 +3,7 @@
 ## Hero Section
 
 ### Headlines
-- **Main Headline**: "Built for Next Generation Tokenized Communities"
+- **Main Headline**: "For Communities Building & Embracing The Future"
 - **Subheadline**: "A voice-first platform where communities thrive through contribution. Reward aligned actions with points, stream tokens to contributors, and deploy AI agents that represent your community across platforms."
 
 ### Call-to-Action Buttons
@@ -97,3 +97,21 @@ Each feature card includes an icon, title, description, and themed glow effects 
 - Tutorials
 - Community guidelines
 - Development roadmap 
+
+# Marketing Overview
+
+## Key Value Propositions
+
+### Privacy-First Communication
+- End-to-end encryption for all messages
+- Voice anonymization for audio notes
+- Perfect for anon communities and DAOs
+- Client-side voice processing
+- No original audio storage
+
+### Voice Notes with Privacy
+- Keep your identity private while using voice
+- Multiple voice filter options
+- Real-time voice modulation
+- Save and share voice presets
+- Perfect for anon contributors 
