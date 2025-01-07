@@ -20,10 +20,19 @@ export default {
   					'background-size': '400% 400%',
   					'background-position': 'right center'
   				}
-  			}
+  			},
+        'float': {
+          '0%, 100%': {
+            transform: 'translateY(0)'
+          },
+          '50%': {
+            transform: 'translateY(-10px)'
+          }
+        }
   		},
   		animation: {
-  			'gradient-x': 'gradient-x 15s ease infinite'
+  			'gradient-x': 'gradient-x 15s ease infinite',
+        'float': 'float 3s ease-in-out infinite'
   		},
   		colors: {
   			background: 'hsl(var(--background))',

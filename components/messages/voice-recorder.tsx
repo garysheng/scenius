@@ -20,8 +20,30 @@ export function VoiceRecorder({ onRecordingComplete }: VoiceRecorderProps) {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Try different MIME types for better browser compatibility
+      const mimeTypes = [
+        'audio/webm',
+        'audio/mp4',
+        'audio/aac',
+        'audio/wav',
+        'audio/ogg'
+      ];
+
+      let selectedMimeType = '';
+      for (const mimeType of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(mimeType)) {
+          selectedMimeType = mimeType;
+          break;
+        }
+      }
+
+      if (!selectedMimeType) {
+        throw new Error('No supported audio MIME type found');
+      }
+
       mediaRecorder.current = new MediaRecorder(stream, {
-        mimeType: 'audio/webm'
+        mimeType: selectedMimeType
       });
       chunks.current = [];
 
@@ -34,7 +56,7 @@ export function VoiceRecorder({ onRecordingComplete }: VoiceRecorderProps) {
       mediaRecorder.current.onstop = async () => {
         try {
           setIsProcessing(true);
-          const audioBlob = new Blob(chunks.current, { type: 'audio/webm' });
+          const audioBlob = new Blob(chunks.current, { type: selectedMimeType });
           
           // Create form data for transcription
           const formData = new FormData();

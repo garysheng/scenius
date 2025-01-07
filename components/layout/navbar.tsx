@@ -18,9 +18,16 @@ export function Navbar() {
         {/* Logo/Brand - Add glow effect */}
         <Link 
           href="/" 
-          className="font-semibold text-xl text-white relative group"
+          className="font-semibold text-xl text-white relative group flex items-center gap-2"
         >
           <div className="absolute -inset-x-4 -inset-y-2 bg-gradient-to-r from-[hsl(var(--ai-primary))] to-[hsl(var(--accent-nebula))] opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur-md rounded-md" />
+          <Image
+            src="/logo.png"
+            alt="Scenius Logo"
+            width={32}
+            height={32}
+            className="relative"
+          />
           <span className="relative">Scenius</span>
         </Link>
 

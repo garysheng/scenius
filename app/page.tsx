@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 interface FeatureCardProps {
   title: string;
@@ -58,10 +59,21 @@ export default function Home() {
 
       {/* Content */}
       <div className="relative z-10 container mx-auto px-4 py-24 flex flex-col items-center justify-center gap-16">
+        {/* Logo */}
+        <div>
+          <Image
+            src="/logo.png"
+            alt="Scenius Logo"
+            width={128}
+            height={128}
+            className="animate-float"
+          />
+        </div>
+
         {/* Hero Section */}
         <div className="text-center space-y-6 max-w-4xl">
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-            <span className="bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent animate-gradient">
+            <span className="bg-gradient-to-r from-white via-purple-400 to-white bg-clip-text text-transparent animate-gradient">
               Built for Next Generation Tokenized Communities
             </span>
           </h1>

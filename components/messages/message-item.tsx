@@ -41,6 +41,8 @@ export function MessageItem({
   spaceRole
 }: MessageItemProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { user: currentUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
@@ -53,6 +55,12 @@ export function MessageItem({
       editInputRef.current.setSelectionRange(editContent.length, editContent.length);
     }
   }, [isEditing]);
+
+  useEffect(() => {
+    if (message.type === 'VOICE' && message.metadata.attachments?.[0]?.voiceUrl) {
+      setAudioUrl(null); // Reset URL when message changes
+    }
+  }, [message]);
 
   const initials = user?.username?.slice(0, 2).toUpperCase() || 
                   user?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase() || 
@@ -70,16 +78,51 @@ export function MessageItem({
     }
   };
 
-  const toggleAudio = () => {
+  const downloadAndPlayAudio = async () => {
+    if (!message.metadata.attachments?.[0]?.voiceUrl) return;
+    
+    try {
+      setIsLoading(true);
+      const response = await fetch(message.metadata.attachments[0].voiceUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+      
+      if (audioRef.current) {
+        audioRef.current.src = url;
+        audioRef.current.play();
+        setIsPlaying(true);
+      }
+    } catch (error) {
+      console.error('Failed to download audio:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleAudio = async () => {
     if (!audioRef.current) return;
 
     if (isPlaying) {
       audioRef.current.pause();
+      setIsPlaying(false);
     } else {
-      audioRef.current.play();
+      if (!audioUrl) {
+        await downloadAndPlayAudio();
+      } else {
+        audioRef.current.play();
+        setIsPlaying(true);
+      }
     }
-    setIsPlaying(!isPlaying);
   };
+
+  useEffect(() => {
+    return () => {
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [audioUrl]);
 
   const handleAudioEnded = () => {
     setIsPlaying(false);
@@ -284,8 +327,11 @@ export function MessageItem({
                 size="icon"
                 className="h-8 w-8 text-foreground hover:text-foreground/80"
                 onClick={toggleAudio}
+                disabled={isLoading}
               >
-                {isPlaying ? (
+                {isLoading ? (
+                  <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : isPlaying ? (
                   <Pause className="h-4 w-4" />
                 ) : (
                   <Play className="h-4 w-4" />
@@ -299,7 +345,6 @@ export function MessageItem({
               )}
               <audio
                 ref={audioRef}
-                src={message.metadata.attachments?.[0]?.voiceUrl}
                 onEnded={handleAudioEnded}
                 className="hidden"
               />

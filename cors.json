@@ -1,8 +1,8 @@
 [
   {
-    "origin": ["http://localhost:3000", "https://scenius-e2adc.web.app"],
-    "method": ["GET", "PUT", "POST", "DELETE", "HEAD"],
+    "origin": ["*"],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE"],
     "maxAgeSeconds": 3600,
-    "responseHeader": ["Content-Type", "Authorization", "Content-Length", "User-Agent", "x-goog-resumable"]
+    "responseHeader": ["Content-Type", "Content-Length", "Content-Range", "Content-Encoding", "Content-Language", "Cache-Control", "Expires", "Last-Modified", "ETag"]
   }
 ] 
