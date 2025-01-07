@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bot, Calendar, Volume2, Loader2 } from 'lucide-react';
+import { Calendar, Volume2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { scenieService } from '@/lib/services/client/scenie';

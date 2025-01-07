@@ -146,9 +146,31 @@ export const spacesService = {
       const memberDoc = await getDoc(doc(db, 'spaces', id, 'members', auth.currentUser.uid));
       const spaceData = spaceDoc.data();
       
-      if (!memberDoc.exists() && !spaceData.settings?.isPublic) {
-        console.log('User does not have access to space:', { userId: auth.currentUser.uid, spaceId: id });
-        throw new Error('You do not have access to this space');
+      if (!memberDoc.exists()) {
+        // If not a member, check domain access
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (!userDoc.exists()) {
+          throw new Error('User not found');
+        }
+        const userData = userDoc.data();
+        const { hasAccess, role } = await accessControlService.validateAccess(id, auth.currentUser.uid, userData.email);
+        
+        if (hasAccess) {
+          // Create member record with the assigned role
+          await setDoc(doc(db, 'spaces', id, 'members', auth.currentUser.uid), {
+            userId: auth.currentUser.uid,
+            role: role || 'member',
+            joinedAt: serverTimestamp()
+          });
+          
+          // Update member count
+          await updateDoc(doc(db, 'spaces', id), {
+            'metadata.memberCount': increment(1)
+          });
+        } else if (!spaceData.settings?.isPublic) {
+          console.log('User does not have access to space:', { userId: auth.currentUser.uid, spaceId: id });
+          throw new Error('You do not have access to this space');
+        }
       }
 
       console.log('Space access granted:', { userId: auth.currentUser.uid, spaceId: id });
@@ -491,7 +513,7 @@ export const spacesService = {
       await deleteObject(imageRef);
     } catch (error) {
       // Ignore if file doesn't exist
-      console.log('No existing image to delete');
+      console.log('No existing image to delete', error);
     }
 
     // Update the space document to remove the image URL

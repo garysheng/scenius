@@ -10,14 +10,27 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Space } from '@/types';
+import { AccessControl } from '@/types';
 import { spacesService } from '@/lib/services/client/spaces';
+import { X } from 'lucide-react';
 
-type CreateSpaceFormValues = Omit<Space, 'id' | 'createdAt' | 'updatedAt' | 'metadata' | 'ownerId'>;
+type CreateSpaceFormValues = {
+  name: string;
+  description: string;
+  avatarUrl: string | null;
+  settings: {
+    isPublic: boolean;
+    allowGuests: boolean;
+    defaultRoleId: string;
+  };
+  accessControl: AccessControl;
+};
 
 export default function CreateSpacePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [domains, setDomains] = useState<string[]>([]);
+  const [newDomain, setNewDomain] = useState('');
   const router = useRouter();
 
   const form = useForm<CreateSpaceFormValues>({
@@ -31,17 +44,62 @@ export default function CreateSpacePage() {
         defaultRoleId: 'member'
       },
       accessControl: {
-        type: 'CUSTOM',
-        config: {},
+        type: 'DOMAIN',
+        config: {
+          domains: []
+        },
         combineMethod: 'OR'
       }
     },
   });
 
+  const handleAddDomain = () => {
+    if (!newDomain) return;
+    
+    // Basic domain validation
+    const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
+    if (!domainRegex.test(newDomain)) {
+      setError('Please enter a valid domain');
+      return;
+    }
+
+    if (domains.includes(newDomain)) {
+      setError('Domain already added');
+      return;
+    }
+
+    setDomains([...domains, newDomain]);
+    setNewDomain('');
+    setError(null);
+
+    // Update form values
+    const currentDomains = form.getValues('accessControl.config.domains') || [];
+    form.setValue('accessControl.config.domains', [...currentDomains, newDomain]);
+  };
+
+  const handleRemoveDomain = (domain: string) => {
+    setDomains(domains.filter(d => d !== domain));
+    const currentDomains = form.getValues('accessControl.config.domains') || [];
+    form.setValue(
+      'accessControl.config.domains',
+      currentDomains.filter(d => d !== domain)
+    );
+  };
+
   const onSubmit = async (data: CreateSpaceFormValues) => {
     try {
       setIsLoading(true);
       setError(null);
+
+      // Update access control based on selected tab
+      if (domains.length > 0) {
+        data.accessControl.type = 'DOMAIN';
+        data.accessControl.config.domains = domains;
+      } else {
+        data.accessControl.type = 'CUSTOM';
+        data.accessControl.config = {};
+      }
+
       const spaceId = await spacesService.createSpace(data);
       router.push(`/spaces/${spaceId}`);
     } catch (err: unknown) {
@@ -145,7 +203,7 @@ export default function CreateSpacePage() {
                     />
                   </div>
                 </TabsContent>
-                
+
                 <TabsContent value="token" className="space-y-4 mt-4">
                   <p className="text-sm text-muted-foreground">
                     Token gating coming soon. This will allow you to restrict access based on token ownership.
@@ -153,9 +211,54 @@ export default function CreateSpacePage() {
                 </TabsContent>
                 
                 <TabsContent value="domain" className="space-y-4 mt-4">
-                  <p className="text-sm text-muted-foreground">
-                    Domain whitelisting coming soon. This will allow you to restrict access to specific email domains.
-                  </p>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Domain Whitelist</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Add domains to restrict access to specific email domains
+                      </p>
+                      
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Enter domain (e.g., company.com)"
+                          value={newDomain}
+                          onChange={(e) => setNewDomain(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddDomain();
+                            }
+                          }}
+                        />
+                        <Button type="button" onClick={handleAddDomain}>
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+
+                    {domains.length > 0 && (
+                      <div className="space-y-2">
+                        <Label>Added Domains</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {domains.map((domain) => (
+                            <div
+                              key={domain}
+                              className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm"
+                            >
+                              {domain}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveDomain(domain)}
+                                className="text-primary hover:text-primary/80"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </TabsContent>
               </Tabs>
             </CardContent>
