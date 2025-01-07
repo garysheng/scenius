@@ -1,101 +1,132 @@
-import Image from "next/image";
+'use client';
+
+import { 
+  Bot, 
+  Trophy, 
+  Shield, 
+  Mic, 
+  Brain,
+  Users
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
+
+interface FeatureCardProps {
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  glowColor: string;
+}
+
+function FeatureCard({ title, description, icon: Icon, glowColor }: FeatureCardProps) {
+  return (
+    <div className="cosmic-card rounded-xl p-6 group relative">
+      <div className={`absolute -inset-[1px] ${glowColor} rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-md`} />
+      <div className="relative space-y-4">
+        <div className="inline-block p-3 rounded-lg bg-black/50 ring-1 ring-white/10">
+          <Icon className="w-6 h-6 text-foreground" />
+        </div>
+        <h3 className="text-xl font-semibold text-foreground">{title}</h3>
+        <p className="text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const router = useRouter();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const handleGetStarted = () => {
+    router.push('/signup');
+  };
+
+  const handleLearnMore = () => {
+    // Smooth scroll to features section
+    const featuresSection = document.querySelector('#features');
+    featuresSection?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  return (
+    <main className="min-h-screen relative overflow-hidden cosmic-bg">
+      {/* Star field background */}
+      <div className="star-field animate-twinkle" />
+      
+      {/* Cosmic gradient overlays */}
+      <div className="absolute inset-0">
+        <div className="w-full h-full rotate-180 opacity-40 blur-3xl bg-gradient-to-b from-primary/30 via-accent/30 to-secondary/30 animate-pulse-slow" />
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 container mx-auto px-4 py-24 flex flex-col items-center justify-center gap-16">
+        {/* Hero Section */}
+        <div className="text-center space-y-6 max-w-4xl">
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
+            <span className="bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent animate-gradient">
+              Built for Next Generation Tokenized Communities
+            </span>
+          </h1>
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+            A voice-first platform where communities thrive through contribution. Reward aligned actions with points, stream tokens to contributors, and deploy AI agents that represent your community across platforms.
+          </p>
+          <div className="flex items-center justify-center gap-4 pt-4">
+            <Button 
+              size="lg"
+              onClick={handleGetStarted}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 glow-primary"
+            >
+              Get Started
+            </Button>
+            <Button 
+              size="lg"
+              variant="outline"
+              onClick={handleLearnMore}
+              className="border-secondary/50 hover:border-secondary text-secondary-foreground transition-all duration-300 glow-secondary"
+            >
+              Learn More
+            </Button>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+
+        {/* Feature Cards Grid */}
+        <div id="features" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-7xl">
+          <FeatureCard
+            title="Community Agents"
+            description="Deploy tokenized AI agents that represent your community across social platforms. Built on Virtuals Protocol and elizaOS, with revenue sharing for token holders."
+            icon={Bot}
+            glowColor="bg-gradient-to-r from-primary/50 to-accent/50"
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+          <FeatureCard
+            title="Points & Streaming Rewards"
+            description="Recognize contributions with points and automatically stream tokens to contributors. Members can propose point awards for aligned actions."
+            icon={Trophy}
+            glowColor="bg-gradient-to-r from-accent/50 to-secondary/50"
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
+          <FeatureCard
+            title="Flexible Access Control"
+            description="Gate your community your way. Combine token requirements, email domains, whitelists, and Guild.xyz integration to create the perfect entry criteria."
+            icon={Shield}
+            glowColor="bg-gradient-to-r from-secondary/50 to-primary/50"
           />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+          <FeatureCard
+            title="Voice-First Experience"
+            description="Natural voice conversations with your community's AI agents. Train them on your content and let them engage with members and represent you across platforms."
+            icon={Mic}
+            glowColor="bg-gradient-to-r from-primary/50 to-accent/50"
+          />
+          <FeatureCard
+            title="Collective Intelligence"
+            description="Harness your community's knowledge with AI-powered tools. Automatically organize discussions, surface insights, and make better decisions together."
+            icon={Brain}
+            glowColor="bg-gradient-to-r from-accent/50 to-secondary/50"
+          />
+          <FeatureCard
+            title="Community-Owned"
+            description="True ownership for contributors. Earn points for valuable contributions, redeem them for tokens, and participate in governance decisions."
+            icon={Users}
+            glowColor="bg-gradient-to-r from-secondary/50 to-primary/50"
+          />
+        </div>
+      </div>
+    </main>
   );
 }
