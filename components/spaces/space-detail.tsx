@@ -36,6 +36,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<ChannelFrontend | null>(null);
+  const [channelData, setChannelData] = useState<ChannelFrontend[]>([]);
   const [messages, setMessages] = useState<MessageFrontend[]>([]);
   const [users, setUsers] = useState<Record<string, UserFrontend>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -48,6 +49,17 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
     user: UserFrontend | null;
   } | null>(null);
   const [userRole, setUserRole] = useState<'owner' | 'admin' | 'member' | null>(null);
+
+  // Load channels
+  useEffect(() => {
+    if (!space) return;
+
+    const unsubscribe = channelsService.subscribeToChannels(space.id, (channels) => {
+      setChannelData(channels);
+    });
+
+    return () => unsubscribe();
+  }, [space]);
 
   // Load and select first channel
   useEffect(() => {
@@ -193,6 +205,39 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
 
     loadUserRole();
   }, [id, user, space]);
+
+  // Handle URL parameters for deep linking
+  useEffect(() => {
+    if (!channelData || channelData.length === 0) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const channelId = params.get('channel');
+    const messageId = params.get('message');
+
+    if (channelId) {
+      const channel = channelData.find((c: ChannelFrontend) => c.id === channelId);
+      if (channel) {
+        setSelectedChannel(channel);
+        
+        // If there's a specific message to scroll to
+        if (messageId) {
+          // Add a small delay to ensure the messages are loaded
+          setTimeout(() => {
+            const messageElement = document.getElementById(`message-${messageId}`);
+            if (messageElement) {
+              messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              // Add a highlight effect
+              messageElement.classList.add('highlight-message');
+              setTimeout(() => messageElement.classList.remove('highlight-message'), 3000);
+            }
+          }, 500);
+        }
+      }
+    } else if (channelData.length > 0) {
+      // If no channel specified, select the first one
+      setSelectedChannel(channelData[0]);
+    }
+  }, [channelData]);
 
   if (authLoading || isLoading) {
     return (

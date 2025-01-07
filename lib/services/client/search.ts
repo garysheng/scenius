@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Message } from '@/types';
+import { SemanticTag } from '@/types/messages';
 
 export interface SearchResult {
   id: string;
@@ -17,8 +18,10 @@ export interface SearchResult {
   snippet?: string;
   url: string;
   timestamp: Date;
-  relevance?: number; // Higher = more relevant
-  message?: Message; // Full message data when type is 'message'
+  relevance?: number;
+  message?: Message;
+  messageId?: string;
+  channelId?: string;
 }
 
 export const searchService = {
@@ -28,95 +31,146 @@ export const searchService = {
 
     try {
       // Search channels
-      const channelsRef = collection(db, 'spaces', spaceId, 'channels');
-      const channelsQuery = query(
-        channelsRef,
+      const searchTerms = [
+        searchTerm,
+        searchTerm + 's',     // plural
+        searchTerm.slice(0, -1), // singular (if plural)
+      ].filter(Boolean);
+      
+      console.log('Searching with terms:', searchTerms);
+
+      // Search channels
+      const channelSearchRef = collection(db, 'spaces', spaceId, 'channels');
+      const channelSearchQuery = query(
+        channelSearchRef,
         or(
-          where('name', '>=', searchTerm),
-          where('name', '<=', searchTerm + '\uf8ff'),
-          where('description', '>=', searchTerm),
-          where('description', '<=', searchTerm + '\uf8ff')
+          ...searchTerms.flatMap(term => [
+            where('name', '>=', term),
+            where('name', '<=', term + '\uf8ff'),
+            where('description', '>=', term),
+            where('description', '<=', term + '\uf8ff')
+          ])
         ),
         limit(5)
       );
 
-      const channelDocs = await getDocs(channelsQuery);
-      channelDocs.forEach(doc => {
+      const channelSearchDocs = await getDocs(channelSearchQuery);
+      channelSearchDocs.forEach(doc => {
         const data = doc.data();
         results.push({
           id: doc.id,
           type: 'channel',
           title: data.name,
           snippet: data.description,
-          url: `/spaces/${spaceId}/channels/${doc.id}`,
-          timestamp: data.createdAt.toDate(),
-          relevance: 1
-        });
-      });
-
-      // Search messages
-      const messagesRef = collection(db, 'spaces', spaceId, 'messages');
-      
-      // First, try exact content match
-      const exactMatchQuery = query(
-        messagesRef,
-        where('content', '>=', searchTerm),
-        where('content', '<=', searchTerm + '\uf8ff'),
-        orderBy('content'),
-        orderBy('createdAt', 'desc'),
-        limit(5)
-      );
-
-      const exactMatches = await getDocs(exactMatchQuery);
-      exactMatches.forEach(doc => {
-        const data = doc.data() as Message;
-        results.push({
-          id: doc.id,
-          type: 'message',
-          title: `Message in channel`,
-          snippet: data.content,
-          url: `/spaces/${spaceId}/channels/${data.channelId}?message=${doc.id}`,
+          url: `/spaces/${spaceId}?channel=${doc.id}`,
           timestamp: data.createdAt.toDate(),
           relevance: 1,
-          message: {
-            ...data,
-            id: doc.id,
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt
-          }
+          channelId: doc.id
         });
       });
 
-      // Then, search by semantic tags that were created at message creation time
-      const semanticQuery = query(
-        messagesRef,
-        where('metadata.semanticTags', 'array-contains', { value: searchTerm }),
-        orderBy('createdAt', 'desc'),
-        limit(5)
-      );
+      // Search messages across all channels
+      const allChannelsRef = collection(db, 'spaces', spaceId, 'channels');
+      const allChannelDocs = await getDocs(allChannelsRef);
+      
+      console.log('Searching messages in channels:', allChannelDocs.docs.map(d => ({ id: d.id, name: d.data().name })));
+      
+      // Search messages in each channel
+      for (const channelDoc of allChannelDocs.docs) {
+        console.log('Searching in channel:', channelDoc.id, channelDoc.data().name);
+        const messagesRef = collection(db, 'spaces', spaceId, 'channels', channelDoc.id, 'messages');
+        
+        // First, try exact content match
+        const exactMatchQuery = query(
+          messagesRef,
+          or(
+            ...searchTerms.flatMap(term => [
+              where('content', '>=', term),
+              where('content', '<=', term + '\uf8ff')
+            ])
+          ),
+          orderBy('content'),
+          orderBy('createdAt', 'desc'),
+          limit(5)
+        );
 
-      const semanticMatches = await getDocs(semanticQuery);
-      semanticMatches.forEach(doc => {
-        // Skip if we already have this result from exact match
-        if (results.some(r => r.id === doc.id)) return;
-
-        const data = doc.data() as Message;
-        results.push({
-          id: doc.id,
-          type: 'message',
-          title: `Message in channel`,
-          snippet: data.content,
-          url: `/spaces/${spaceId}/channels/${data.channelId}?message=${doc.id}`,
-          timestamp: data.createdAt.toDate(),
-          relevance: 0.8, // Slightly lower relevance for semantic matches
-          message: {
-            ...data,
+        console.log('Exact match query for terms:', searchTerms);
+        const exactMatches = await getDocs(exactMatchQuery);
+        console.log('Found exact matches:', exactMatches.docs.length);
+        
+        exactMatches.forEach(doc => {
+          const data = doc.data() as Message;
+          console.log('Processing exact match:', { id: doc.id, content: data.content });
+          results.push({
             id: doc.id,
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt
-          }
+            type: 'message',
+            title: `Message in #${channelDoc.data().name}`,
+            snippet: data.content,
+            url: `/spaces/${spaceId}?channel=${channelDoc.id}&message=${doc.id}`,
+            timestamp: data.createdAt.toDate(),
+            relevance: 1,
+            message: {
+              ...data,
+              id: doc.id,
+              createdAt: data.createdAt,
+              updatedAt: data.updatedAt
+            },
+            messageId: doc.id,
+            channelId: channelDoc.id
+          });
         });
-      });
+
+        // Then, search by semantic tags that were created at message creation time
+        const semanticQuery = query(
+          messagesRef,
+          where('metadata.semanticTags', 'array-contains-any', 
+            searchTerms.flatMap(term => [
+              { type: 'topic', value: term },
+              { type: 'entity', value: term },
+              { type: 'category', value: term }
+            ] as SemanticTag[])
+          ),
+          orderBy('createdAt', 'desc'),
+          limit(5)
+        );
+
+        console.log('Semantic query for terms:', searchTerms);
+        const semanticMatches = await getDocs(semanticQuery);
+        console.log('Found semantic matches:', semanticMatches.docs.length);
+        
+        semanticMatches.forEach(doc => {
+          // Skip if we already have this result from exact match
+          if (results.some(r => r.id === doc.id)) {
+            console.log('Skipping duplicate semantic match:', doc.id);
+            return;
+          }
+
+          const data = doc.data() as Message;
+          console.log('Processing semantic match:', { 
+            id: doc.id, 
+            content: data.content,
+            semanticTags: (data.metadata as { semanticTags?: SemanticTag[] })?.semanticTags 
+          });
+          
+          results.push({
+            id: doc.id,
+            type: 'message',
+            title: `Message in #${channelDoc.data().name}`,
+            snippet: data.content,
+            url: `/spaces/${spaceId}?channel=${channelDoc.id}&message=${doc.id}`,
+            timestamp: data.createdAt.toDate(),
+            relevance: 0.8,
+            message: {
+              ...data,
+              id: doc.id,
+              createdAt: data.createdAt,
+              updatedAt: data.updatedAt
+            },
+            messageId: doc.id,
+            channelId: channelDoc.id
+          });
+        });
+      }
 
       // Search files
       const filesRef = collection(db, 'spaces', spaceId, 'files');

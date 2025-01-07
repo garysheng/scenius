@@ -27,6 +27,7 @@ import { searchService, SearchResult } from '@/lib/services/client/search';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import debounce from 'lodash/debounce';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface SpaceActionMenuProps {
   space: SpaceFrontend;
@@ -130,46 +131,48 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
 
-              {isSearching ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
-                  <p className="text-sm text-muted-foreground mt-2">Searching...</p>
-                </div>
-              ) : searchQuery && searchResults.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-sm text-muted-foreground">No results found</p>
-                </div>
-              ) : searchResults.length > 0 ? (
-                <div className="space-y-2">
-                  {searchResults.map((result) => (
-                    <Link 
-                      key={result.id} 
-                      href={result.url}
-                      className="block p-3 rounded-lg hover:bg-muted transition-colors"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="mt-1 text-muted-foreground">
-                          {getResultIcon(result.type)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-medium truncate">
-                            {result.title}
-                          </h4>
-                          {result.snippet && (
-                            <p className="text-sm text-muted-foreground line-clamp-2">
-                              {result.snippet}
+              <ScrollArea className="max-h-[400px]">
+                {isSearching ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
+                    <p className="text-sm text-muted-foreground mt-2">Searching...</p>
+                  </div>
+                ) : searchQuery && searchResults.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted-foreground">No results found</p>
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  <div className="space-y-2 p-2">
+                    {searchResults.map((result) => (
+                      <Link 
+                        key={result.id} 
+                        href={result.url}
+                        className="block p-3 rounded-lg hover:bg-muted transition-colors"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="mt-1 text-muted-foreground">
+                            {getResultIcon(result.type)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-medium truncate">
+                              {result.title}
+                            </h4>
+                            {result.snippet && (
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {result.snippet}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {result.timestamp.toLocaleDateString()} • {result.type}
                             </p>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {result.timestamp.toLocaleDateString()} • {result.type}
-                          </p>
+                          </div>
                         </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : null}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </ScrollArea>
             </div>
           </TabsContent>
 

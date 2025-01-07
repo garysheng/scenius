@@ -137,3 +137,16 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes highlightFade {
+  0% {
+    background-color: hsl(var(--accent-nebula) / 0.2);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.highlight-message {
+  animation: highlightFade 3s ease-out;
+}
