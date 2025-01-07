@@ -11,6 +11,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { TwinklingStars } from '@/components/effects/twinkling-stars';
+import { CursorStars } from '@/components/effects/cursor-stars';
 
 interface FeatureCardProps {
   title: string;
@@ -48,7 +50,9 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen relative overflow-hidden cosmic-bg">
+    <main className="relative min-h-screen">
+      <TwinklingStars />
+      <CursorStars />
       {/* Star field background */}
       <div className="star-field animate-twinkle" />
       

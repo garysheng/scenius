@@ -13,42 +13,86 @@ Our color system draws inspiration from lunar landscapes and cosmic phenomena:
 ```css
 :root {
   /* Cosmic Background Colors */
-  --background: 230 25% 5%;      /* Deep space black with slight blue tint */
-  --foreground: 220 60% 98%;     /* Starlight white */
+  --background: 240 10% 4%;        /* Deep space black */
+  --foreground: 0 0% 100%;         /* Pure white */
   
-  /* Elevation Levels (Lunar Surface) */
-  --elevation-1: 230 25% 7%;     /* Lunar crater */
-  --elevation-2: 230 25% 9%;     /* Lunar highland */
-  --elevation-3: 230 25% 11%;    /* Lunar peak */
+  /* Card & Surface Colors */
+  --card: 240 10% 4%;              /* Matches background for consistency */
+  --card-foreground: 0 0% 100%;    /* Pure white */
+  --popover: 240 10% 4%;           /* Matches background */
+  --popover-foreground: 0 0% 100%; /* Pure white */
   
-  /* AI Elements (Aurora Borealis) */
-  --ai-primary: 266 100% 50%;    /* Vibrant purple */
-  --ai-secondary: 280 100% 65%;  /* Soft lilac */
-  --ai-glow: 266 100% 65%;      /* Purple glow */
+  /* Primary Colors - Purple Theme */
+  --primary: 267 100% 61%;         /* Main purple */
+  --primary-foreground: 0 0% 100%; /* White text on primary */
   
-  /* Human Elements (Celestial Blue) */
-  --human-primary: 200 100% 50%; /* Electric blue */
-  --human-secondary: 190 100% 65%; /* Soft cyan */
-  --human-glow: 200 100% 65%;    /* Blue glow */
+  /* Secondary Colors - Cosmic Accent */
+  --secondary: 280 91% 65%;        /* Lighter purple */
+  --secondary-foreground: 0 0% 100%; /* White text on secondary */
   
-  /* Accent Colors (Cosmic Phenomena) */
-  --accent-nebula: 280 100% 65%; /* Nebula pink */
-  --accent-aurora: 170 100% 65%; /* Aurora green */
-  --accent-solar: 35 100% 65%;   /* Solar flare */
+  /* Muted Elements */
+  --muted: 240 10% 8%;            /* Slightly lighter than background */
+  --muted-foreground: 240 5% 65%; /* Subdued text */
+  
+  /* Accent Colors */
+  --accent: 280 91% 65%;          /* Matches secondary for consistency */
+  --accent-foreground: 0 0% 100%; /* White text on accent */
+  --accent-nebula: 280 91% 65%;   /* Nebula effect color */
+  
+  /* AI Elements */
+  --ai-primary: 267 100% 61%;     /* Matches primary */
+  --ai-secondary: 280 91% 65%;    /* Matches secondary */
   
   /* Functional Colors */
-  --success: 142 100% 65%;       /* Positive actions */
-  --warning: 38 100% 65%;        /* Caution */
-  --destructive: 0 100% 65%;     /* Danger */
-  
-  /* UI Elements */
-  --border-dim: 230 25% 15%;     /* Subtle borders */
-  --border-glow: 230 25% 25%;    /* Glowing borders */
-  
-  /* Text Colors */
-  --text-primary: 220 60% 98%;   /* Primary text */
-  --text-secondary: 220 30% 80%; /* Secondary text */
-  --text-tertiary: 220 20% 65%;  /* Tertiary text */
+  --destructive: 0 84% 60%;       /* Red for dangerous actions */
+  --destructive-foreground: 0 0% 100%; /* White text on destructive */
+  --border: 240 10% 8%;           /* Subtle borders */
+  --input: 240 10% 8%;            /* Input backgrounds */
+  --ring: 267 100% 61%;           /* Focus rings - matches primary */
+
+  /* Chart Colors */
+  --chart-1: 267 100% 61%;        /* Primary purple */
+  --chart-2: 280 91% 65%;         /* Secondary purple */
+  --chart-3: 230 100% 65%;        /* Blue accent */
+  --chart-4: 170 100% 65%;        /* Cyan accent */
+  --chart-5: 330 100% 65%;        /* Pink accent */
+}
+```
+
+### Semantic Colors
+
+```css
+/* Message Types */
+.message-ai {
+  --message-bg: hsl(var(--ai-primary) / 0.1);
+  --message-border: hsl(var(--ai-primary) / 0.2);
+  --message-glow: hsl(var(--ai-primary) / 0.1);
+}
+
+.message-human {
+  --message-bg: hsl(var(--muted));
+  --message-border: hsl(var(--border));
+  --message-glow: none;
+}
+
+/* Interactive States */
+.interactive-hover {
+  --hover-bg: hsl(var(--primary) / 0.1);
+  --hover-border: hsl(var(--primary) / 0.2);
+  --hover-glow: hsl(var(--primary) / 0.2);
+}
+
+/* Status Colors */
+.status-online {
+  --status-color: hsl(142 100% 65%);
+}
+
+.status-away {
+  --status-color: hsl(38 100% 65%);
+}
+
+.status-offline {
+  --status-color: hsl(var(--muted-foreground));
 }
 ```
 

@@ -3,6 +3,63 @@
 ## Overview
 Scenius supports flexible access control mechanisms for spaces, allowing communities to manage their membership through composable access methods. Each method can be enabled independently and combined with custom rules.
 
+## Implementation Progress
+
+### Core Access Methods
+- [x] Basic member roles
+- [x] Role permissions
+- [ ] Email list control
+- [ ] Domain verification
+- [ ] Invite link system
+- [ ] Custom access rules
+- [ ] Role assignment rules
+- [ ] Auto-cleanup rules
+
+### Email List Features
+- [ ] Bulk email upload
+- [ ] Email pattern matching
+- [ ] Auto role assignment
+- [ ] Expiry dates
+- [ ] Domain override rules
+- [ ] Email validation
+- [ ] Notification system
+
+### Domain Control Features
+- [ ] Domain verification flow
+- [ ] Subdomain support
+- [ ] Auto role assignment
+- [ ] Path restrictions
+- [ ] Email override support
+- [ ] Verification tracking
+- [ ] Domain analytics
+
+### Invite System
+- [x] Basic invite generation
+- [ ] Time-limited invites
+- [ ] Usage-limited invites
+- [ ] Role assignment
+- [ ] Invite tracking
+- [ ] Revocation system
+- [ ] Invite analytics
+
+### Role Management
+- [x] Basic roles (Owner, Admin, Member)
+- [x] Permission system
+- [ ] Custom roles
+- [ ] Role hierarchies
+- [ ] Permission inheritance
+- [ ] Role analytics
+- [ ] Audit logging
+
+### Security Features
+- [x] Basic permission checks
+- [ ] Advanced rule validation
+- [ ] Rate limiting
+- [ ] Abuse prevention
+- [ ] Security logging
+- [ ] Access monitoring
+- [ ] Automated cleanup
+
 ## Core Access Methods
 
 ### 1. Email List Control
