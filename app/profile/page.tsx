@@ -16,12 +16,14 @@ export default function ProfilePage() {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
       setDisplayName(user.fullName || '');
+      setUsername(user.username || '');
     }
   }, [user]);
 
@@ -31,20 +33,27 @@ export default function ProfilePage() {
     }
   }, [isLoading, isAuthenticated, router]);
 
-  const handleUpdateDisplayName = async () => {
-    if (!user || !displayName.trim() || isUpdating) return;
+  const handleUpdateProfile = async () => {
+    if (!user || isUpdating) return;
+    if (!username.trim()) {
+      setError('Username is required');
+      return;
+    }
 
     try {
       setIsUpdating(true);
       setError(null);
-      await usersService.updateUser(user.id, { fullName: displayName.trim() });
+      await usersService.updateUser(user.id, {
+        username: username.trim(),
+        fullName: displayName.trim() || undefined
+      });
       setIsEditing(false);
       router.refresh();
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Failed to update display name');
+        setError('Failed to update profile');
       }
     } finally {
       setIsUpdating(false);
@@ -173,9 +182,22 @@ export default function ProfilePage() {
 
                 <div className="mt-6 space-y-4">
                   {isEditing ? (
-                    <div className="space-y-2">
-                      <Label htmlFor="displayName" className="text-[hsl(var(--text-primary))]">Display Name</Label>
-                      <div className="flex gap-2">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="username" className="text-[hsl(var(--text-primary))]">Username</Label>
+                        <Input
+                          id="username"
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          className="cosmic-input"
+                          placeholder="Enter your username"
+                          disabled={isUpdating}
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="displayName" className="text-[hsl(var(--text-primary))]">Display Name</Label>
                         <Input
                           id="displayName"
                           value={displayName}
@@ -184,41 +206,51 @@ export default function ProfilePage() {
                           placeholder="Enter your display name"
                           disabled={isUpdating}
                         />
+                      </div>
+
+                      <div className="flex gap-2 justify-center">
                         <Button
-                          size="icon"
-                          onClick={handleUpdateDisplayName}
-                          disabled={isUpdating || !displayName.trim()}
+                          onClick={handleUpdateProfile}
+                          disabled={isUpdating || !username.trim()}
                           className="shrink-0"
                         >
-                          <Check className="w-4 h-4" />
+                          <Check className="w-4 h-4 mr-2" />
+                          Save Changes
                         </Button>
                         <Button
-                          size="icon"
                           variant="ghost"
                           onClick={() => {
                             setIsEditing(false);
                             setDisplayName(user.fullName || '');
+                            setUsername(user.username || '');
                           }}
                           disabled={isUpdating}
                           className="shrink-0"
                         >
-                          <X className="w-4 h-4" />
+                          <X className="w-4 h-4 mr-2" />
+                          Cancel
                         </Button>
                       </div>
+
                       {error && (
                         <p className="text-xs text-[hsl(var(--destructive))]">{error}</p>
                       )}
                     </div>
                   ) : (
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex flex-col items-center gap-2">
                       <h1 className="text-2xl font-semibold bg-gradient-to-r from-[hsl(var(--text-primary))] to-[hsl(var(--accent-nebula))] bg-clip-text text-transparent">
                         {user.fullName || user.username}
                       </h1>
+                      {user.fullName && (
+                        <p className="text-[hsl(var(--text-secondary))]">
+                          @{user.username}
+                        </p>
+                      )}
                       <Button
                         size="icon"
                         variant="ghost"
                         onClick={() => setIsEditing(true)}
-                        className="h-8 w-8"
+                        className="h-8 w-8 mt-2"
                       >
                         <Pencil className="w-4 h-4 text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]" />
                       </Button>
