@@ -143,3 +143,11 @@
     - Added proper cleanup for Firebase subscriptions
     - Improved dependency management in useEffect hooks
     - Fixed memory leaks in real-time presence updates 
+
+19. Dependency Management
+    - Added .npmrc configuration for handling peer dependency conflicts
+    - Fixed emoji-mart and React version compatibility issues
+    - Configured legacy peer dependencies for Vercel deployment
+    - Disabled strict peer dependencies to prevent installation failures
+    - Installed missing emoji-mart core package and data
+    - Fixed module resolution for emoji picker components 
