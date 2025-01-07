@@ -164,7 +164,8 @@ export const scenieService = {
             content: `Convert the following chat messages into a natural, flowing narrative suitable for text-to-speech.
             Make it engaging and easy to follow, using transitions and proper context.
             Use the speaker's names naturally in the narrative, avoiding repetitive "X said" patterns.
-            Keep speaker transitions concise and conversational.`
+            Keep speaker transitions concise and conversational.
+            IMPORTANT: Keep the narrative concise and under 4000 characters to fit within text-to-speech limits.`
           },
           {
             role: "user" as const,
@@ -179,11 +180,16 @@ export const scenieService = {
         throw new Error('Failed to generate narrative');
       }
 
+      // Check narrative length and truncate if necessary
+      const truncatedNarrative = narrative.length > 4000 
+        ? narrative.slice(0, 3997) + '...'
+        : narrative;
+
       // Generate speech from the narrative
       const speechResponse = await openai.audio.speech.create({
         model: AI_MODELS.VOICE.TTS,
         voice: AI_MODELS.VOICES.ALLOY,
-        input: narrative
+        input: truncatedNarrative
       });
 
       // Convert the audio to a blob
@@ -197,12 +203,12 @@ export const scenieService = {
       const dictationRef = collection(db, 'spaces', spaceId, 'channels', channelId, 'dictations');
       const dictation: Omit<VoiceDictation, 'id'> = {
         channelId,
-        content: narrative,
+        content: truncatedNarrative,
         status: 'ready',
         audioUrl,
         metadata: {
           generatedAt: Timestamp.now(),
-          wordCount: narrative.split(' ').length
+          wordCount: truncatedNarrative.split(' ').length
         }
       };
 
