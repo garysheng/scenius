@@ -194,4 +194,39 @@ export const spacesService = {
       'metadata.memberCount': increment(1)
     });
   },
+
+  async leaveSpace(id: string, userId: string) {
+    const auth = getAuth();
+    if (!auth.currentUser) {
+      throw new Error('You must be signed in to leave a space');
+    }
+
+    // Check if space exists
+    const spaceRef = doc(db, 'spaces', id);
+    const spaceDoc = await getDoc(spaceRef);
+    if (!spaceDoc.exists()) {
+      throw new Error('Space not found');
+    }
+
+    // Check if user is a member
+    const memberRef = doc(db, 'spaces', id, 'members', userId);
+    const memberDoc = await getDoc(memberRef);
+    if (!memberDoc.exists()) {
+      throw new Error('You are not a member of this space');
+    }
+
+    // Check if user is the owner
+    const spaceData = spaceDoc.data();
+    if (spaceData.ownerId === userId) {
+      throw new Error('Space owner cannot leave the space. Transfer ownership or delete the space instead.');
+    }
+
+    // Remove user from members
+    await deleteDoc(memberRef);
+
+    // Update member count
+    await updateDoc(spaceRef, {
+      'metadata.memberCount': increment(-1)
+    });
+  },
 }; 

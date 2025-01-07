@@ -325,7 +325,11 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
 
               {/* Channel Content */}
               <div className="flex-1 overflow-y-auto p-4">
-                <MessageList messages={messages} users={users} />
+                <MessageList 
+                  messages={messages} 
+                  users={users}
+                  spaceId={id}
+                />
               </div>
 
               {/* Chat Input */}

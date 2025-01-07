@@ -7,9 +7,10 @@ import { MessageItem } from './message-item';
 interface MessageListProps {
   messages: MessageFrontend[];
   users: Record<string, UserFrontend>;
+  spaceId: string;
 }
 
-export function MessageList({ messages, users }: MessageListProps) {
+export function MessageList({ messages, users, spaceId }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom when new messages arrive
@@ -32,6 +33,7 @@ export function MessageList({ messages, users }: MessageListProps) {
           key={message.id} 
           message={message}
           user={users[message.userId]}
+          spaceId={spaceId}
         />
       ))}
       <div ref={messagesEndRef} />

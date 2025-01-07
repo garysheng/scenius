@@ -8,6 +8,9 @@ import { usersService } from '@/lib/services/client/users';
 import { presenceService } from '@/lib/services/client/presence';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useRouter } from 'next/navigation';
+import { channelsService } from '@/lib/services/client/channels';
+import { useAuth } from '@/lib/hooks/use-auth';
 
 interface MemberListProps {
   spaceId: string;
@@ -17,6 +20,8 @@ export function MemberList({ spaceId }: MemberListProps) {
   const [users, setUsers] = useState<Record<string, UserFrontend>>({});
   const [presence, setPresence] = useState<Record<string, UserPresenceFrontend>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const { user: currentUser } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     const unsubscribe = presenceService.subscribeToSpacePresence(spaceId, async (newPresence) => {
@@ -74,6 +79,17 @@ export function MemberList({ spaceId }: MemberListProps) {
     return (a[1].username || a[1].fullName || '').localeCompare(b[1].username || b[1].fullName || '');
   });
 
+  const handleMemberClick = async (userId: string) => {
+    if (!currentUser || userId === currentUser.id) return;
+    
+    try {
+      const channelId = await channelsService.createDM(spaceId, [currentUser.id, userId]);
+      router.push(`/spaces/${spaceId}/channels/${channelId}`);
+    } catch (error) {
+      console.error('Failed to create/open DM:', error);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-2 p-2">
@@ -96,7 +112,10 @@ export function MemberList({ spaceId }: MemberListProps) {
             <TooltipProvider key={userId}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50 cursor-pointer group">
+                  <div 
+                    className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50 cursor-pointer group"
+                    onClick={() => handleMemberClick(userId)}
+                  >
                     <div className="relative">
                       {user.avatarUrl ? (
                         <Image

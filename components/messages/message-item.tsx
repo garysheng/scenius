@@ -5,18 +5,37 @@ import { Play, Pause, Volume2 } from 'lucide-react';
 import Image from 'next/image';
 import { MessageFrontend, UserFrontend } from '@/types';
 import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/hooks/use-auth';
+import { channelsService } from '@/lib/services/client/channels';
 
 interface MessageItemProps {
   message: MessageFrontend;
   user?: UserFrontend | null;
+  spaceId: string;
 }
 
-export function MessageItem({ message, user }: MessageItemProps) {
+export function MessageItem({ message, user, spaceId }: MessageItemProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { user: currentUser } = useAuth();
+  const router = useRouter();
+
   const initials = user?.username?.slice(0, 2).toUpperCase() || 
                   user?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase() || 
                   '??';
+
+  const handleAvatarClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user || !currentUser || user.id === currentUser.id) return;
+
+    try {
+      const channelId = await channelsService.createDM(spaceId, [currentUser.id, user.id]);
+      router.push(`/spaces/${spaceId}/channels/${channelId}`);
+    } catch (error) {
+      console.error('Failed to create/open DM:', error);
+    }
+  };
 
   const toggleAudio = () => {
     if (!audioRef.current) return;
@@ -35,7 +54,10 @@ export function MessageItem({ message, user }: MessageItemProps) {
 
   return (
     <div className="flex items-start gap-3 group hover:bg-[hsl(var(--card-hover))] p-2 rounded-lg transition-colors">
-      <div className="relative w-8 h-8 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center flex-shrink-0 overflow-hidden">
+      <div 
+        className="relative w-8 h-8 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center flex-shrink-0 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={handleAvatarClick}
+      >
         {user?.avatarUrl ? (
           <Image
             src={user.avatarUrl}

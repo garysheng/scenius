@@ -5,12 +5,14 @@ import {
   getDoc,
   getDocs,
   query,
+  where,
   orderBy,
   Timestamp,
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Channel, ChannelFrontend } from '@/types';
+import { Channel, ChannelFrontend, UserFrontend } from '@/types';
+import { usersService } from './users';
 
 export const channelsService = {
   async createChannel(spaceId: string, data: Omit<Channel, 'id' | 'spaceId' | 'createdAt' | 'updatedAt' | 'metadata'>): Promise<string> {
@@ -18,6 +20,7 @@ export const channelsService = {
     const docRef = await addDoc(channelsRef, {
       ...data,
       spaceId,
+      kind: 'CHANNEL',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       metadata: {
@@ -28,23 +31,74 @@ export const channelsService = {
     return docRef.id;
   },
 
+  async createDM(spaceId: string, participantIds: string[]): Promise<string> {
+    // Check if DM already exists between these users
+    const channelsRef = collection(db, 'spaces', spaceId, 'channels');
+    const dmQuery = query(
+      channelsRef,
+      where('kind', '==', 'DM'),
+      where('metadata.participantIds', '==', participantIds.sort())
+    );
+    
+    const existingDMs = await getDocs(dmQuery);
+    if (!existingDMs.empty) {
+      return existingDMs.docs[0].id;
+    }
+
+    // Create new DM channel
+    const docRef = await addDoc(channelsRef, {
+      name: 'Direct Message',
+      description: '',
+      kind: 'DM',
+      spaceId,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      metadata: {
+        messageCount: 0,
+        lastMessageAt: null,
+        participantIds: participantIds.sort() // Sort to ensure consistent order
+      }
+    });
+
+    return docRef.id;
+  },
+
   async getChannels(spaceId: string): Promise<ChannelFrontend[]> {
     const channelsRef = collection(db, 'spaces', spaceId, 'channels');
     const channelsQuery = query(channelsRef, orderBy('name', 'asc'));
     const snapshot = await getDocs(channelsQuery);
 
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: (doc.data().createdAt as Timestamp).toDate(),
-      updatedAt: (doc.data().updatedAt as Timestamp).toDate(),
-      metadata: {
-        ...doc.data().metadata,
-        lastMessageAt: doc.data().metadata.lastMessageAt ? 
-          (doc.data().metadata.lastMessageAt as Timestamp).toDate() : 
-          null
+    const channels = await Promise.all(snapshot.docs.map(async (doc) => {
+      const data = doc.data();
+      const channel: ChannelFrontend = {
+        id: doc.id,
+        spaceId: data.spaceId,
+        name: data.name,
+        description: data.description,
+        kind: data.kind,
+        permissions: data.permissions,
+        createdAt: (data.createdAt as Timestamp).toDate(),
+        updatedAt: (data.updatedAt as Timestamp).toDate(),
+        metadata: {
+          ...data.metadata,
+          lastMessageAt: data.metadata.lastMessageAt ? 
+            (data.metadata.lastMessageAt as Timestamp).toDate() : 
+            null
+        }
+      };
+
+      // If it's a DM channel, fetch participant details
+      if (data.kind === 'DM' && data.metadata.participantIds) {
+        const participants = await Promise.all(
+          data.metadata.participantIds.map((id: string) => usersService.getUser(id))
+        );
+        channel.metadata.participants = participants;
       }
-    } as ChannelFrontend));
+
+      return channel;
+    }));
+
+    return channels;
   },
 
   async getChannel(spaceId: string, channelId: string): Promise<ChannelFrontend> {
@@ -56,9 +110,13 @@ export const channelsService = {
     }
 
     const data = channelDoc.data();
-    return {
+    const channel: ChannelFrontend = {
       id: channelDoc.id,
-      ...data,
+      spaceId: data.spaceId,
+      name: data.name,
+      description: data.description,
+      kind: data.kind,
+      permissions: data.permissions,
       createdAt: (data.createdAt as Timestamp).toDate(),
       updatedAt: (data.updatedAt as Timestamp).toDate(),
       metadata: {
@@ -67,6 +125,16 @@ export const channelsService = {
           (data.metadata.lastMessageAt as Timestamp).toDate() : 
           null
       }
-    } as ChannelFrontend;
+    };
+
+    // If it's a DM channel, fetch participant details
+    if (data.kind === 'DM' && data.metadata.participantIds) {
+      const participants = await Promise.all(
+        data.metadata.participantIds.map((id: string) => usersService.getUser(id))
+      );
+      channel.metadata.participants = participants;
+    }
+
+    return channel;
   }
 }; 

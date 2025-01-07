@@ -64,12 +64,13 @@ export interface Channel {
   spaceId: string;
   name: string;
   description: string;
-  type: 'TEXT' | 'VOICE' | 'FORUM';
+  kind: 'CHANNEL' | 'DM';
   createdAt: Timestamp;
   updatedAt: Timestamp;
   metadata: {
     messageCount: number;
     lastMessageAt: Timestamp | null;
+    participantIds?: string[];
   };
   permissions: {
     roleId: string;
@@ -139,6 +140,8 @@ export interface ChannelFrontend extends Omit<Channel, 'createdAt' | 'updatedAt'
   metadata: {
     messageCount: number;
     lastMessageAt: Date | null;
+    participantIds?: string[];
+    participants?: UserFrontend[];
   };
 }
 
