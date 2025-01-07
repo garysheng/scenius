@@ -44,29 +44,31 @@ export function MessageList({
   }, [messageId, messages]);
 
   return (
-    <div className="relative flex-1 overflow-hidden min-h-screen -mt-4 border-l border-gradient-to-b from-white/20 to-white/5 shadow-[0_0_10px_rgba(255,255,255,0.1)] animate-[pulse_4s_ease-in-out_infinite]">
-      <StarfieldBackground />
-      <div className="h-full min-h-screen overflow-auto">
-        <div className="space-y-4 p-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              ref={el => {
-                if (el) messageRefs.current[message.id] = el;
-              }}
-              className="transition-colors duration-300"
-            >
-              <MessageItem
-                message={message}
-                user={users[message.userId]}
-                spaceId={spaceId}
-                onChannelSelect={onChannelSelect}
-                onThreadOpen={onThreadOpen}
-                isThread={isThread}
-                spaceRole={spaceRole}
-              />
-            </div>
-          ))}
+    <div className="h-full flex flex-col">
+      <div className="relative flex-1">
+        <StarfieldBackground />
+        <div className="absolute inset-0 p-4 overflow-y-auto">
+          <div className="space-y-4">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                ref={el => {
+                  if (el) messageRefs.current[message.id] = el;
+                }}
+                className="transition-colors duration-300"
+              >
+                <MessageItem
+                  message={message}
+                  user={users[message.userId]}
+                  spaceId={spaceId}
+                  onChannelSelect={onChannelSelect}
+                  onThreadOpen={onThreadOpen}
+                  isThread={isThread}
+                  spaceRole={spaceRole}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

@@ -2,7 +2,24 @@
  * Service for managing URL formatting and generation across the application.
  * Centralizes URL structure to make it easier to change URL schemes.
  */
+
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.scenius.chat';
+
 export const urlService = {
+  /**
+   * Base configuration
+   */
+  config: {
+    /** Get the base URL for the application */
+    getBaseUrl: () => BASE_URL,
+    
+    /** Get the metadata base URL for OpenGraph and Twitter cards */
+    getMetadataBase: () => new URL(BASE_URL),
+    
+    /** Convert a relative path to an absolute URL */
+    toAbsolute: (path: string) => `${BASE_URL}${path}`,
+  },
+
   /**
    * Formats URLs for spaces
    */
@@ -39,10 +56,7 @@ export const urlService = {
     invite: (code: string) => `/invites/${encodeURIComponent(code)}`,
     
     /** Get the full invite URL including domain */
-    inviteWithDomain: (code: string) => {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      return `${baseUrl}/invites/${encodeURIComponent(code)}`;
-    },
+    inviteWithDomain: (code: string) => urlService.config.toAbsolute(`/invites/${encodeURIComponent(code)}`),
   },
 
   /**

@@ -122,327 +122,316 @@ export function AccessControlSettings({ spaceId }: AccessControlSettingsProps) {
     setInviteExpiry('');
   };
 
-
   return (
-    <>
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Access Control Settings</CardTitle>
-          <CardDescription>
-            Manage who can access your space and what they can do
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="email-list">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="email-list">
-                <Mail className="w-4 h-4 mr-2" />
-                Email List
-              </TabsTrigger>
-              <TabsTrigger value="domains">
-                <Globe className="w-4 h-4 mr-2" />
-                Domains
-              </TabsTrigger>
-              <TabsTrigger value="invites">
-                <LinkIcon className="w-4 h-4 mr-2" />
-                Invite Links
-              </TabsTrigger>
-              <TabsTrigger value="roles">
-                <Shield className="w-4 h-4 mr-2" />
-                Roles
-              </TabsTrigger>
-            </TabsList>
+    <div className="space-y-6">
+      <Tabs defaultValue="email-list">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="email-list">
+            <Mail className="w-4 h-4 mr-2" />
+            Email List
+          </TabsTrigger>
+          <TabsTrigger value="domains">
+            <Globe className="w-4 h-4 mr-2" />
+            Domains
+          </TabsTrigger>
+          <TabsTrigger value="invites">
+            <LinkIcon className="w-4 h-4 mr-2" />
+            Invite Links
+          </TabsTrigger>
+          <TabsTrigger value="roles">
+            <Shield className="w-4 h-4 mr-2" />
+            Roles
+          </TabsTrigger>
+        </TabsList>
 
-            <TabsContent value="email-list">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Email List Access</CardTitle>
-                    <Switch
-                      checked={accessConfig?.emailList.enabled}
-                      onCheckedChange={handleEmailListToggle}
+        <TabsContent value="email-list">
+          <Card className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/95">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Email List Access</CardTitle>
+                <Switch
+                  checked={accessConfig?.emailList.enabled}
+                  onCheckedChange={handleEmailListToggle}
+                />
+              </div>
+              <CardDescription>
+                Control access by specifying allowed email addresses
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Input
+                    placeholder="Enter email address"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                  />
+                  <Button onClick={handleAddEmail}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add
+                  </Button>
+                </div>
+                <ScrollArea className="h-[200px] w-full rounded-md border p-4">
+                  <div className="space-y-2">
+                    {accessConfig?.emailList.emails.map((email) => (
+                      <div
+                        key={email}
+                        className="flex items-center justify-between"
+                      >
+                        <span>{email}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeEmailFromList(email)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="domains">
+          <Card className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/95">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Domain Access</CardTitle>
+                <Switch
+                  checked={accessConfig?.domains.enabled}
+                  onCheckedChange={handleDomainAccessToggle}
+                />
+              </div>
+              <CardDescription>
+                Allow access based on email domains
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Input
+                    placeholder="Enter domain (e.g., company.com)"
+                    value={newDomain}
+                    onChange={(e) => setNewDomain(e.target.value)}
+                  />
+                  <Button onClick={handleAddDomain}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add
+                  </Button>
+                </div>
+                <ScrollArea className="h-[200px] w-full rounded-md border p-4">
+                  <div className="space-y-2">
+                    {accessConfig?.domains.domains.map((domain) => (
+                      <div
+                        key={domain.domain}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <span>{domain.domain}</span>
+                          {domain.verified ? (
+                            <Badge variant="default">
+                              <CheckCircle2 className="w-4 h-4 mr-1" />
+                              Verified
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">
+                              <XCircle className="w-4 h-4 mr-1" />
+                              Unverified
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {!domain.verified && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => verifyDomain(domain.domain)}
+                            >
+                              Verify
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              // TODO: Implement domain removal
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="invites">
+          <Card className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/95">
+            <CardHeader>
+              <CardTitle>Invite Links</CardTitle>
+              <CardDescription>
+                Create and manage invite links for your space
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <Label>Role</Label>
+                    <Input
+                      placeholder="Select role"
+                      value={inviteRole}
+                      onChange={(e) => setInviteRole(e.target.value)}
                     />
                   </div>
-                  <CardDescription>
-                    Control access by specifying allowed email addresses
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-2">
-                      <Input
-                        placeholder="Enter email address"
-                        value={newEmail}
-                        onChange={(e) => setNewEmail(e.target.value)}
-                      />
-                      <Button onClick={handleAddEmail}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add
-                      </Button>
-                    </div>
-                    <ScrollArea className="h-[200px] w-full rounded-md border p-4">
-                      <div className="space-y-2">
-                        {accessConfig?.emailList.emails.map((email) => (
-                          <div
-                            key={email}
-                            className="flex items-center justify-between"
-                          >
-                            <span>{email}</span>
+                  <div className="grid gap-2">
+                    <Label>Max Uses</Label>
+                    <Input
+                      type="number"
+                      placeholder="Unlimited"
+                      value={inviteMaxUses === null ? '' : inviteMaxUses}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setInviteMaxUses(value === '' ? null : Number(value));
+                      }}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Expiry Date</Label>
+                    <Input
+                      type="datetime-local"
+                      value={inviteExpiry}
+                      onChange={(e) => setInviteExpiry(e.target.value)}
+                    />
+                  </div>
+                  <Button onClick={handleCreateInvite}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Invite Link
+                  </Button>
+                </div>
+                <Separator />
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium">Active Invite Links</h4>
+                  <ScrollArea className="h-[200px] w-full rounded-md border p-4">
+                    <div className="space-y-4">
+                      {accessConfig?.inviteLinks?.map((link: SpaceAccess['inviteLinks'][0]) => (
+                        <div
+                          key={link.id}
+                          className="flex items-center justify-between"
+                        >
+                          <div className="flex flex-col">
+                            <code className="text-sm bg-muted px-2 py-1 rounded">
+                              {link.code}
+                            </code>
+                            <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                              <span>{link.uses}/{link.maxUses || '∞'} uses</span>
+                              <span>•</span>
+                              <span>
+                                {link.expiresAt ? new Date(link.expiresAt).toLocaleDateString() : 'Never expires'}
+                              </span>
+                              {link.isRevoked && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-destructive font-medium">Revoked</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => removeEmailFromList(email)}
+                              onClick={() => {
+                                const inviteUrl = urlService.invites.inviteWithDomain(link.code);
+                                navigator.clipboard.writeText(inviteUrl);
+                              }}
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <LinkIcon className="w-4 h-4" />
                             </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="domains">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Domain Access</CardTitle>
-                    <Switch
-                      checked={accessConfig?.domains.enabled}
-                      onCheckedChange={handleDomainAccessToggle}
-                    />
-                  </div>
-                  <CardDescription>
-                    Allow access based on email domains
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-2">
-                      <Input
-                        placeholder="Enter domain (e.g., company.com)"
-                        value={newDomain}
-                        onChange={(e) => setNewDomain(e.target.value)}
-                      />
-                      <Button onClick={handleAddDomain}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add
-                      </Button>
-                    </div>
-                    <ScrollArea className="h-[200px] w-full rounded-md border p-4">
-                      <div className="space-y-2">
-                        {accessConfig?.domains.domains.map((domain) => (
-                          <div
-                            key={domain.domain}
-                            className="flex items-center justify-between"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <span>{domain.domain}</span>
-                              {domain.verified ? (
-                                <Badge variant="default">
-                                  <CheckCircle2 className="w-4 h-4 mr-1" />
-                                  Verified
-                                </Badge>
-                              ) : (
-                                <Badge variant="secondary">
-                                  <XCircle className="w-4 h-4 mr-1" />
-                                  Unverified
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              {!domain.verified && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => verifyDomain(domain.domain)}
-                                >
-                                  Verify
-                                </Button>
-                              )}
+                            {!link.isRevoked && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => {
-                                  // TODO: Implement domain removal
-                                }}
+                                onClick={() => revokeInviteLink(link.id)}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-4 h-4 text-destructive" />
                               </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="invites">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Invite Links</CardTitle>
-                  <CardDescription>
-                    Create and manage invite links for your space
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="grid gap-4">
-                      <div className="grid gap-2">
-                        <Label>Role</Label>
-                        <Input
-                          placeholder="Select role"
-                          value={inviteRole}
-                          onChange={(e) => setInviteRole(e.target.value)}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>Max Uses</Label>
-                        <Input
-                          type="number"
-                          placeholder="Unlimited"
-                          value={inviteMaxUses === null ? '' : inviteMaxUses}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            setInviteMaxUses(value === '' ? null : Number(value));
-                          }}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>Expiry Date</Label>
-                        <Input
-                          type="datetime-local"
-                          value={inviteExpiry}
-                          onChange={(e) => setInviteExpiry(e.target.value)}
-                        />
-                      </div>
-                      <Button onClick={handleCreateInvite}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create Invite Link
-                      </Button>
-                    </div>
-                    <Separator />
-                    <div className="space-y-4">
-                      <h4 className="text-sm font-medium">Active Invite Links</h4>
-                      <ScrollArea className="h-[200px] w-full rounded-md border p-4">
-                        <div className="space-y-4">
-                          {accessConfig?.inviteLinks?.map((link: SpaceAccess['inviteLinks'][0]) => (
-                            <div
-                              key={link.id}
-                              className="flex items-center justify-between"
-                            >
-                              <div className="flex flex-col">
-                                <code className="text-sm bg-muted px-2 py-1 rounded">
-                                  {link.code}
-                                </code>
-                                <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                                  <span>{link.uses}/{link.maxUses || '∞'} uses</span>
-                                  <span>•</span>
-                                  <span>
-                                    {link.expiresAt ? new Date(link.expiresAt).toLocaleDateString() : 'Never expires'}
-                                  </span>
-                                  {link.isRevoked && (
-                                    <>
-                                      <span>•</span>
-                                      <span className="text-destructive font-medium">Revoked</span>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    const inviteUrl = urlService.invites.inviteWithDomain(link.code);
-                                    navigator.clipboard.writeText(inviteUrl);
-                                  }}
-                                >
-                                  <LinkIcon className="w-4 h-4" />
-                                </Button>
-                                {!link.isRevoked && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => revokeInviteLink(link.id)}
-                                  >
-                                    <Trash2 className="w-4 h-4 text-destructive" />
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="roles">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Role Management</CardTitle>
-                  <CardDescription>
-                    Create and manage roles and their permissions
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    <div className="space-y-4">
-                      <h4 className="text-sm font-medium">Create New Role</h4>
-                      <div className="grid gap-4">
-                        <div className="grid gap-2">
-                          <Label>Role Name</Label>
-                          <Input
-                            placeholder="Enter role name"
-                            value={newRoleName}
-                            onChange={(e) => setNewRoleName(e.target.value)}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>Role Color</Label>
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              type="color"
-                              value={newRoleColor}
-                              onChange={(e) => setNewRoleColor(e.target.value)}
-                              className="w-24 h-10 p-1"
-                            />
-                            <span className="text-sm text-muted-foreground">
-                              {newRoleColor}
-                            </span>
+                            )}
                           </div>
                         </div>
-                        <Button
-                          onClick={async () => {
-                            if (!newRoleName) return;
-                            await createRole({
-                              name: newRoleName,
-                              color: newRoleColor,
-                              permissions: []
-                            });
-                            setNewRoleName('');
-                            setNewRoleColor('#99AAB5');
-                          }}
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Create Role
-                        </Button>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="roles">
+          <Card className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/95">
+            <CardHeader>
+              <CardTitle>Role Management</CardTitle>
+              <CardDescription>
+                Create and manage roles and their permissions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium">Create New Role</h4>
+                  <div className="grid gap-4">
+                    <div className="grid gap-2">
+                      <Label>Role Name</Label>
+                      <Input
+                        placeholder="Enter role name"
+                        value={newRoleName}
+                        onChange={(e) => setNewRoleName(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Role Color</Label>
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          type="color"
+                          value={newRoleColor}
+                          onChange={(e) => setNewRoleColor(e.target.value)}
+                          className="w-24 h-10 p-1"
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {newRoleColor}
+                        </span>
                       </div>
                     </div>
+                    <Button
+                      onClick={async () => {
+                        if (!newRoleName) return;
+                        await createRole({
+                          name: newRoleName,
+                          color: newRoleColor,
+                          permissions: []
+                        });
+                        setNewRoleName('');
+                        setNewRoleColor('#99AAB5');
+                      }}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Role
+                    </Button>
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 } 

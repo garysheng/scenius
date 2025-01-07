@@ -20,6 +20,7 @@ import { db } from '@/lib/firebase';
 import { Space, SpaceFrontend, Member, SpaceSettings } from '@/types/spaces';
 import { getAuth } from 'firebase/auth';
 import { accessControlService } from './access-control';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 /**
  * Client-side service for managing spaces in Firebase
@@ -131,24 +132,38 @@ export const spacesService = {
       throw new Error('You must be signed in to view a space');
     }
 
-    // Check if user is a member of this space
-    const memberDoc = await getDoc(doc(db, 'spaces', id, 'members', auth.currentUser.uid));
-    if (!memberDoc.exists()) {
-      throw new Error('You do not have access to this space');
-    }
+    try {
+      console.log('Fetching space:', id);
+      
+      // First check if the space exists
+      const spaceDoc = await getDoc(doc(db, 'spaces', id));
+      if (!spaceDoc.exists()) {
+        console.log('Space not found:', id);
+        throw new Error('Space not found');
+      }
 
-    const spaceDoc = await getDoc(doc(db, 'spaces', id));
-    if (!spaceDoc.exists()) {
-      throw new Error('Space not found');
-    }
+      // Then check if user is a member or if the space is public
+      const memberDoc = await getDoc(doc(db, 'spaces', id, 'members', auth.currentUser.uid));
+      const spaceData = spaceDoc.data();
+      
+      if (!memberDoc.exists() && !spaceData.settings?.isPublic) {
+        console.log('User does not have access to space:', { userId: auth.currentUser.uid, spaceId: id });
+        throw new Error('You do not have access to this space');
+      }
 
-    const data = spaceDoc.data();
-    return {
-      id: spaceDoc.id,
-      ...data,
-      createdAt: (data.createdAt as Timestamp).toDate(),
-      updatedAt: (data.updatedAt as Timestamp).toDate()
-    } as SpaceFrontend;
+      console.log('Space access granted:', { userId: auth.currentUser.uid, spaceId: id });
+
+      const data = spaceDoc.data();
+      return {
+        id: spaceDoc.id,
+        ...data,
+        createdAt: (data.createdAt as Timestamp).toDate(),
+        updatedAt: (data.updatedAt as Timestamp).toDate()
+      } as SpaceFrontend;
+    } catch (error) {
+      console.error('Error getting space:', error);
+      throw error;
+    }
   },
 
   async updateSpace(id: string, data: Partial<Omit<Space, 'id' | 'createdAt' | 'updatedAt' | 'ownerId' | 'metadata'>>) {
@@ -170,31 +185,42 @@ export const spacesService = {
       throw new Error('You must be signed in to join a space');
     }
 
-    // Check if space exists
-    const spaceRef = doc(db, 'spaces', id);
-    const spaceDoc = await getDoc(spaceRef);
-    if (!spaceDoc.exists()) {
-      throw new Error('Space not found');
+    try {
+      console.log('Attempting to join space:', { spaceId: id, userId: auth.currentUser.uid, role });
+
+      // Check if space exists
+      const spaceRef = doc(db, 'spaces', id);
+      const spaceDoc = await getDoc(spaceRef);
+      if (!spaceDoc.exists()) {
+        console.log('Space not found:', id);
+        throw new Error('Space not found');
+      }
+
+      // Check if user is already a member
+      const memberRef = doc(db, 'spaces', id, 'members', auth.currentUser.uid);
+      const memberDoc = await getDoc(memberRef);
+      if (memberDoc.exists()) {
+        console.log('User is already a member:', { userId: auth.currentUser.uid, spaceId: id });
+        throw new Error('You are already a member of this space');
+      }
+
+      // Add user as member with the specified role
+      await setDoc(memberRef, {
+        userId: auth.currentUser.uid,
+        role,
+        joinedAt: serverTimestamp()
+      });
+
+      // Update member count
+      await updateDoc(spaceRef, {
+        'metadata.memberCount': increment(1)
+      });
+
+      console.log('Successfully joined space:', { userId: auth.currentUser.uid, spaceId: id, role });
+    } catch (error) {
+      console.error('Error joining space:', error);
+      throw error;
     }
-
-    // Check if user is already a member
-    const memberRef = doc(db, 'spaces', id, 'members', auth.currentUser.uid);
-    const memberDoc = await getDoc(memberRef);
-    if (memberDoc.exists()) {
-      throw new Error('You are already a member of this space');
-    }
-
-    // Add user as member with the specified role
-    await setDoc(memberRef, {
-      userId: auth.currentUser.uid,
-      role,
-      joinedAt: serverTimestamp()
-    });
-
-    // Update member count
-    await updateDoc(spaceRef, {
-      'metadata.memberCount': increment(1)
-    });
   },
 
   async leaveSpace(id: string, userId: string) {
@@ -429,5 +455,49 @@ export const spacesService = {
     }
 
     return spaces;
+  },
+
+  async uploadSpaceImage(spaceId: string, file: File): Promise<string> {
+    const auth = getAuth();
+    if (!auth.currentUser) {
+      throw new Error('You must be signed in to upload an image');
+    }
+
+    const storage = getStorage();
+    const imageRef = ref(storage, `spaces/${spaceId}/profile-picture`);
+    
+    await uploadBytes(imageRef, file);
+    const downloadUrl = await getDownloadURL(imageRef);
+
+    // Update the space document with the new image URL
+    const spaceRef = doc(db, 'spaces', spaceId);
+    await updateDoc(spaceRef, {
+      imageUrl: downloadUrl
+    });
+
+    return downloadUrl;
+  },
+
+  async removeSpaceImage(spaceId: string): Promise<void> {
+    const auth = getAuth();
+    if (!auth.currentUser) {
+      throw new Error('You must be signed in to remove an image');
+    }
+
+    const storage = getStorage();
+    const imageRef = ref(storage, `spaces/${spaceId}/profile-picture`);
+    
+    try {
+      await deleteObject(imageRef);
+    } catch (error) {
+      // Ignore if file doesn't exist
+      console.log('No existing image to delete');
+    }
+
+    // Update the space document to remove the image URL
+    const spaceRef = doc(db, 'spaces', spaceId);
+    await updateDoc(spaceRef, {
+      imageUrl: null
+    });
   }
 }; 

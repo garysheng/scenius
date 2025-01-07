@@ -80,11 +80,11 @@ export default function SignUpPage() {
         
         <Card className="relative w-full p-6 space-y-6 cosmic-card">
           <div className="space-y-2 text-center">
-            <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent animate-gradient">
-              Join Scenius
+            <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+              Create Your Account
             </h1>
-            <p className="text-sm text-muted-foreground">
-              Create your account to get started
+            <p className="text-sm text-neutral-400">
+              Join Scenius - An AI & crypto-first community platform where members earn points and tokens for valuable contributions.
             </p>
           </div>
 

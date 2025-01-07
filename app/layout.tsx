@@ -4,22 +4,29 @@ import "./globals.css";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { Navbar } from "@/components/layout/navbar";
 import { Providers } from './providers';
+import { urlService } from '@/lib/services/client/url';
 
 export const metadata: Metadata = {
   title: "Scenius",
-  description: "AI-native collaboration platform for innovation communities",
+  description: "An AI & crypto-first community platform where members earn points and tokens for valuable contributions, and deploy blockchain-integrated AI agents that represent and take actions on behalf of the community.",
+  metadataBase: urlService.config.getMetadataBase(),
   openGraph: {
+    title: 'Scenius',
+    description: 'An AI & crypto-first community platform where members earn points and tokens for valuable contributions, and deploy blockchain-integrated AI agents that represent and take actions on behalf of the community.',
+    type: 'website',
     images: [
       {
         url: '/share.png',
         width: 1920,
         height: 1080,
-        alt: 'Scenius'
+        alt: 'Scenius - AI & crypto-first community platform'
       }
     ]
   },
   twitter: {
     card: 'summary_large_image',
+    title: 'Scenius',
+    description: 'An AI & crypto-first community platform where members earn points and tokens for valuable contributions, and deploy blockchain-integrated AI agents that represent and take actions on behalf of the community.',
     images: ['/share.png']
   }
 };

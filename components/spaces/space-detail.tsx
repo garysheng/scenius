@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Users, 
+import {
+  Users,
   ChevronDown,
   Plus,
   Hash,
@@ -84,7 +84,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
         const channelsRef = collection(db, 'spaces', id, 'channels');
         const q = query(channelsRef, orderBy('createdAt', 'asc'));
         const snapshot = await getDocs(q);
-        
+
         if (!snapshot.empty) {
           const firstChannel = snapshot.docs[0].data() as ChannelFrontend;
           firstChannel.id = snapshot.docs[0].id;
@@ -166,7 +166,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
 
     const loadUsers = async () => {
       const userData: Record<string, UserFrontend> = {};
-      
+
       await Promise.all(
         userIds.map(async (userId) => {
           try {
@@ -248,7 +248,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
       const channel = channelData.find((c: ChannelFrontend) => c.id === channelId);
       if (channel) {
         setSelectedChannel(channel);
-        
+
         // If there's a specific message to scroll to
         if (messageId) {
           // Add a small delay to ensure the messages are loaded
@@ -336,7 +336,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
   return (
     <main className="min-h-[calc(100vh-3.5rem)] relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--background-dark))] via-[hsl(var(--background))] to-[hsl(var(--background-light))]" />
-      
+
       <div className="flex h-[calc(100vh-3.5rem)] relative z-10">
         {/* Mobile Sidebar Toggle */}
         <button
@@ -395,7 +395,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
             <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
               {/* Channels Section */}
               <div>
-                <div 
+                <div
                   className="flex items-center justify-between w-full mb-2 group cursor-pointer"
                   onClick={() => setIsChannelsSectionExpanded(!isChannelsSectionExpanded)}
                 >
@@ -406,13 +406,13 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                     )} />
                     <span>Channels</span>
                   </div>
-                  <CreateChannelDialog 
+                  <CreateChannelDialog
                     spaceId={space.id}
                     onChannelCreated={() => router.refresh()}
                     trigger={
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="w-4 h-4 p-0 text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <Plus className="w-4 h-4" />
@@ -421,8 +421,8 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                   />
                 </div>
                 {isChannelsSectionExpanded && (
-                  <ChannelList 
-                    spaceId={space.id} 
+                  <ChannelList
+                    spaceId={space.id}
                     selectedChannel={selectedChannel}
                     onChannelSelect={handleDirectChannelSelect}
                   />
@@ -431,7 +431,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
 
               {/* Direct Messages Section */}
               <div>
-                <div 
+                <div
                   className="flex items-center justify-between w-full mb-2 group cursor-pointer"
                   onClick={() => setIsDMSectionExpanded(!isDMSectionExpanded)}
                 >
@@ -444,8 +444,8 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                   </div>
                 </div>
                 {isDMSectionExpanded && (
-                  <MemberList 
-                    spaceId={id} 
+                  <MemberList
+                    spaceId={id}
                     selectedChannel={selectedChannel}
                     onChannelSelect={handleDirectChannelSelect}
                   />
@@ -462,7 +462,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
 
         {/* Overlay for mobile */}
         {isSidebarOpen && (
-          <div 
+          <div
             className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden"
             onClick={() => setIsSidebarOpen(false)}
           />
@@ -475,12 +475,12 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
           isSidebarOpen ? "md:ml-[1px]" : "ml-0"
         )}>
           {selectedChannel ? (
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex h-full overflow-hidden">
               {/* Main Channel Content */}
-              <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 flex flex-col h-full overflow-hidden">
                 {/* Channel Header */}
-                <div className="h-12 border-b border-border/50 flex items-center px-4 gap-4">
-                  <div 
+                <div className="h-12 shrink-0 border-b border-border/50 flex items-center px-4 gap-4">
+                  <div
                     className={cn(
                       "flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer transition-colors",
                       activeTab === 'chat' ? "bg-primary/60 text-white" : "hover:bg-primary/30"
@@ -490,7 +490,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                     <Hash className="w-4 h-4" />
                     <span className="font-medium">{getChannelDisplayName(selectedChannel)}</span>
                   </div>
-                  <div 
+                  <div
                     className={cn(
                       "flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer transition-colors",
                       activeTab === 'scenie' ? "bg-primary/60 text-white" : "hover:bg-primary/30"
@@ -503,42 +503,44 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                 </div>
 
                 {/* Channel Content */}
-                <div className="flex-1 overflow-y-auto">
-                  <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'chat' | 'scenie')} className="h-full">
-                    <TabsContent value="chat" className="p-4 h-full">
-                      <MessageList 
-                        messages={messages} 
-                        users={users} 
-                        spaceId={id}
-                        onChannelSelect={handleChannelSelect}
-                        onThreadOpen={handleThreadOpen}
-                        isThread={false}
-                        spaceRole={userRole || undefined}
-                      />
+                <div className="flex-1 flex flex-col min-h-0">
+                  <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'chat' | 'scenie')} className="flex-1 flex flex-col min-h-0">
+                    <TabsContent value="chat" className="grow data-[state=active]:flex flex-col min-h-0">
+                      <div className="flex-1 overflow-y-auto">
+                        <MessageList
+                          messages={messages}
+                          users={users}
+                          spaceId={id}
+                          onChannelSelect={handleChannelSelect}
+                          onThreadOpen={handleThreadOpen}
+                          isThread={false}
+                          spaceRole={userRole || undefined}
+                        />
+                      </div>
+                      {/* Chat Input */}
+                      <div className="shrink-0 p-4 border-t border-border/50">
+                        <MessageInput
+                          placeholder={
+                            selectedChannel.kind === 'DM'
+                              ? `Message ${getChannelDisplayName(selectedChannel)}`
+                              : `Message #${selectedChannel.name}`
+                          }
+                          onSendMessage={handleSendMessage}
+                          onSendVoiceMessage={handleSendVoiceMessage}
+                          spaceId={id}
+                          channelId={selectedChannel.id}
+                        />
+                      </div>
                     </TabsContent>
-                    <TabsContent value="scenie" className="h-full">
+                    <TabsContent value="scenie" className="grow data-[state=active]:flex min-h-0">
                       <SceniePanel
                         spaceId={id}
                         channelId={selectedChannel.id}
                         messages={messages}
+                        channelName={selectedChannel.name}
                       />
                     </TabsContent>
                   </Tabs>
-                </div>
-
-                {/* Chat Input */}
-                <div className="p-4 border-t border-border/50">
-                  <MessageInput 
-                    placeholder={
-                      selectedChannel.kind === 'DM' 
-                        ? `Message ${getChannelDisplayName(selectedChannel)}`
-                        : `Message #${selectedChannel.name}`
-                    }
-                    onSendMessage={handleSendMessage}
-                    onSendVoiceMessage={handleSendVoiceMessage}
-                    spaceId={id}
-                    channelId={selectedChannel.id}
-                  />
                 </div>
               </div>
 

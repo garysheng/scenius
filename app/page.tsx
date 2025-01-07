@@ -1,10 +1,10 @@
 'use client';
 
-import { 
-  Bot, 
-  Trophy, 
-  Shield, 
-  Mic, 
+import {
+  Bot,
+  Trophy,
+  Shield,
+  Mic,
   Brain,
   Users
 } from 'lucide-react';
@@ -55,7 +55,7 @@ export default function Home() {
       <CursorStars />
       {/* Star field background */}
       <div className="star-field animate-twinkle" />
-      
+
       {/* Cosmic gradient overlays */}
       <div className="absolute inset-0">
         <div className="w-full h-full rotate-180 opacity-40 blur-3xl bg-gradient-to-b from-primary/30 via-accent/30 to-secondary/30 animate-pulse-slow" />
@@ -82,17 +82,17 @@ export default function Home() {
             </span>
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-            A voice-first platform where communities thrive through contribution. Reward aligned actions with points, stream tokens to contributors, and deploy AI agents that represent your community across platforms.
+            Scenius is an AI & crypto-first community platform where members earn points and tokens for valuable contributions, and deploy blockchain-integrated AI agents that represent and take actions on behalf of the community.
           </p>
           <div className="flex items-center justify-center gap-4 pt-4">
-            <Button 
+            <Button
               size="lg"
               onClick={handleGetStarted}
               className="bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 glow-primary"
             >
               Get Started
             </Button>
-            <Button 
+            <Button
               size="lg"
               variant="outline"
               onClick={handleLearnMore}

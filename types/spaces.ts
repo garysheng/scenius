@@ -32,7 +32,7 @@ export interface SpaceSettings {
 export interface Space {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   avatarUrl: string | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -47,6 +47,7 @@ export interface Space {
     memberCount: number;
     channelCount: number;
   };
+  imageUrl?: string | null;
 }
 
 export interface SpaceFrontend extends Omit<Space, 'createdAt' | 'updatedAt'> {

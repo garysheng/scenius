@@ -12,12 +12,16 @@ interface Star {
   layer: number;
 }
 
-export const StarfieldBackground = () => {
+interface StarfieldBackgroundProps {
+  hasMessages?: boolean;
+}
+
+export const StarfieldBackground = ({ hasMessages = false }: StarfieldBackgroundProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const starsRef = useRef<Star[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const scrollOffsetRef = useRef(0);
-  const viewHeightRef = useRef(window.innerHeight * 10);
+  const viewHeightRef = useRef(window.innerHeight * (hasMessages ? 2 : 1));
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -28,9 +32,9 @@ export const StarfieldBackground = () => {
 
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight * 10;
-      viewHeightRef.current = window.innerHeight * 10;
-      canvas.style.height = `${window.innerHeight * 10}px`;
+      canvas.height = window.innerHeight * (hasMessages ? 2 : 1);
+      viewHeightRef.current = window.innerHeight * (hasMessages ? 2 : 1);
+      canvas.style.height = `${window.innerHeight * (hasMessages ? 2 : 1)}px`;
     };
 
     const generateStars = () => {
@@ -128,7 +132,10 @@ export const StarfieldBackground = () => {
   }, []);
 
   return (
-    <div className="absolute inset-0 pointer-events-none" style={{ height: '1000vh' }}>
+    <div 
+      className="absolute inset-0 pointer-events-none" 
+      style={{ height: hasMessages ? '200vh' : '100vh' }}
+    >
       <canvas
         ref={canvasRef}
         className="absolute left-0 top-0 w-full pointer-events-none"

@@ -1,4 +1,6 @@
 import { SettingsView } from '@/components/spaces/settings-view';
+import { TwinklingStars } from '@/components/effects/twinkling-stars';
+import { CursorStars } from '@/components/effects/cursor-stars';
 
 interface SettingsPageProps {
   params: Promise<{
@@ -8,5 +10,11 @@ interface SettingsPageProps {
 
 export default async function SettingsPage({ params }: SettingsPageProps) {
   const { id } = await params;
-  return <SettingsView spaceId={id} />;
+  return (
+    <>
+      <TwinklingStars />
+      <CursorStars />
+      <SettingsView spaceId={id} />
+    </>
+  );
 } 

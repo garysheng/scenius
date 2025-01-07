@@ -13,9 +13,10 @@ interface SceniePanelProps {
   spaceId: string;
   channelId: string;
   messages: MessageFrontend[];
+  channelName: string;
 }
 
-export function SceniePanel({ spaceId, channelId, messages }: SceniePanelProps) {
+export function SceniePanel({ spaceId, channelId, messages, channelName }: SceniePanelProps) {
   const [summary, setSummary] = useState<ChatSummary | null>(null);
   const [dictation, setDictation] = useState<VoiceDictation | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
@@ -76,10 +77,9 @@ export function SceniePanel({ spaceId, channelId, messages }: SceniePanelProps) 
   return (
     <div className="p-4 space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Bot className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Scenie Assistant</h2>
-        </div>
+        <p className="text-lg text-muted-foreground italic">
+          Let Scenie help you make sense of the #{channelName} chat
+        </p>
       </div>
 
       {error && (

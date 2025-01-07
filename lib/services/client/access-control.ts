@@ -161,49 +161,70 @@ export const accessControlService = {
     isRevoked: boolean;
     assignedRole: string;
   } | null> {
-    // Query for the invite using the code
-    const invitesRef = collectionGroup(db, 'invites');
-    const q = query(invitesRef, where('code', '==', code), limit(1));
-    const snapshot = await getDocs(q);
+    try {
+      console.log('Verifying invite code:', code);
+      
+      // Query for the invite using the code
+      const invitesRef = collectionGroup(db, 'invites');
+      const q = query(invitesRef, where('code', '==', code), limit(1));
+      const snapshot = await getDocs(q);
 
-    if (snapshot.empty) {
-      return null;
+      if (snapshot.empty) {
+        console.log('No invite found with code:', code);
+        return null;
+      }
+
+      const inviteDoc = snapshot.docs[0];
+      const data = inviteDoc.data();
+      console.log('Found invite:', data);
+
+      // Check if invite is revoked
+      if (data.isRevoked) {
+        console.log('Invite is revoked:', code);
+        return null;
+      }
+
+      // Check if invite has expired
+      if (data.expiresAt && data.expiresAt.toDate() < new Date()) {
+        console.log('Invite has expired:', code);
+        return null;
+      }
+
+      // Check if max uses has been reached
+      if (data.maxUses !== null && data.useCount >= data.maxUses) {
+        console.log('Invite max uses reached:', code);
+        return null;
+      }
+
+      // Get the space ID from the invite document path
+      const spaceId = inviteDoc.ref.parent.parent?.id;
+      if (!spaceId) {
+        console.log('Could not determine space ID from invite path');
+        return null;
+      }
+
+      // Increment the use count
+      await updateDoc(inviteDoc.ref, {
+        useCount: increment(1),
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('Invite verified successfully:', { spaceId, code });
+
+      return {
+        id: inviteDoc.id,
+        spaceId,
+        code: data.code,
+        expiresAt: data.expiresAt ? data.expiresAt.toDate() : null,
+        maxUses: data.maxUses,
+        useCount: data.useCount,
+        isRevoked: data.isRevoked,
+        assignedRole: data.assignedRole
+      };
+    } catch (error) {
+      console.error('Error verifying invite:', error);
+      throw error;
     }
-
-    const inviteDoc = snapshot.docs[0];
-    const data = inviteDoc.data();
-
-    // Check if invite is revoked
-    if (data.isRevoked) {
-      return null;
-    }
-
-    // Check if invite has expired
-    if (data.expiresAt && data.expiresAt.toDate() < new Date()) {
-      return null;
-    }
-
-    // Check if max uses has been reached
-    if (data.maxUses !== null && data.useCount >= data.maxUses) {
-      return null;
-    }
-
-    // Get the space ID from the invite document path
-    const spaceId = inviteDoc.ref.parent.parent?.id;
-    if (!spaceId) {
-      return null;
-    }
-
-    return {
-      id: inviteDoc.id,
-      spaceId,
-      code: data.code,
-      expiresAt: data.expiresAt ? data.expiresAt.toDate() : null,
-      maxUses: data.maxUses,
-      useCount: data.useCount,
-      isRevoked: data.isRevoked,
-      assignedRole: data.assignedRole
-    };
   },
 
   // Role Management

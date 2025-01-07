@@ -26,20 +26,36 @@ export function InviteClient({ code }: InviteClientProps) {
         const invite = await accessControlService.verifyInviteLink(code);
         
         if (!invite) {
+          console.log('No invite found or invite is invalid:', { code });
           setError('This invite link is invalid or has expired');
           return;
         }
 
-        // Get space details
-        const space = await spacesService.getSpace(invite.spaceId);
-        setSpaceName(space.name);
+        console.log('Invite verified:', { invite });
 
-        // If user is authenticated, join the space
-        if (isAuthenticated) {
-          await spacesService.joinSpace(invite.spaceId, invite.assignedRole as 'owner' | 'admin' | 'member');
-          router.push(urlService.spaces.detail(invite.spaceId));
+        try {
+          // If user is authenticated, join the space first
+          if (isAuthenticated) {
+            console.log('Attempting to join space:', { spaceId: invite.spaceId, role: invite.assignedRole });
+            await spacesService.joinSpace(invite.spaceId, invite.assignedRole as 'owner' | 'admin' | 'member');
+            
+            // Then get space details
+            const space = await spacesService.getSpace(invite.spaceId);
+            console.log('Space details fetched:', { space });
+            setSpaceName(space.name);
+            
+            router.push(urlService.spaces.detail(invite.spaceId));
+          } else {
+            // If not authenticated, just get the space name for display
+            const space = await spacesService.getSpace(invite.spaceId);
+            setSpaceName(space.name);
+          }
+        } catch (spaceError) {
+          console.error('Error accessing space:', spaceError);
+          setError('Unable to access this space. Please try again.');
         }
       } catch (err) {
+        console.error('Error verifying invite:', err);
         if (err instanceof Error) {
           setError(err.message);
         } else {
