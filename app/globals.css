@@ -2,197 +2,109 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.75rem;
-  }
+:root {
+  --background: 230 25% 5%;
+  --background-light: 230 25% 7%;
+  --background-dark: 230 25% 3%;
+  --foreground: 0 0% 100%;
+  
+  --card: 0 0% 3%;
+  --card-foreground: 0 0% 100%;
+  --card-hover: 0 0% 5%;
  
-  .dark {
-    /* Cosmic Background Colors */
-    --background: 230 25% 1%;      /* Almost pure black with slight blue tint */
-    --foreground: 220 60% 98%;     /* Starlight white */
-    
-    /* Elevation Levels (Lunar Surface) */
-    --card: 230 25% 3%;            /* Lunar crater */
-    --card-hover: 230 25% 5%;      /* Lunar crater hover */
-    --popover: 230 25% 4%;         /* Lunar highland */
-    --muted: 230 25% 6%;           /* Lunar peak */
-    
-    /* AI Elements (Aurora Borealis) */
-    --primary: 266 100% 50%;       /* Vibrant purple */
-    --primary-hover: 266 100% 45%; /* Darker purple */
-    --primary-glow: 266 100% 65%;  /* Purple glow */
-    --primary-foreground: 0 0% 100%;
-    
-    /* Human Elements (Celestial Blue) */
-    --secondary: 200 100% 50%;     /* Electric blue */
-    --secondary-hover: 200 100% 45%;
-    --secondary-glow: 200 100% 65%;
-    --secondary-foreground: 0 0% 100%;
-    
-    /* Accent Colors (Cosmic Phenomena) */
-    --accent: 280 100% 65%;        /* Nebula pink */
-    --accent-hover: 280 100% 60%;
-    --accent-glow: 280 100% 75%;
-    --accent-foreground: 0 0% 100%;
-    
-    /* Functional Colors */
-    --destructive: 0 100% 65%;     /* Danger */
-    --destructive-foreground: 210 40% 98%;
-    
-    /* UI Elements */
-    --border: 230 25% 8%;          /* Subtle borders */
-    --border-dim: 230 25% 12%;     /* Dimmed borders */
-    --border-glow: 266 100% 65%;   /* Glowing borders (same as primary-glow) */
-    --input: 230 25% 8%;           /* Input borders */
-    --ring: var(--primary-glow);
-    
-    /* Text Colors */
-    --card-foreground: 220 60% 98%;   /* Primary text */
-    --muted-foreground: 220 30% 80%;  /* Secondary text */
-    --popover-foreground: 220 60% 98%; /* Primary text */
-    
-    /* Space Card Colors */
-    --elevation-1: 230 25% 3%;        /* Base elevation */
-    --text-primary: 220 60% 98%;      /* Primary text */
-    --text-secondary: 220 30% 80%;    /* Secondary text */
-    --accent-nebula: 280 100% 65%;    /* Nebula accent */
-    --accent-aurora: 266 100% 50%;    /* Aurora accent */
+  --popover: 0 0% 3%;
+  --popover-foreground: 0 0% 100%;
+ 
+  --primary: 266 100% 50%;
+  --primary-foreground: 0 0% 100%;
+ 
+  --secondary: 240 4% 16%;
+  --secondary-foreground: 0 0% 100%;
+ 
+  --muted: 0 0% 9%;
+  --muted-foreground: 0 0% 60%;
+ 
+  --accent: 12 6% 15%;
+  --accent-foreground: 0 0% 100%;
+ 
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 100%;
+ 
+  --border: 0 0% 9%;
+  --input: 0 0% 3%;
+  --ring: 240 4% 16%;
+
+  --text-primary: 0 0% 100%;
+  --text-secondary: 0 0% 60%;
+  --text-foreground: 0 0% 100% !important;
+
+  --ai-primary: 266 100% 50%;
+  --ai-secondary: 280 100% 65%;
+  --ai-glow: 266 100% 65%;
+  
+  --accent-nebula: 280 100% 65%;
+  --accent-aurora: 170 100% 65%;
+  --accent-solar: 35 100% 65%;
+  
+  --border-dim: 230 25% 15%;
+  --border-glow: 230 25% 25%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-gradient-to-br from-[hsl(var(--background-dark))] via-[hsl(var(--background))] to-[hsl(var(--background-light))] min-h-screen;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-foreground;
   }
 }
 
-@layer utilities {
+@layer components {
   .cosmic-bg {
-    @apply relative bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))];
-    background-color: hsl(var(--background));
-    background-image: 
-      radial-gradient(ellipse at top, hsl(var(--primary) / 0.08), transparent 50%),
-      radial-gradient(ellipse at bottom, hsl(var(--secondary) / 0.08), transparent 50%),
-      radial-gradient(ellipse at left, hsl(var(--accent) / 0.08), transparent 50%);
+    @apply bg-background;
   }
 
   .cosmic-card {
-    @apply relative overflow-hidden backdrop-blur-xl border border-neutral-800;
-    background: linear-gradient(
-      to bottom right,
-      hsl(var(--card) / 0.7),
-      hsl(var(--card-hover) / 0.7)
-    );
-  }
-
-  .cosmic-card::before {
-    @apply content-[''] absolute inset-0 opacity-50 pointer-events-none;
-    background: linear-gradient(
-      45deg,
-      transparent,
-      hsl(var(--primary-glow) / 0.1) 20%,
-      hsl(var(--secondary-glow) / 0.1) 50%,
-      transparent 80%
-    );
-  }
-
-  .cosmic-card > * {
-    @apply relative z-10;
+    @apply bg-card text-card-foreground;
   }
 
   .cosmic-input {
-    @apply relative bg-black/30 border-neutral-800 text-foreground placeholder:text-neutral-500;
-    @apply focus:border-primary focus:ring-1 focus:ring-primary/20;
-    @apply hover:border-neutral-700 transition-colors;
-    @apply rounded-md px-3 py-2;
+    @apply bg-input text-foreground border-0 focus-visible:ring-1 focus-visible:ring-ring;
   }
+}
 
-  .glow-primary {
-    @apply relative;
+@keyframes gradient-x {
+  0%, 100% {
+    background-size: 400% 400%;
+    background-position: left center;
   }
+  50% {
+    background-size: 400% 400%;
+    background-position: right center;
+  }
+}
 
-  .glow-primary::after {
-    @apply content-[''] absolute inset-0 rounded-md opacity-0 transition-opacity duration-300 pointer-events-none;
-    background: radial-gradient(
-      circle at center,
-      hsl(var(--primary-glow) / 0.4) 0%,
-      transparent 70%
-    );
-    filter: blur(8px);
-  }
-
-  .glow-primary:hover::after {
-    @apply opacity-100;
-  }
-
-  .glow-secondary {
-    @apply relative;
-  }
-
-  .glow-secondary::after {
-    @apply content-[''] absolute inset-0 rounded-md opacity-0 transition-opacity duration-300 pointer-events-none;
-    background: radial-gradient(
-      circle at center,
-      hsl(var(--secondary-glow) / 0.4) 0%,
-      transparent 70%
-    );
-    filter: blur(8px);
-  }
-
-  .glow-secondary:hover::after {
-    @apply opacity-100;
-  }
-
-  .star-field {
-    @apply absolute inset-0 opacity-30 pointer-events-none;
-    background-image: radial-gradient(
-      circle at center,
-      hsl(var(--foreground) / 0.1) 0%,
-      transparent 1%
-    );
-    background-size: 20px 20px;
-  }
-
-  .animate-gradient {
-    background-size: 200% 200%;
-    animation: gradient 8s ease infinite;
-  }
-
-  .animate-twinkle {
-    animation: twinkle 4s ease-in-out infinite;
-  }
-
-  .animate-pulse-slow {
-    animation: pulse 6s ease-in-out infinite;
-  }
+.animate-gradient-x {
+  animation: gradient-x 15s ease infinite;
+  background-size: 400% 400%;
 }
 
 @keyframes gradient {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
-@keyframes twinkle {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.6; }
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.7; }
+.animate-gradient {
+  animation: gradient 8s ease infinite;
+  background-size: 200% 200%;
 }

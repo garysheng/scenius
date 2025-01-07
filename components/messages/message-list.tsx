@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import { MessageFrontend, UserFrontend } from '@/types';
 import { MessageItem } from './message-item';
 
@@ -8,35 +7,35 @@ interface MessageListProps {
   messages: MessageFrontend[];
   users: Record<string, UserFrontend>;
   spaceId: string;
+  onChannelSelect: (channelId: string) => void;
+  onThreadOpen?: (message: MessageFrontend) => void;
+  isThread?: boolean;
+  spaceRole?: 'owner' | 'admin' | 'member';
 }
 
-export function MessageList({ messages, users, spaceId }: MessageListProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Scroll to bottom when new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  if (messages.length === 0) {
-    return (
-      <p className="text-muted-foreground text-center py-12">
-        No messages yet. Start the conversation!
-      </p>
-    );
-  }
-
+export function MessageList({ 
+  messages, 
+  users, 
+  spaceId, 
+  onChannelSelect,
+  onThreadOpen,
+  isThread = false,
+  spaceRole 
+}: MessageListProps) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-4">
       {messages.map((message) => (
-        <MessageItem 
-          key={message.id} 
+        <MessageItem
+          key={message.id}
           message={message}
           user={users[message.userId]}
           spaceId={spaceId}
+          onChannelSelect={onChannelSelect}
+          onThreadOpen={onThreadOpen}
+          isThread={isThread}
+          spaceRole={spaceRole}
         />
       ))}
-      <div ref={messagesEndRef} />
     </div>
   );
 } 

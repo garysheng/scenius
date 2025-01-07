@@ -60,7 +60,7 @@ export const spacesService = {
     batch.set(generalRef, {
       name: 'general',
       description: 'General discussion',
-      type: 'TEXT',
+      kind: 'CHANNEL',
       spaceId: spaceRef.id,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -73,7 +73,7 @@ export const spacesService = {
     batch.set(randomRef, {
       name: 'random',
       description: 'Random discussions and off-topic chat',
-      type: 'TEXT',
+      kind: 'CHANNEL',
       spaceId: spaceRef.id,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -229,4 +229,15 @@ export const spacesService = {
       'metadata.memberCount': increment(-1)
     });
   },
+
+  async getMemberRole(spaceId: string, userId: string): Promise<'owner' | 'admin' | 'member' | null> {
+    try {
+      const memberDoc = await getDoc(doc(db, 'spaces', spaceId, 'members', userId));
+      if (!memberDoc.exists()) return null;
+      return memberDoc.data().role;
+    } catch (error) {
+      console.error('Error getting member role:', error);
+      return null;
+    }
+  }
 }; 

@@ -9,7 +9,6 @@ import {
   Trash2,
   LogOut,
   Users,
-  Shield,
   X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

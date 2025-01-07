@@ -38,21 +38,31 @@ export function VoiceRecorder({ onRecordingComplete }: VoiceRecorderProps) {
           
           // Create form data for transcription
           const formData = new FormData();
-          formData.append('audioFile', audioBlob);
+          formData.append('audio', audioBlob);
 
           // Get transcription
           const response = await fetch('/api/transcribe', {
             method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+            },
             body: formData,
           });
 
-          const data = await response.json();
+          // Check if response is JSON
+          const contentType = response.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            console.error('Non-JSON response:', await response.text());
+            throw new Error('Server returned non-JSON response');
+          }
 
+          const data = await response.json();
+          
           if (!response.ok) {
             throw new Error(data.details || data.error || 'Failed to transcribe audio');
           }
 
-          await onRecordingComplete(audioBlob, data.transcription);
+          await onRecordingComplete(audioBlob, data.transcript);
           setError(null);
         } catch (err: unknown) {
           if (err instanceof Error) {

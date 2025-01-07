@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
 
 export default {
     darkMode: ["class"],
@@ -12,10 +13,12 @@ export default {
   		keyframes: {
   			'gradient-x': {
   				'0%, 100%': {
-  					'background-position': '200% 0',
+  					'background-size': '400% 400%',
+  					'background-position': 'left center',
   				},
   				'50%': {
-  					'background-position': '0% 0',
+  					'background-size': '400% 400%',
+  					'background-position': 'right center',
   				},
   			},
   		},
@@ -71,5 +74,10 @@ export default {
   		}
   	}
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    plugin(({ addVariant }) => {
+      addVariant('message-group-hover', '.message-group:hover &');
+    }),
+  ],
 } satisfies Config;

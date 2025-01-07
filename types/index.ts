@@ -70,6 +70,7 @@ export interface Channel {
   metadata: {
     messageCount: number;
     lastMessageAt: Timestamp | null;
+    lastMessageSenderId?: string;
     participantIds?: string[];
   };
   permissions: {
@@ -87,17 +88,16 @@ export interface Message {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   deleted?: boolean;
+  threadId?: string; // Parent message ID if this is a thread reply
   metadata: {
     reactions: Record<string, string[]>;
     edited: boolean;
-    attachments: {
-      voiceUrl?: string;
-      transcription?: string;
-      fileUrl?: string;
-      fileName?: string;
-      fileSize?: number;
-      mimeType?: string;
-    }[];
+    attachments: FileAttachment[];
+    threadInfo?: {
+      replyCount: number;
+      lastReplyAt: Timestamp | null;
+      participantIds: string[];
+    };
   };
 }
 
@@ -140,14 +140,25 @@ export interface ChannelFrontend extends Omit<Channel, 'createdAt' | 'updatedAt'
   metadata: {
     messageCount: number;
     lastMessageAt: Date | null;
+    lastMessageSenderId?: string;
     participantIds?: string[];
     participants?: UserFrontend[];
   };
 }
 
-export interface MessageFrontend extends Omit<Message, 'createdAt' | 'updatedAt'> {
+export interface MessageFrontend extends Omit<Message, 'createdAt' | 'updatedAt' | 'metadata'> {
   createdAt: Date;
   updatedAt: Date;
+  metadata: {
+    reactions: Record<string, string[]>;
+    edited: boolean;
+    attachments: FileAttachment[];
+    threadInfo?: {
+      replyCount: number;
+      lastReplyAt: Date | null;
+      participantIds: string[];
+    };
+  };
 }
 
 export type UserPresence = {
@@ -166,4 +177,30 @@ export type SpaceMember = {
   spaceId: string;
   role: 'owner' | 'admin' | 'member';
   joinedAt: Date;
-}; 
+};
+
+export interface FileAttachment {
+  id: string;
+  fileUrl: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  thumbnailUrl?: string;
+  uploadStatus: 'uploading' | 'complete' | 'error';
+  uploadProgress?: number;
+  voiceUrl?: string;
+  transcription?: string;
+}
+
+interface MessageMetadata {
+  reactions: Record<string, string[]>;
+  edited: boolean;
+  attachments: FileAttachment[];
+  threadInfo?: {
+    replyCount: number;
+    lastReplyAt: Timestamp | null;
+    participantIds: string[];
+  };
+  status: 'sending' | 'sent' | 'delivered' | 'read';
+  editedAt?: Timestamp;
+} 

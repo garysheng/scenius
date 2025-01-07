@@ -65,21 +65,5 @@ export const presenceService = {
         callback(presence);
       });
     });
-  },
-
-  // Set up automatic presence updates
-  initializePresence(userId: string) {
-    // Update presence when user comes online
-    this.updatePresence(userId, 'online');
-
-    // Update presence when user goes offline
-    window.addEventListener('beforeunload', () => {
-      this.updatePresence(userId, 'offline');
-    });
-
-    // Set up periodic presence updates (every 5 minutes)
-    setInterval(() => {
-      this.updatePresence(userId, 'online');
-    }, 5 * 60 * 1000);
   }
 }; 

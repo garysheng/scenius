@@ -3,13 +3,14 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { Navbar } from "@/components/layout/navbar";
-
-const inter = Inter({ subsets: ["latin"] });
+import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: "Scenius",
   description: "AI-native collaboration platform for innovation communities",
 };
+
+const inter = Inter({ subsets: ['latin'] });
 
 export default function RootLayout({
   children,
@@ -17,12 +18,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <AuthProvider>
-          <Navbar />
-          {children}
-        </AuthProvider>
+        <Providers>
+          <AuthProvider>
+            <Navbar />
+            {children}
+          </AuthProvider>
+        </Providers>
+        <div id="portal-root" />
       </body>
     </html>
   );

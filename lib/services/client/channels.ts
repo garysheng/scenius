@@ -8,10 +8,11 @@ import {
   where,
   orderBy,
   Timestamp,
-  serverTimestamp
+  serverTimestamp,
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Channel, ChannelFrontend, UserFrontend } from '@/types';
+import { Channel, ChannelFrontend } from '@/types';
 import { usersService } from './users';
 
 export const channelsService = {
@@ -136,5 +137,44 @@ export const channelsService = {
     }
 
     return channel;
-  }
+  },
+
+  subscribeToChannels(spaceId: string, callback: (channels: ChannelFrontend[]) => void) {
+    const channelsRef = collection(db, 'spaces', spaceId, 'channels');
+    const channelsQuery = query(channelsRef, orderBy('name', 'asc'));
+
+    return onSnapshot(channelsQuery, async (snapshot) => {
+      const channels = await Promise.all(snapshot.docs.map(async (doc) => {
+        const data = doc.data();
+        const channel: ChannelFrontend = {
+          id: doc.id,
+          spaceId: data.spaceId,
+          name: data.name,
+          description: data.description,
+          kind: data.kind,
+          permissions: data.permissions,
+          createdAt: (data.createdAt as Timestamp).toDate(),
+          updatedAt: (data.updatedAt as Timestamp).toDate(),
+          metadata: {
+            ...data.metadata,
+            lastMessageAt: data.metadata.lastMessageAt ? 
+              (data.metadata.lastMessageAt as Timestamp).toDate() : 
+              null
+          }
+        };
+
+        // If it's a DM channel, fetch participant details
+        if (data.kind === 'DM' && data.metadata.participantIds) {
+          const participants = await Promise.all(
+            data.metadata.participantIds.map((id: string) => usersService.getUser(id))
+          );
+          channel.metadata.participants = participants;
+        }
+
+        return channel;
+      }));
+
+      callback(channels);
+    });
+  },
 }; 

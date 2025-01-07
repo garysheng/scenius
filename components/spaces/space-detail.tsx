@@ -1,20 +1,16 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Users, 
-  MessageSquare,
   ChevronDown,
   Plus,
   Hash,
-  Volume2,
-  Send,
-  Smile
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { SpaceFrontend, ChannelFrontend, MessageFrontend, UserFrontend } from '@/types';
+import { MessageInput } from '@/components/messages/message-input';
+import { SpaceFrontend, ChannelFrontend, MessageFrontend, UserFrontend, FileAttachment } from '@/types';
 import { spacesService } from '@/lib/services/client/spaces';
 import { messagesService } from '@/lib/services/client/messages';
 import { ChannelList } from '@/components/channels/channel-list';
@@ -22,12 +18,14 @@ import { CreateChannelDialog } from '@/components/channels/create-channel-dialog
 import { useAuth } from '@/lib/hooks/use-auth';
 import { usersService } from '@/lib/services/client/users';
 import { MessageList } from '@/components/messages/message-list';
-import { VoiceRecorder } from '@/components/messages/voice-recorder';
 import { MemberList } from '@/components/spaces/member-list';
 import { UserStatusMenu } from '@/components/user/user-status-menu';
 import { SpaceActionMenu } from './space-action-menu';
 import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { channelsService } from '@/lib/services/client/channels';
+import { cn } from '@/lib/utils';
+import { ThreadView } from '@/components/messages/thread-view';
 
 interface SpaceDetailProps {
   id: string;
@@ -41,10 +39,15 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
   const [messages, setMessages] = useState<MessageFrontend[]>([]);
   const [users, setUsers] = useState<Record<string, UserFrontend>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [messageInput, setMessageInput] = useState('');
-  const [isSending, setIsSending] = useState(false);
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const [isChannelsSectionExpanded, setIsChannelsSectionExpanded] = useState(true);
+  const [isDMSectionExpanded, setIsDMSectionExpanded] = useState(true);
+  const [activeThread, setActiveThread] = useState<{
+    message: MessageFrontend;
+    user: UserFrontend | null;
+  } | null>(null);
+  const [userRole, setUserRole] = useState<'owner' | 'admin' | 'member' | null>(null);
 
   // Load and select first channel
   useEffect(() => {
@@ -82,29 +85,20 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
     }
   }, [id, selectedChannel]);
 
-  const handleSendMessage = async () => {
-    if (!messageInput.trim() || !selectedChannel || !user) return;
-
-    try {
-      setIsSending(true);
-      await messagesService.sendMessage(id, selectedChannel.id, messageInput.trim(), user.id);
-      setMessageInput('');
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        console.error('Failed to send message:', err.message);
-      } else {
-        console.error('Failed to send message:', err);
-      }
-    } finally {
-      setIsSending(false);
-    }
+  const handleSendMessage = async (content: string, attachments?: FileAttachment[]) => {
+    if (!user || !selectedChannel) return;
+    await messagesService.sendMessage(id, selectedChannel.id, content, user.id, attachments);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
+  const handleSendVoiceMessage = async (blob: Blob, transcription: string) => {
+    if (!user || !selectedChannel) return;
+    await messagesService.sendVoiceMessage(
+      id,
+      selectedChannel.id,
+      blob,
+      user.id,
+      transcription
+    );
   };
 
   useEffect(() => {
@@ -137,20 +131,21 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
   useEffect(() => {
     const userIds = messages
       .map(m => m.userId)
-      .filter((id, index, self) => self.indexOf(id) === index);
+      .filter((id, index, self) => self.indexOf(id) === index)
+      .filter(id => !users[id]); // Only load users we don't have
+
+    if (userIds.length === 0) return;
 
     const loadUsers = async () => {
       const userData: Record<string, UserFrontend> = {};
       
       await Promise.all(
         userIds.map(async (userId) => {
-          if (!users[userId]) {
-            try {
-              const user = await usersService.getUser(userId);
-              userData[userId] = user;
-            } catch (err) {
-              console.error(`Failed to load user ${userId}:`, err);
-            }
+          try {
+            const user = await usersService.getUser(userId);
+            userData[userId] = user;
+          } catch (err) {
+            console.error(`Failed to load user ${userId}:`, err);
           }
         })
       );
@@ -158,15 +153,46 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
       setUsers(prev => ({ ...prev, ...userData }));
     };
 
-    if (userIds.length > 0) {
-      loadUsers();
-    }
-  }, [messages]);
+    loadUsers();
+  }, [messages]); // Only depend on messages changes
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleChannelSelect = async (channelId: string) => {
+    try {
+      const channel = await channelsService.getChannel(id, channelId);
+      setSelectedChannel(channel);
+    } catch (error) {
+      console.error('Failed to load channel:', error);
+    }
+  };
+
+  const handleThreadOpen = useCallback((message: MessageFrontend) => {
+    const messageUser = users[message.userId] || null;
+    setActiveThread({
+      message,
+      user: messageUser
+    });
+  }, [users]);
+
+  const handleThreadClose = useCallback(() => {
+    setActiveThread(null);
+  }, []);
+
+  // Add effect to fetch user role
+  useEffect(() => {
+    if (!user || !space) return;
+
+    const loadUserRole = async () => {
+      const role = await spacesService.getMemberRole(id, user.id);
+      setUserRole(role);
+    };
+
+    loadUserRole();
+  }, [id, user, space]);
 
   if (authLoading || isLoading) {
     return (
@@ -216,195 +242,177 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
   }
 
   return (
-    <main className="min-h-[calc(100vh-3.5rem)] cosmic-bg">
-      <div className="flex h-[calc(100vh-3.5rem)]">
-        {/* Sidebar */}
-        <div className="w-64 cosmic-card flex flex-col">
-          {/* Space Header */}
-          <div className="p-3 flex items-center justify-between border-b border-border/50">
-            <div className="flex items-center gap-2">
-              {space.avatarUrl ? (
-                <img
-                  src={space.avatarUrl}
-                  alt={space.name}
-                  className="w-6 h-6 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-6 h-6 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center">
-                  <Users className="w-3 h-3 text-[hsl(var(--muted-foreground))]" />
-                </div>
-              )}
-              <h1 className="font-semibold text-sm truncate bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent animate-gradient">
-                {space.name}
-              </h1>
-            </div>
-            <SpaceActionMenu space={space} />
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
-            {/* Channels Section */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <ChevronDown className="w-4 h-4" />
-                  <span>Channels</span>
-                </div>
-                <CreateChannelDialog 
-                  spaceId={space.id}
-                  onChannelCreated={() => router.refresh()}
-                  trigger={
-                    <Button variant="ghost" size="icon" className="w-4 h-4 p-0 text-foreground">
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  }
-                />
+    <main className="min-h-[calc(100vh-3.5rem)] relative overflow-hidden">
+      {/* Add subtle gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--background-dark))] via-[hsl(var(--background))] to-[hsl(var(--background-light))]" />
+      
+      <div className="flex h-[calc(100vh-3.5rem)] relative z-10">
+        {/* Sidebar - Add subtle glow effect */}
+        <div className="w-64 relative group">
+          <div className="absolute -inset-[1px] bg-gradient-to-b from-[hsl(var(--ai-primary))/10] to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 blur-sm" />
+          <div className="cosmic-card h-full flex flex-col relative">
+            {/* Space Header */}
+            <div className="p-3 flex items-center justify-between border-b border-border/50">
+              <div className="flex items-center gap-2">
+                {space.avatarUrl ? (
+                  <img
+                    src={space.avatarUrl}
+                    alt={space.name}
+                    className="w-6 h-6 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center">
+                    <Users className="w-3 h-3 text-[hsl(var(--muted-foreground))]" />
+                  </div>
+                )}
+                <h1 className="font-semibold text-sm truncate text-foreground">
+                  {space.name}
+                </h1>
               </div>
-              <ChannelList 
-                spaceId={space.id} 
-                selectedChannel={selectedChannel}
-                onChannelSelect={setSelectedChannel}
-              />
+              <SpaceActionMenu space={space} />
             </div>
 
-            {/* Direct Messages Section */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <ChevronDown className="w-4 h-4" />
-                  <span>Direct Messages</span>
+            {/* Navigation */}
+            <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
+              {/* Channels Section */}
+              <div>
+                <div 
+                  className="flex items-center justify-between w-full mb-2 group cursor-pointer"
+                  onClick={() => setIsChannelsSectionExpanded(!isChannelsSectionExpanded)}
+                >
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <ChevronDown className={cn(
+                      "w-4 h-4 transition-transform",
+                      !isChannelsSectionExpanded && "-rotate-90"
+                    )} />
+                    <span>Channels</span>
+                  </div>
+                  <CreateChannelDialog 
+                    spaceId={space.id}
+                    onChannelCreated={() => router.refresh()}
+                    trigger={
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="w-4 h-4 p-0 text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    }
+                  />
                 </div>
-                <Button variant="ghost" size="icon" className="w-4 h-4 p-0 text-foreground">
-                  <Plus className="w-4 h-4" />
-                </Button>
+                {isChannelsSectionExpanded && (
+                  <ChannelList 
+                    spaceId={space.id} 
+                    selectedChannel={selectedChannel}
+                    onChannelSelect={setSelectedChannel}
+                  />
+                )}
               </div>
-              <div className="text-sm text-muted-foreground text-center py-4">
-                Coming soon
-              </div>
-            </div>
 
-            {/* Members Section */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <ChevronDown className="w-4 h-4" />
-                  <span>Members</span>
+              {/* Direct Messages Section */}
+              <div>
+                <div 
+                  className="flex items-center justify-between w-full mb-2 group cursor-pointer"
+                  onClick={() => setIsDMSectionExpanded(!isDMSectionExpanded)}
+                >
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <ChevronDown className={cn(
+                      "w-4 h-4 transition-transform",
+                      !isDMSectionExpanded && "-rotate-90"
+                    )} />
+                    <span>Direct messages</span>
+                  </div>
                 </div>
+                {isDMSectionExpanded && (
+                  <MemberList 
+                    spaceId={id} 
+                    selectedChannel={selectedChannel}
+                    onChannelSelect={setSelectedChannel}
+                  />
+                )}
               </div>
-              <MemberList spaceId={space.id} />
-            </div>
-          </nav>
+            </nav>
 
-          {/* User Status Menu */}
-          <div className="border-t border-border/50">
-            <UserStatusMenu />
+            {/* User Status Menu */}
+            <div className="border-t border-border/50">
+              <UserStatusMenu />
+            </div>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 cosmic-card ml-[1px] overflow-hidden flex flex-col">
-          {selectedChannel ? (
-            <>
-              {/* Channel Header */}
-              <div className="h-12 border-b border-border/50 flex items-center justify-between px-4">
-                <div className="flex items-center gap-2">
-                  <Hash className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium text-foreground">{selectedChannel.name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <MessageSquare className="w-4 h-4 mr-2" />
-                    Text
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <Volume2 className="w-4 h-4 mr-2" />
-                    Voice
-                  </Button>
-                </div>
-              </div>
+        {/* Main Content - Add subtle glow effect */}
+        <div className="flex-1 relative group ml-[1px]">
+          <div className="absolute -inset-[1px] bg-gradient-to-br from-[hsl(var(--ai-secondary))/10] to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 blur-sm" />
+          <div className="cosmic-card h-full flex flex-col relative overflow-hidden">
+            {selectedChannel ? (
+              <div className="flex flex-1 overflow-hidden">
+                {/* Main Channel Content */}
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {/* Channel Header */}
+                  <div className="h-12 border-b border-border/50 flex items-center px-4">
+                    <div className="flex items-center gap-2">
+                      <Hash className="w-4 h-4 text-muted-foreground" />
+                      <span className="font-medium text-foreground">{selectedChannel.name}</span>
+                    </div>
+                  </div>
 
-              {/* Channel Content */}
-              <div className="flex-1 overflow-y-auto p-4">
-                <MessageList 
-                  messages={messages} 
-                  users={users}
-                  spaceId={id}
-                />
-              </div>
-
-              {/* Chat Input */}
-              <div className="p-4 border-t border-border/50">
-                <div className="relative">
-                  <Textarea 
-                    placeholder={`Message #${selectedChannel.name}`}
-                    className="cosmic-input min-h-[80px] pr-32 resize-none"
-                    value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    disabled={isSending}
-                  />
-                  <div className="absolute right-3 bottom-3 flex items-center gap-3">
-                    <VoiceRecorder
-                      onRecordingComplete={async (blob, transcription) => {
-                        if (!user) {
-                          console.error('User not found');
-                          return;
-                        }
-                        try {
-                          setIsSending(true);
-                          await messagesService.sendVoiceMessage(
-                            id,
-                            selectedChannel.id,
-                            blob,
-                            user.id,
-                            transcription
-                          );
-                        } catch (err: unknown) {
-                          if (err instanceof Error) {
-                            console.error('Failed to send voice message:', err.message);
-                          } else {
-                            console.error('Failed to send voice message:', err);
-                          }
-                        } finally {
-                          setIsSending(false);
-                        }
-                      }}
+                  {/* Channel Content */}
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <MessageList 
+                      messages={messages} 
+                      users={users} 
+                      spaceId={id}
+                      onChannelSelect={handleChannelSelect}
+                      onThreadOpen={handleThreadOpen}
+                      isThread={false}
+                      spaceRole={userRole || undefined}
                     />
-                    <div className="h-6 w-[1px] bg-border/50" />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-foreground"
-                      disabled={isSending}
-                    >
-                      <Smile className="w-5 h-5" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      className="text-primary-foreground bg-primary hover:bg-primary/90"
-                      onClick={handleSendMessage}
-                      disabled={!messageInput.trim() || isSending}
-                    >
-                      <Send className="w-4 h-4" />
-                    </Button>
+                  </div>
+
+                  {/* Chat Input */}
+                  <div className="p-4 border-t border-border/50">
+                    <MessageInput 
+                      placeholder={
+                        selectedChannel.kind === 'DM' 
+                          ? `Message ${selectedChannel.metadata.participants?.[0]?.fullName || selectedChannel.metadata.participants?.[0]?.username || 'User'}`
+                          : `Message #${selectedChannel.name}`
+                      }
+                      onSendMessage={handleSendMessage}
+                      onSendVoiceMessage={handleSendVoiceMessage}
+                      spaceId={id}
+                      channelId={selectedChannel.id}
+                    />
                   </div>
                 </div>
+
+                {/* Thread View */}
+                {activeThread && (
+                  <ThreadView
+                    spaceId={id}
+                    channelId={selectedChannel.id}
+                    parentMessage={activeThread.message}
+                    parentUser={activeThread.user}
+                    onClose={handleThreadClose}
+                    spaceRole={userRole || undefined}
+                  />
+                )}
               </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center space-y-4">
-                <h2 className="text-xl font-semibold text-foreground">Welcome to {space.name}!</h2>
-                <p className="text-muted-foreground">
-                  {space.metadata.channelCount === 0 ? (
-                    <>Create your first channel to get started!</>
-                  ) : (
-                    <>Select a channel to start chatting</>
-                  )}
-                </p>
+            ) : (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center space-y-4">
+                  <h2 className="text-xl font-semibold text-foreground">Welcome to {space.name}!</h2>
+                  <p className="text-muted-foreground">
+                    {space.metadata.channelCount === 0 ? (
+                      <>Create your first channel to get started!</>
+                    ) : (
+                      <>Select a channel to start chatting</>
+                    )}
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </main>

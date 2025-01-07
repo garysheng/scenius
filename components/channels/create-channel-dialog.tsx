@@ -1,14 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Channel } from '@/types';
 import { channelsService } from '@/lib/services/client/channels';
+import { Loader2 } from 'lucide-react';
 
 interface CreateChannelDialogProps {
   spaceId: string;
@@ -16,100 +15,82 @@ interface CreateChannelDialogProps {
   onChannelCreated?: () => void;
 }
 
-type CreateChannelFormValues = Omit<Channel, 'id' | 'spaceId' | 'createdAt' | 'updatedAt' | 'metadata'>;
-
-export function CreateChannelDialog({ spaceId, trigger, onChannelCreated }: CreateChannelDialogProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function CreateChannelDialog({ spaceId, onChannelCreated, trigger }: CreateChannelDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
 
-  const form = useForm<CreateChannelFormValues>({
-    defaultValues: {
-      name: '',
-      description: '',
-      type: 'TEXT'
-    }
-  });
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
 
-  const onSubmit = async (data: CreateChannelFormValues) => {
     try {
       setIsLoading(true);
-      setError(null);
-      await channelsService.createChannel(spaceId, data);
-      setIsOpen(false);
+
+      await channelsService.createChannel(spaceId, {
+        name: name.trim(),
+        description: description.trim(),
+        kind: 'CHANNEL',
+        permissions: []
+      });
+      
       onChannelCreated?.();
-      form.reset();
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('An unknown error occurred');
-      }
+      setName('');
+      setDescription('');
+    } catch (err) {
+      console.error('Failed to create channel', err);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog>
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-      <DialogContent className="cosmic-card">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Create Channel</DialogTitle>
+          <DialogDescription>
+            Add a new channel to your space.
+          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Channel Name</Label>
-            <Input
-              id="name"
-              {...form.register('name')}
-              className="cosmic-input"
-              placeholder="Enter channel name"
-            />
-            {form.formState.errors.name && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.name.message}
-              </p>
-            )}
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Channel Name</Label>
+              <Input
+                id="name"
+                placeholder="Enter channel name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="cosmic-input"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                placeholder="Enter channel description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="cosmic-input"
+              />
+            </div>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              {...form.register('description')}
-              className="cosmic-input min-h-[100px]"
-              placeholder="Describe your channel"
-            />
-            {form.formState.errors.description && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.description.message}
-              </p>
-            )}
-          </div>
-
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
-
-          <div className="flex justify-end gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsOpen(false)}
-              disabled={isLoading}
-            >
-              Cancel
+          <DialogFooter>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Create Channel'
+              )}
             </Button>
-            <Button
-              type="submit"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Creating...' : 'Create Channel'}
-            </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

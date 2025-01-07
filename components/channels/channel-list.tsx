@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Hash, MessageSquare } from 'lucide-react';
-import Image from 'next/image';
+import { Hash } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { ChannelFrontend, UserFrontend } from '@/types';
+import { ChannelFrontend } from '@/types';
 import { channelsService } from '@/lib/services/client/channels';
+import { readStatusService } from '@/lib/services/client/read-status';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/hooks/use-auth';
 
@@ -19,39 +19,74 @@ export function ChannelList({ spaceId, selectedChannel, onChannelSelect }: Chann
   const [channels, setChannels] = useState<ChannelFrontend[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [readStatus, setReadStatus] = useState<Record<string, Date | null>>({});
   const { user } = useAuth();
 
   useEffect(() => {
     const loadChannels = async () => {
       try {
-        const channelData = await channelsService.getChannels(spaceId);
-        setChannels(channelData);
+        // Subscribe to channel updates
+        const unsubscribeChannels = channelsService.subscribeToChannels(spaceId, (channelData) => {
+          setChannels(channelData);
+          setIsLoading(false);
+        });
+
+        // Subscribe to read status updates
+        const unsubscribeReadStatus = user ? 
+          readStatusService.subscribeToReadStatus(spaceId, user.id, (statuses) => {
+            setReadStatus(statuses);
+          }) : undefined;
+
+        return () => {
+          unsubscribeChannels();
+          if (unsubscribeReadStatus) {
+            unsubscribeReadStatus();
+          }
+        };
       } catch (err: unknown) {
         if (err instanceof Error) {
           setError(err.message);
         } else {
           setError('An unknown error occurred');
         }
-      } finally {
         setIsLoading(false);
       }
     };
 
     loadChannels();
-  }, [spaceId]);
+  }, [spaceId, user]);
+
+  // Mark channel as read when selected
+  useEffect(() => {
+    if (!selectedChannel || !user) return;
+
+    const channelId = selectedChannel.id;
+    const userId = user.id;
+    
+    // Update read status
+    readStatusService.markAsRead(spaceId, channelId, userId);
+    
+    // Use functional update to prevent unnecessary re-renders
+    setReadStatus(prev => {
+      const newStatus = { ...prev };
+      newStatus[channelId] = new Date();
+      return newStatus;
+    });
+  }, [selectedChannel?.id, spaceId, user?.id]); // More specific dependencies
 
   const regularChannels = channels.filter(channel => channel.kind === 'CHANNEL');
-  const dmChannels = channels.filter(channel => channel.kind === 'DM');
 
-  const getOtherParticipant = (channel: ChannelFrontend): UserFrontend | undefined => {
-    if (!user || !channel.metadata.participants) return undefined;
-    return channel.metadata.participants.find(p => p.id !== user.id);
+  const isUnread = (channel: ChannelFrontend): boolean => {
+    const lastRead = readStatus[channel.id];
+    if (!lastRead && channel.metadata.lastMessageAt) return true;
+    if (!channel.metadata.lastMessageAt) return false;
+    return lastRead ? channel.metadata.lastMessageAt > lastRead : false;
   };
 
   if (isLoading) {
     return (
       <div className="space-y-2">
-        {[...Array(3)].map((_, i) => (
+        {[...Array(1)].map((_, i) => (
           <Card
             key={i}
             className="h-12 cosmic-card animate-pulse"
@@ -70,106 +105,46 @@ export function ChannelList({ spaceId, selectedChannel, onChannelSelect }: Chann
   }
 
   return (
-    <div className="space-y-4">
-      {/* Regular Channels */}
-      <div className="space-y-1">
-        {regularChannels.map((channel) => {
-          const isSelected = selectedChannel?.id === channel.id;
-          return (
-            <button
-              key={channel.id}
-              className={cn(
-                "w-full text-left px-2 py-1.5 rounded-md transition-all duration-200",
-                "flex items-center gap-2 group relative",
-                isSelected ? [
-                  "bg-[hsl(var(--accent))/0.1",
-                  "hover:bg-[hsl(var(--accent))/0.15]",
-                  "text-[hsl(var(--accent))]"
-                ] : [
-                  "hover:bg-[hsl(var(--card-hover))]",
-                  "text-[hsl(var(--text-secondary))]",
-                  "hover:text-[hsl(var(--text-primary))]"
-                ]
-              )}
-              onClick={() => onChannelSelect(channel)}
-            >
-              {isSelected && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-[hsl(var(--accent))] rounded-full" />
-              )}
-              <Hash className={cn(
-                "w-4 h-4",
-                isSelected ? "text-[hsl(var(--accent))]" : "text-[hsl(var(--text-secondary))] group-hover:text-[hsl(var(--text-primary))]"
-              )} />
-              <span className={cn(
-                "text-sm font-medium truncate transition-colors",
-                isSelected ? "text-[hsl(var(--accent))]" : "text-[hsl(var(--text-secondary))] group-hover:text-[hsl(var(--text-primary))]"
-              )}>
-                {channel.name}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* DM Channels */}
-      {dmChannels.length > 0 && (
-        <div className="space-y-1">
-          <div className="px-2 text-xs font-medium text-muted-foreground">
-            DIRECT MESSAGES
-          </div>
-          {dmChannels.map((channel) => {
-            const isSelected = selectedChannel?.id === channel.id;
-            const otherParticipant = getOtherParticipant(channel);
-            if (!otherParticipant) return null;
-
-            return (
-              <button
-                key={channel.id}
-                className={cn(
-                  "w-full text-left px-2 py-1.5 rounded-md transition-all duration-200",
-                  "flex items-center gap-2 group relative",
-                  isSelected ? [
-                    "bg-[hsl(var(--accent))/0.1",
-                    "hover:bg-[hsl(var(--accent))/0.15]",
-                    "text-[hsl(var(--accent))]"
-                  ] : [
-                    "hover:bg-[hsl(var(--card-hover))]",
-                    "text-[hsl(var(--text-secondary))]",
-                    "hover:text-[hsl(var(--text-primary))]"
-                  ]
-                )}
-                onClick={() => onChannelSelect(channel)}
-              >
-                {isSelected && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-[hsl(var(--accent))] rounded-full" />
-                )}
-                <div className="relative w-4 h-4 rounded-full overflow-hidden flex-shrink-0">
-                  {otherParticipant.avatarUrl ? (
-                    <Image
-                      src={otherParticipant.avatarUrl}
-                      alt={otherParticipant.username || ''}
-                      fill
-                      className="object-cover"
-                      sizes="16px"
-                    />
-                  ) : (
-                    <MessageSquare className={cn(
-                      "w-4 h-4",
-                      isSelected ? "text-[hsl(var(--accent))]" : "text-[hsl(var(--text-secondary))] group-hover:text-[hsl(var(--text-primary))]"
-                    )} />
-                  )}
-                </div>
-                <span className={cn(
-                  "text-sm font-medium truncate transition-colors",
-                  isSelected ? "text-[hsl(var(--accent))]" : "text-[hsl(var(--text-secondary))] group-hover:text-[hsl(var(--text-primary))]"
-                )}>
-                  {otherParticipant.fullName || otherParticipant.username}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+    <div className="space-y-1">
+      {regularChannels.map((channel) => {
+        const isSelected = selectedChannel?.id === channel.id;
+        const unread = isUnread(channel);
+        
+        return (
+          <button
+            key={channel.id}
+            className={cn(
+              "w-full text-left px-2 py-1.5 rounded-md transition-all duration-200",
+              "flex items-center gap-2 group relative",
+              isSelected ? [
+                "bg-[hsl(var(--primary))]",
+                "hover:bg-[hsl(var(--primary))]",
+                "text-white"
+              ] : [
+                "hover:bg-[hsl(var(--card-hover))]",
+                "text-[hsl(var(--text-secondary))]",
+                "hover:text-[hsl(var(--text-primary))]"
+              ]
+            )}
+            onClick={() => onChannelSelect(channel)}
+          >
+            {isSelected && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-white rounded-full" />
+            )}
+            <Hash className={cn(
+              "w-4 h-4",
+              isSelected ? "text-white" : "text-[hsl(var(--text-secondary))] group-hover:text-[hsl(var(--text-primary))]"
+            )} />
+            <span className={cn(
+              "text-sm truncate transition-colors",
+              unread && !isSelected && "font-bold !text-white",
+              isSelected ? "text-white" : "text-[hsl(var(--text-secondary))] group-hover:text-[hsl(var(--text-primary))]"
+            )}>
+              {channel.name}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 } 

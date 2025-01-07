@@ -46,11 +46,29 @@ export function UserStatusMenu() {
   );
 
   useEffect(() => {
-    if (user) {
-      // Initialize presence when component mounts
-      presenceService.initializePresence(user.id);
-    }
-  }, [user]);
+    if (!user?.id) return;
+
+    // Initialize presence only once per user ID
+    const userId = user.id;
+    presenceService.updatePresence(userId, 'online');
+
+    // Set up beforeunload handler
+    const handleBeforeUnload = () => {
+      presenceService.updatePresence(userId, 'offline');
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Set up periodic presence updates
+    const intervalId = setInterval(() => {
+      presenceService.updatePresence(userId, currentStatus);
+    }, 5 * 60 * 1000);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      clearInterval(intervalId);
+      presenceService.updatePresence(userId, 'offline');
+    };
+  }, [user?.id, currentStatus]); // Add currentStatus as dependency
 
   if (!user) return null;
 

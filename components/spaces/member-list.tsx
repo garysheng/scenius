@@ -3,25 +3,29 @@
 import { useEffect, useState } from 'react';
 import { Circle, Clock, MinusCircle, User } from 'lucide-react';
 import Image from 'next/image';
-import { UserFrontend, UserPresenceFrontend } from '@/types';
+import { UserFrontend, UserPresenceFrontend, ChannelFrontend } from '@/types';
 import { usersService } from '@/lib/services/client/users';
 import { presenceService } from '@/lib/services/client/presence';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useRouter } from 'next/navigation';
 import { channelsService } from '@/lib/services/client/channels';
+import { readStatusService } from '@/lib/services/client/read-status';
 import { useAuth } from '@/lib/hooks/use-auth';
+import { cn } from '@/lib/utils';
 
 interface MemberListProps {
   spaceId: string;
+  selectedChannel: ChannelFrontend | null;
+  onChannelSelect: (channel: ChannelFrontend) => void;
 }
 
-export function MemberList({ spaceId }: MemberListProps) {
+export function MemberList({ spaceId, selectedChannel, onChannelSelect }: MemberListProps) {
   const [users, setUsers] = useState<Record<string, UserFrontend>>({});
   const [presence, setPresence] = useState<Record<string, UserPresenceFrontend>>({});
+  const [dmChannels, setDmChannels] = useState<ChannelFrontend[]>([]);
+  const [readStatus, setReadStatus] = useState<Record<string, Date | null>>({});
   const [isLoading, setIsLoading] = useState(true);
   const { user: currentUser } = useAuth();
-  const router = useRouter();
 
   useEffect(() => {
     const unsubscribe = presenceService.subscribeToSpacePresence(spaceId, async (newPresence) => {
@@ -55,21 +59,127 @@ export function MemberList({ spaceId }: MemberListProps) {
     return () => unsubscribe();
   }, [spaceId, users]);
 
+  // Load DM channels and subscribe to read status
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let unsubscribeChannels: (() => void) | undefined;
+    let unsubscribeReadStatus: (() => void) | undefined;
+
+    const setupSubscriptions = async () => {
+      try {
+        // Subscribe to DM channels
+        unsubscribeChannels = channelsService.subscribeToChannels(spaceId, (channelData) => {
+          const dms = channelData.filter(channel => channel.kind === 'DM');
+          setDmChannels(dms);
+        });
+
+        // Subscribe to read status updates
+        unsubscribeReadStatus = readStatusService.subscribeToReadStatus(spaceId, currentUser.id, (statuses) => {
+          setReadStatus(statuses);
+        });
+      } catch (err) {
+        console.error('Failed to load DM channels:', err);
+      }
+    };
+
+    setupSubscriptions();
+
+    return () => {
+      if (unsubscribeChannels) {
+        unsubscribeChannels();
+      }
+      if (unsubscribeReadStatus) {
+        unsubscribeReadStatus();
+      }
+    };
+  }, [spaceId, currentUser]);
+
+  // Mark channel as read when selected
+  useEffect(() => {
+    if (selectedChannel && currentUser && selectedChannel.kind === 'DM') {
+      readStatusService.markAsRead(spaceId, selectedChannel.id, currentUser.id);
+      setReadStatus(prev => ({
+        ...prev,
+        [selectedChannel.id]: new Date()
+      }));
+    }
+  }, [selectedChannel, spaceId, currentUser]);
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'online':
-        return <Circle className="w-3 h-3 text-green-500 fill-current" />;
+        return <Circle className="w-2 h-2 text-green-500 fill-current" />;
       case 'away':
-        return <Clock className="w-3 h-3 text-yellow-500" />;
+        return <Clock className="w-2 h-2 text-yellow-500" />;
       case 'dnd':
-        return <MinusCircle className="w-3 h-3 text-red-500" />;
+        return <MinusCircle className="w-2 h-2 text-red-500" />;
       default:
-        return <Circle className="w-3 h-3 text-muted-foreground" />;
+        return <Circle className="w-2 h-2 text-muted-foreground" />;
+    }
+  };
+
+  const isUnread = (userId: string): boolean => {
+    if (!currentUser) return false;
+    const dmChannel = dmChannels.find(channel => 
+      channel.metadata.participantIds?.includes(userId) && 
+      channel.metadata.participantIds?.includes(currentUser.id)
+    );
+    if (!dmChannel) return false;
+    
+    const lastRead = readStatus[dmChannel.id];
+    // Return false if there's no last message
+    if (!dmChannel.metadata.lastMessageAt) return false;
+    
+    // Add check for last message sender - if it's the current user, it's not unread
+    if (dmChannel.metadata.lastMessageSenderId === currentUser.id) return false;
+    
+    // Only mark as unread if there's no last read time and there is a message
+    if (!lastRead && dmChannel.metadata.lastMessageAt) return true;
+    
+    return lastRead ? dmChannel.metadata.lastMessageAt > lastRead : false;
+  };
+
+  const handleMemberClick = async (userId: string) => {
+    if (!currentUser || userId === currentUser.id) return;
+    
+    try {
+      // Check if DM already exists
+      const existingDM = dmChannels.find(channel => 
+        channel.metadata.participantIds?.includes(userId) && 
+        channel.metadata.participantIds?.includes(currentUser.id)
+      );
+
+      if (existingDM) {
+        onChannelSelect(existingDM);
+      } else {
+        const channelId = await channelsService.createDM(spaceId, [currentUser.id, userId]);
+        const channel = await channelsService.getChannel(spaceId, channelId);
+        onChannelSelect(channel);
+      }
+    } catch (error) {
+      console.error('Failed to create/open DM:', error);
     }
   };
 
   const sortedUsers = Object.entries(users).sort((a, b) => {
-    // Sort by status (online first)
+    // Current user should always be first
+    if (a[0] === currentUser?.id) return -1;
+    if (b[0] === currentUser?.id) return 1;
+
+    // Then sort by whether they have an active DM
+    const aHasDM = dmChannels.some(channel => 
+      channel.metadata.participantIds?.includes(a[0]) && 
+      channel.metadata.participantIds?.includes(currentUser?.id || '')
+    );
+    const bHasDM = dmChannels.some(channel => 
+      channel.metadata.participantIds?.includes(b[0]) && 
+      channel.metadata.participantIds?.includes(currentUser?.id || '')
+    );
+    if (aHasDM && !bHasDM) return -1;
+    if (!aHasDM && bHasDM) return 1;
+
+    // Then by status (online first)
     const statusA = presence[a[0]]?.status || 'offline';
     const statusB = presence[b[0]]?.status || 'offline';
     if (statusA === 'online' && statusB !== 'online') return -1;
@@ -78,17 +188,6 @@ export function MemberList({ spaceId }: MemberListProps) {
     // Then by username
     return (a[1].username || a[1].fullName || '').localeCompare(b[1].username || b[1].fullName || '');
   });
-
-  const handleMemberClick = async (userId: string) => {
-    if (!currentUser || userId === currentUser.id) return;
-    
-    try {
-      const channelId = await channelsService.createDM(spaceId, [currentUser.id, userId]);
-      router.push(`/spaces/${spaceId}/channels/${channelId}`);
-    } catch (error) {
-      console.error('Failed to create/open DM:', error);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -108,36 +207,74 @@ export function MemberList({ spaceId }: MemberListProps) {
       <div className="space-y-1 p-2">
         {sortedUsers.map(([userId, user]) => {
           const userPresence = presence[userId];
+          const dmChannel = dmChannels.find(channel => 
+            channel.metadata.participantIds?.includes(userId) && 
+            channel.metadata.participantIds?.includes(currentUser?.id || '')
+          );
+          // Only highlight if this is the other participant in the selected DM
+          const isSelected = selectedChannel?.id === dmChannel?.id && 
+                           selectedChannel?.kind === 'DM' && 
+                           userId !== currentUser?.id;
+          const unread = isUnread(userId);
+
           return (
             <TooltipProvider key={userId}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div 
-                    className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50 cursor-pointer group"
+                  <button
+                    className={cn(
+                      "w-full text-left px-2 py-1.5 rounded-md transition-all duration-200",
+                      "flex items-center gap-2 group relative",
+                      isSelected ? [
+                        "bg-gradient-to-r from-[hsl(var(--ai-primary))] to-[hsl(var(--ai-secondary))]",
+                        "hover:from-[hsl(var(--ai-primary))] hover:to-[hsl(var(--accent-nebula))]",
+                        "text-white",
+                        "animate-gradient-x"
+                      ] : [
+                        "hover:bg-[hsl(var(--card-hover))]",
+                        "text-[hsl(var(--text-secondary))]",
+                        "hover:text-[hsl(var(--text-primary))]"
+                      ]
+                    )}
                     onClick={() => handleMemberClick(userId)}
                   >
+                    {/* Add subtle gradient overlay for hover effect on non-selected items */}
+                    {!isSelected && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--ai-primary))] via-[hsl(var(--accent-nebula))] to-[hsl(var(--ai-secondary))] opacity-0 group-hover:opacity-10 transition-opacity duration-300 rounded-md" />
+                    )}
+                    {isSelected && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-white rounded-full" />
+                    )}
                     <div className="relative">
                       {user.avatarUrl ? (
                         <Image
                           src={user.avatarUrl}
                           alt={user.username || 'User avatar'}
-                          width={32}
-                          height={32}
+                          width={16}
+                          height={16}
                           className="rounded-full"
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                          <User className="w-4 h-4 text-muted-foreground" />
+                        <div className="w-4 h-4 rounded-full bg-muted flex items-center justify-center">
+                          <User className={cn(
+                            "w-2 h-2",
+                            isSelected ? "text-white" : "text-muted-foreground"
+                          )} />
                         </div>
                       )}
-                      <div className="absolute -bottom-0.5 -right-0.5">
+                      <div className="absolute -bottom-0.5 -right-0.5 bg-background rounded-full p-[1px]">
                         {getStatusIcon(userPresence?.status || 'offline')}
                       </div>
                     </div>
-                    <span className="text-sm font-medium text-foreground group-hover:text-foreground/80">
+                    <span className={cn(
+                      "text-sm truncate transition-colors",
+                      unread && !isSelected && userId !== currentUser?.id && "font-bold !text-white",
+                      !unread && "font-light",
+                      isSelected ? "text-white" : "text-[hsl(var(--text-secondary))] group-hover:text-[hsl(var(--text-primary))]"
+                    )}>
                       {user.fullName || user.username || 'Unknown User'}
                     </span>
-                  </div>
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent side="right" align="center">
                   <div className="text-xs">
