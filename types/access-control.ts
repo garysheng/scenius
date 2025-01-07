@@ -6,7 +6,6 @@ export type AccessMethod = 'EMAIL_LIST' | 'DOMAIN' | 'INVITE';
 // Domain Configuration
 export interface DomainConfig {
   domain: string;
-  verified: boolean;
   autoRole?: string;
   allowSubdomains: boolean;
 }

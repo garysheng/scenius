@@ -24,6 +24,7 @@ import {
   ChannelRoleOverride
 } from '@/types/access-control';
 import { nanoid } from 'nanoid';
+import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/constants/roles';
 
 export const accessControlService = {
   // Space Access Management
@@ -93,25 +94,10 @@ export const accessControlService = {
     await updateDoc(accessRef, {
       'domains.domains': [...(await this.getSpaceAccess(spaceId))?.domains.domains || [], {
         domain,
-        verified: false,
         autoRole,
         allowSubdomains: false
       }],
       'domains.enabled': true,
-      updatedAt: serverTimestamp()
-    });
-  },
-
-  async verifyDomain(spaceId: string, domain: string): Promise<void> {
-    const access = await this.getSpaceAccess(spaceId);
-    if (!access) return;
-
-    const updatedDomains = access.domains.domains.map(d => 
-      d.domain === domain ? { ...d, verified: true } : d
-    );
-
-    await updateDoc(doc(db, 'spaces', spaceId, 'access', 'config'), {
-      'domains.domains': updatedDomains,
       updatedAt: serverTimestamp()
     });
   },
@@ -287,20 +273,26 @@ export const accessControlService = {
       }
 
       const memberData = memberDoc.data();
-      const userRole = memberData.role;
+      const userRole = memberData.role as keyof typeof DEFAULT_ROLE_PERMISSIONS;
 
       // Get the role document
       const roleRef = doc(db, 'spaces', spaceId, 'roles', userRole);
       const roleDoc = await getDoc(roleRef);
 
-      if (!roleDoc.exists()) {
-        return false; // Role doesn't exist
+      let rolePermissions: Permission[] = [];
+
+      if (roleDoc.exists()) {
+        const roleData = roleDoc.data() as Role;
+        rolePermissions = roleData.permissions;
+      } else if (DEFAULT_ROLE_PERMISSIONS[userRole]) {
+        // Fallback to default permissions if no custom role is defined
+        rolePermissions = DEFAULT_ROLE_PERMISSIONS[userRole];
+      } else {
+        return false; // Role doesn't exist and no default found
       }
 
-      const roleData = roleDoc.data() as Role;
-
       // Check if the role has the required permission
-      const hasPermission = roleData.permissions.some(p => {
+      const hasPermission = rolePermissions.some(p => {
         // Base permission match
         const permissionMatch = p.type === permission && p.allow;
 
@@ -346,8 +338,15 @@ export const accessControlService = {
     role?: string;
     method?: 'EMAIL_LIST' | 'DOMAIN' | 'INVITE';
   }> {
+    console.log('Validating access:', { spaceId, userId, email });
+    
     const access = await this.getSpaceAccess(spaceId);
-    if (!access) return { hasAccess: false };
+    if (!access) {
+      console.log('No access config found for space:', spaceId);
+      return { hasAccess: false };
+    }
+
+    console.log('Access config:', access);
 
     let highestPriorityRole = {
       role: access.roleAssignment.defaultRole,
@@ -356,6 +355,7 @@ export const accessControlService = {
 
     // Check email list
     if (access.emailList.enabled && access.emailList.emails.includes(email)) {
+      console.log('Email found in email list');
       const rule = access.roleAssignment.rules.find(r => 
         r.condition.accessMethod === 'EMAIL_LIST' &&
         r.priority > highestPriorityRole.priority
@@ -368,23 +368,66 @@ export const accessControlService = {
 
     // Check domains
     if (access.domains.enabled) {
+      console.log('Checking domain access');
       const emailDomain = email.split('@')[1];
-      const matchingDomain = access.domains.domains.find(d => 
-        d.domain === emailDomain
-      );
+      console.log('User email domain:', emailDomain);
+      console.log('Configured domains:', access.domains.domains);
+
+      const matchingDomain = access.domains.domains.find(d => {
+        // Exact domain match
+        if (d.domain === emailDomain) {
+          console.log(`Found exact domain match: ${d.domain}`);
+          return true;
+        }
+
+        // Check subdomain match if allowed
+        if (d.allowSubdomains && emailDomain.endsWith(`.${d.domain}`)) {
+          console.log(`Found subdomain match: ${emailDomain} is subdomain of ${d.domain}`);
+          return true;
+        }
+
+        return false;
+      });
+
       if (matchingDomain) {
+        console.log('Matching domain found:', matchingDomain);
+        
+        // First check if domain has an autoRole specified
+        if (matchingDomain.autoRole) {
+          console.log(`Using domain's autoRole: ${matchingDomain.autoRole}`);
+          return { 
+            hasAccess: true, 
+            role: matchingDomain.autoRole, 
+            method: 'DOMAIN' 
+          };
+        }
+
+        // Otherwise use role assignment rules
+        console.log('No autoRole specified, checking role assignment rules');
         const rule = access.roleAssignment.rules.find(r => 
           r.condition.accessMethod === 'DOMAIN' &&
           r.priority > highestPriorityRole.priority
         );
         if (rule) {
+          console.log('Found matching role assignment rule:', rule);
           highestPriorityRole = { role: rule.role, priority: rule.priority };
+        } else {
+          console.log('No matching role assignment rule, using default role');
         }
-        return { hasAccess: true, role: highestPriorityRole.role, method: 'DOMAIN' };
+        return { 
+          hasAccess: true, 
+          role: highestPriorityRole.role, 
+          method: 'DOMAIN' 
+        };
+      } else {
+        console.log('No matching domain found');
       }
+    } else {
+      console.log('Domain access is disabled');
     }
 
     // Check invites
+    console.log('Checking invites');
     const invitesRef = collection(db, 'spaces', spaceId, 'invites');
     const invitesQuery = query(
       invitesRef,
@@ -394,17 +437,21 @@ export const accessControlService = {
     );
 
     const invitesSnapshot = await getDocs(invitesQuery);
+    console.log('Found invites:', invitesSnapshot.docs.length);
     
     for (const inviteDoc of invitesSnapshot.docs) {
       const invite = inviteDoc.data() as InviteLink;
+      console.log('Checking invite:', invite);
       
       // Skip if invite has reached max uses
       if (invite.maxUses !== null && invite.useCount >= invite.maxUses) {
+        console.log('Invite has reached max uses');
         continue;
       }
 
       // Skip if invite is expired
       if (invite.expiresAt && invite.expiresAt.toDate() < new Date()) {
+        console.log('Invite has expired');
         continue;
       }
 
@@ -414,6 +461,7 @@ export const accessControlService = {
       );
       
       if (rule) {
+        console.log('Found matching role assignment rule for invite:', rule);
         highestPriorityRole = { role: rule.role, priority: rule.priority };
       }
 
@@ -430,6 +478,7 @@ export const accessControlService = {
       };
     }
 
+    console.log('No valid access method found');
     return { hasAccess: false };
   }
 }; 

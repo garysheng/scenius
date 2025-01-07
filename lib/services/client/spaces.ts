@@ -86,6 +86,27 @@ export const spacesService = {
       }
     });
 
+    // Create initial access config
+    const accessRef = doc(db, 'spaces', spaceRef.id, 'access', 'config');
+    batch.set(accessRef, {
+      spaceId: spaceRef.id,
+      emailList: {
+        enabled: false,
+        emails: []
+      },
+      domains: {
+        enabled: false,
+        domains: []
+      },
+      inviteLinks: [],
+      roleAssignment: {
+        defaultRole: 'member',
+        rules: []
+      },
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+
     await batch.commit();
     return spaceRef.id;
   },
@@ -197,8 +218,64 @@ export const spacesService = {
   },
 
   async deleteSpace(id: string) {
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('You must be signed in to delete a space');
+    }
+
+    // Check if user is the owner
     const spaceRef = doc(db, 'spaces', id);
-    await deleteDoc(spaceRef);
+    const spaceDoc = await getDoc(spaceRef);
+    if (!spaceDoc.exists()) {
+      throw new Error('Space not found');
+    }
+    if (spaceDoc.data().ownerId !== currentUser.uid) {
+      throw new Error('Only the space owner can delete the space');
+    }
+
+    const batch = writeBatch(db);
+
+    // Delete all members
+    const membersSnapshot = await getDocs(collection(db, 'spaces', id, 'members'));
+    membersSnapshot.docs.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+
+    // Delete all channels and their messages
+    const channelsSnapshot = await getDocs(collection(db, 'spaces', id, 'channels'));
+    for (const channelDoc of channelsSnapshot.docs) {
+      // Delete all messages in the channel
+      const messagesSnapshot = await getDocs(collection(db, 'spaces', id, 'channels', channelDoc.id, 'messages'));
+      messagesSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      batch.delete(channelDoc.ref);
+    }
+
+    // Delete access config
+    const accessConfigRef = doc(db, 'spaces', id, 'access', 'config');
+    batch.delete(accessConfigRef);
+
+    // Delete settings
+    const settingsRef = doc(db, 'spaces', id, 'settings', 'preferences');
+    batch.delete(settingsRef);
+
+    // Delete the space document itself
+    batch.delete(spaceRef);
+
+    // Delete any space files from storage
+    try {
+      const storage = getStorage();
+      const spaceStorageRef = ref(storage, `spaces/${id}`);
+      await deleteObject(spaceStorageRef);
+    } catch (error) {
+      // Ignore errors if no files exist
+      console.log('No space files to delete or error deleting files:', error);
+    }
+
+    // Commit all deletions
+    await batch.commit();
   },
 
   async joinSpace(id: string, role: 'owner' | 'admin' | 'member' = 'member') {

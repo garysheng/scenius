@@ -89,18 +89,6 @@ export function useAccessControl({ spaceId }: UseAccessControlProps) {
     }
   }, [spaceId]);
 
-  const verifyDomain = useCallback(async (domain: string) => {
-    if (!spaceId) return;
-    try {
-      await accessControlService.verifyDomain(spaceId, domain);
-      const updatedConfig = await accessControlService.getSpaceAccess(spaceId);
-      setAccessConfig(updatedConfig);
-    } catch (err) {
-      setError(err as Error);
-      throw err;
-    }
-  }, [spaceId]);
-
   // Invite Management
   const createInviteLink = useCallback(async (options: {
     maxUses?: number;
@@ -233,7 +221,6 @@ export function useAccessControl({ spaceId }: UseAccessControlProps) {
     addEmailToList,
     removeEmailFromList,
     addDomain,
-    verifyDomain,
     createInviteLink,
     revokeInviteLink,
     createRole,

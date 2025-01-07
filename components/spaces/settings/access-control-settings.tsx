@@ -231,28 +231,8 @@ export function AccessControlSettings({ spaceId }: AccessControlSettingsProps) {
                       >
                         <div className="flex items-center space-x-2">
                           <span>{domain.domain}</span>
-                          {domain.verified ? (
-                            <Badge variant="default">
-                              <CheckCircle2 className="w-4 h-4 mr-1" />
-                              Verified
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary">
-                              <XCircle className="w-4 h-4 mr-1" />
-                              Unverified
-                            </Badge>
-                          )}
                         </div>
                         <div className="flex items-center space-x-2">
-                          {!domain.verified && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => verifyDomain(domain.domain)}
-                            >
-                              Verify
-                            </Button>
-                          )}
                           <Button
                             variant="ghost"
                             size="sm"

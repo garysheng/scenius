@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { 
   Settings,
   MoreVertical,
@@ -39,6 +39,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { urlService } from '@/lib/services/client/url';
+import { useAccessControl } from '@/lib/hooks/use-access-control';
+import { PermissionType } from '@/types/access-control';
 
 interface SpaceActionMenuProps {
   space: SpaceFrontend;
@@ -47,6 +49,8 @@ interface SpaceActionMenuProps {
 export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
   const { user } = useAuth();
   const router = useRouter();
+  const { checkPermission } = useAccessControl({ spaceId: space.id });
+  const [canManageSpace, setCanManageSpace] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
@@ -57,6 +61,14 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
   const [isGeneratingVoice, setIsGeneratingVoice] = useState(false);
   const [summary, setSummary] = useState<ChatSummary | null>(null);
   const [voiceDictation, setVoiceDictation] = useState<VoiceDictation | null>(null);
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      const hasAccess = await checkPermission(PermissionType.MANAGE_SPACE);
+      setCanManageSpace(hasAccess);
+    };
+    checkAccess();
+  }, [checkPermission]);
 
   const debouncedSearch = useCallback(
     debounce(async (query: string) => {
@@ -336,20 +348,22 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
 
           <TabsContent value="settings" className="space-y-4 pt-8">
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h4 className="text-sm font-medium">Space Settings</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Configure your space settings
-                  </p>
+              {canManageSpace && (
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h4 className="text-sm font-medium">Space Settings</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Configure your space settings
+                    </p>
+                  </div>
+                  <Link href={urlService.spaces.settings(space.id)}>
+                    <Button variant="outline">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Settings
+                    </Button>
+                  </Link>
                 </div>
-                <Link href={urlService.spaces.settings(space.id)}>
-                  <Button variant="outline">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Settings
-                  </Button>
-                </Link>
-              </div>
+              )}
 
               <div className="flex justify-between items-center">
                 <div>

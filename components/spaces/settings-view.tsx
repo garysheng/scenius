@@ -14,6 +14,9 @@ import { SpaceFrontend } from '@/types/spaces';
 import Link from 'next/link';
 import { urlService } from '@/lib/services/client/url';
 import { getAuth } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
+import { accessControlService } from '@/lib/services/client/access-control';
+import { PermissionType } from '@/types/access-control';
 
 interface SettingsViewProps {
   spaceId: string;
@@ -23,6 +26,18 @@ export function SettingsView({ spaceId }: SettingsViewProps) {
   const [space, setSpace] = useState<SpaceFrontend | null>(null);
   const [role, setRole] = useState<'owner' | 'admin' | 'member' | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [permissions, setPermissions] = useState<{
+    canManageSpace: boolean;
+    canManageMembers: boolean;
+    canManageAccess: boolean;
+  }>({
+    canManageSpace: false,
+    canManageMembers: false,
+    canManageAccess: false,
+  });
+  const router = useRouter();
 
   useEffect(() => {
     const loadSpaceAndRole = async () => {
@@ -36,6 +51,19 @@ export function SettingsView({ spaceId }: SettingsViewProps) {
         ]);
         setSpace(spaceData);
         setRole(userRole);
+
+        // Check permissions
+        const [canManageSpace, canManageMembers, canManageAccess] = await Promise.all([
+          accessControlService.checkPermission(spaceId, auth.currentUser.uid, PermissionType.MANAGE_SPACE),
+          accessControlService.checkPermission(spaceId, auth.currentUser.uid, PermissionType.MANAGE_MEMBERS),
+          accessControlService.checkPermission(spaceId, auth.currentUser.uid, PermissionType.MANAGE_ACCESS)
+        ]);
+
+        setPermissions({
+          canManageSpace,
+          canManageMembers,
+          canManageAccess
+        });
       } catch (error) {
         console.error('Failed to load space:', error);
       } finally {
@@ -46,9 +74,22 @@ export function SettingsView({ spaceId }: SettingsViewProps) {
     loadSpaceAndRole();
   }, [spaceId]);
 
-  const handleDeleteClick = () => {
-    // TODO: Implement delete space functionality
-    console.log('Delete space clicked');
+  const handleDeleteClick = async () => {
+    if (!confirm('Are you sure you want to delete this space? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      setDeleteError(null);
+      await spacesService.deleteSpace(spaceId);
+      router.push(urlService.spaces.list());
+    } catch (error) {
+      console.error('Failed to delete space:', error);
+      setDeleteError(error instanceof Error ? error.message : 'Failed to delete space');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (loading) {
@@ -57,6 +98,12 @@ export function SettingsView({ spaceId }: SettingsViewProps) {
 
   if (!space) {
     return <div>Space not found</div>;
+  }
+
+  // If user has no management permissions, redirect them
+  if (!permissions.canManageSpace && !permissions.canManageMembers && !permissions.canManageAccess) {
+    router.push(urlService.spaces.detail(spaceId));
+    return null;
   }
 
   return (
@@ -85,58 +132,64 @@ export function SettingsView({ spaceId }: SettingsViewProps) {
 
       <div className="space-y-8">
         {/* General Settings */}
-        <Card className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/95">
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <Settings className="w-6 h-6" />
-              <div>
-                <CardTitle>General Settings</CardTitle>
-                <CardDescription>
-                  Configure basic settings for your space
-                </CardDescription>
+        {permissions.canManageSpace && (
+          <Card className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/95">
+            <CardHeader>
+              <div className="flex items-center space-x-2">
+                <Settings className="w-6 h-6" />
+                <div>
+                  <CardTitle>General Settings</CardTitle>
+                  <CardDescription>
+                    Configure basic settings for your space
+                  </CardDescription>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <SettingsForm spaceId={spaceId} />
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <SettingsForm spaceId={spaceId} />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Members */}
-        <Card className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/95">
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <Users className="w-6 h-6" />
-              <div>
-                <CardTitle>Members</CardTitle>
-                <CardDescription>
-                  Manage members and roles in your space
-                </CardDescription>
+        {permissions.canManageMembers && (
+          <Card className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/95">
+            <CardHeader>
+              <div className="flex items-center space-x-2">
+                <Users className="w-6 h-6" />
+                <div>
+                  <CardTitle>Members</CardTitle>
+                  <CardDescription>
+                    Manage members and roles in your space
+                  </CardDescription>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <MembersSettings spaceId={spaceId} />
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <MembersSettings spaceId={spaceId} />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Access Control */}
-        <Card className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/95">
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <Shield className="w-6 h-6" />
-              <div>
-                <CardTitle>Access Control</CardTitle>
-                <CardDescription>
-                  Configure who can access your space and how
-                </CardDescription>
+        {permissions.canManageAccess && (
+          <Card className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/95">
+            <CardHeader>
+              <div className="flex items-center space-x-2">
+                <Shield className="w-6 h-6" />
+                <div>
+                  <CardTitle>Access Control</CardTitle>
+                  <CardDescription>
+                    Configure who can access your space and how
+                  </CardDescription>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <AccessControlSettings spaceId={spaceId} />
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <AccessControlSettings spaceId={spaceId} />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Notifications */}
         <Card className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/95">
@@ -180,9 +233,20 @@ export function SettingsView({ spaceId }: SettingsViewProps) {
                   <Button
                     variant="destructive"
                     onClick={handleDeleteClick}
+                    disabled={isDeleting}
                   >
-                    Delete Space
+                    {isDeleting ? (
+                      <>
+                        <span className="loading loading-spinner loading-sm mr-2"></span>
+                        Deleting...
+                      </>
+                    ) : (
+                      'Delete Space'
+                    )}
                   </Button>
+                  {deleteError && (
+                    <p className="text-sm text-destructive mt-2">{deleteError}</p>
+                  )}
                 </div>
               </div>
             </CardContent>
