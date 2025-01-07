@@ -174,7 +174,7 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="search" className="space-y-4">
+          <TabsContent value="search" className="space-y-4 pt-8">
             <div className="space-y-4">
               <div className="relative">
                 <Input
@@ -231,7 +231,7 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
             </div>
           </TabsContent>
 
-          <TabsContent value="scenie" className="space-y-4">
+          <TabsContent value="scenie" className="space-y-4 pt-8">
             <div className="space-y-4">
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
@@ -333,7 +333,7 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
             </div>
           </TabsContent>
 
-          <TabsContent value="settings" className="space-y-4">
+          <TabsContent value="settings" className="space-y-4 pt-8">
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <div>

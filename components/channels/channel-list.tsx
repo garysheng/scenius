@@ -117,11 +117,11 @@ export function ChannelList({ spaceId, selectedChannel, onChannelSelect }: Chann
               "w-full text-left px-2 py-1.5 rounded-md transition-all duration-200",
               "flex items-center gap-2 group relative",
               isSelected ? [
-                "bg-[hsl(var(--primary))]",
+                "bg-primary/60",
                 "hover:bg-[hsl(var(--primary))]",
                 "text-white"
               ] : [
-                "hover:bg-[hsl(var(--card-hover))]",
+                "hover:bg-primary/30",
                 "text-[hsl(var(--text-secondary))]",
                 "hover:text-[hsl(var(--text-primary))]"
               ]

@@ -254,17 +254,13 @@ export function MemberList({ spaceId, selectedChannel, onChannelSelect }: Member
                         "text-white",
                         "animate-gradient-x"
                       ] : [
-                        "hover:bg-[hsl(var(--card-hover))]",
                         "text-[hsl(var(--text-secondary))]",
-                        "hover:text-[hsl(var(--text-primary))]"
+                        "hover:text-[hsl(var(--text-primary))] hover:bg-primary/30"
                       ]
                     )}
                     onClick={() => handleMemberClick(userId)}
                   >
-                    {/* Add subtle gradient overlay for hover effect on non-selected items */}
-                    {!isSelected && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--ai-primary))] via-[hsl(var(--accent-nebula))] to-[hsl(var(--ai-secondary))] opacity-0 group-hover:opacity-10 transition-opacity duration-300 rounded-md" />
-                    )}
+                    {/* Remove hover gradient overlay */}
                     {isSelected && (
                       <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-white rounded-full" />
                     )}

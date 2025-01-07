@@ -283,7 +283,16 @@ export function MessageItem({
 
   return (
     <ErrorBoundary>
-      <div className="flex items-start gap-3 hover:bg-[hsl(var(--card-hover))] p-2 rounded-lg transition-colors message-group relative">
+      <div 
+        className={cn(
+          "group flex items-start gap-3 p-2 rounded-lg transition-all duration-300 relative message-group",
+          "hover:bg-primary/10",
+          "hover:shadow-[0_0_20px_rgba(147,51,234,0.15)]",
+          "hover:backdrop-brightness-125",
+          "cursor-pointer"
+        )}
+        onClick={handleAvatarClick}
+      >
         <div 
           className="relative w-8 h-8 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center flex-shrink-0 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
           onClick={handleAvatarClick}
