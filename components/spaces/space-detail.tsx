@@ -29,6 +29,8 @@ import { MessageList } from '@/components/messages/message-list';
 import { VoiceRecorder } from '@/components/messages/voice-recorder';
 import { MemberList } from '@/components/spaces/member-list';
 import { UserStatusMenu } from '@/components/user/user-status-menu';
+import { SpaceSettingsDialog } from '@/components/spaces/space-settings-dialog';
+import { SpaceActionMenu } from './space-action-menu';
 
 interface SpaceDetailProps {
   id: string;
@@ -157,7 +159,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
 
   if (error) {
     return (
-      <main className="min-h-screen cosmic-bg p-6">
+      <main className="min-h-[calc(100vh-3.5rem)] cosmic-bg p-6">
         <div className="max-w-7xl mx-auto text-center py-12">
           <p className="text-destructive">{error}</p>
           <Button
@@ -174,8 +176,8 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
 
   if (!space) {
     return (
-      <main className="min-h-screen cosmic-bg">
-        <div className="flex h-screen">
+      <main className="min-h-[calc(100vh-3.5rem)] cosmic-bg">
+        <div className="flex h-[calc(100vh-3.5rem)]">
           {/* Sidebar skeleton */}
           <div className="w-64 cosmic-card animate-pulse" />
           {/* Main content skeleton */}
@@ -186,10 +188,10 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
   }
 
   return (
-    <main className="min-h-screen cosmic-bg">
-      <div className="flex h-screen">
+    <main className="min-h-[calc(100vh-3.5rem)] cosmic-bg">
+      <div className="flex h-[calc(100vh-3.5rem)]">
         {/* Sidebar */}
-        <div className="w-64 cosmic-card overflow-y-auto flex flex-col">
+        <div className="w-64 cosmic-card flex flex-col">
           {/* Space Header */}
           <div className="p-3 flex items-center justify-between border-b border-border/50">
             <div className="flex items-center gap-2">
@@ -207,12 +209,12 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
               <h1 className="font-semibold text-sm truncate bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent animate-gradient">
                 {space.name}
               </h1>
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
             </div>
+            <SpaceActionMenu space={space} />
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-3 space-y-4">
+          <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
             {/* Channels Section */}
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -267,14 +269,11 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
 
           {/* Space Settings */}
           <div className="p-3 border-t border-border/50">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
-              <Settings className="w-4 h-4" />
-              <span>Space Settings</span>
-            </div>
+            <SpaceSettingsDialog space={space} />
           </div>
 
           {/* User Status Menu */}
-          <div className="mt-auto border-t border-border/50">
+          <div className="border-t border-border/50">
             <UserStatusMenu />
           </div>
         </div>

@@ -10,7 +10,11 @@ import {
   Timestamp,
   serverTimestamp,
   writeBatch,
-  collectionGroup
+  collectionGroup,
+  updateDoc,
+  deleteDoc,
+  setDoc,
+  increment
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Space, SpaceFrontend } from '@/types';
@@ -144,5 +148,51 @@ export const spacesService = {
       createdAt: (data.createdAt as Timestamp).toDate(),
       updatedAt: (data.updatedAt as Timestamp).toDate()
     } as SpaceFrontend;
-  }
+  },
+
+  async updateSpace(id: string, data: Partial<Omit<Space, 'id' | 'createdAt' | 'updatedAt' | 'ownerId' | 'metadata'>>) {
+    const spaceRef = doc(db, 'spaces', id);
+    await updateDoc(spaceRef, {
+      ...data,
+      updatedAt: serverTimestamp(),
+    });
+  },
+
+  async deleteSpace(id: string) {
+    const spaceRef = doc(db, 'spaces', id);
+    await deleteDoc(spaceRef);
+  },
+
+  async joinSpace(id: string) {
+    const auth = getAuth();
+    if (!auth.currentUser) {
+      throw new Error('You must be signed in to join a space');
+    }
+
+    // Check if space exists
+    const spaceRef = doc(db, 'spaces', id);
+    const spaceDoc = await getDoc(spaceRef);
+    if (!spaceDoc.exists()) {
+      throw new Error('Space not found');
+    }
+
+    // Check if user is already a member
+    const memberRef = doc(db, 'spaces', id, 'members', auth.currentUser.uid);
+    const memberDoc = await getDoc(memberRef);
+    if (memberDoc.exists()) {
+      throw new Error('You are already a member of this space');
+    }
+
+    // Add user as member
+    await setDoc(memberRef, {
+      userId: auth.currentUser.uid,
+      role: 'member',
+      joinedAt: serverTimestamp()
+    });
+
+    // Update member count
+    await updateDoc(spaceRef, {
+      'metadata.memberCount': increment(1)
+    });
+  },
 }; 
