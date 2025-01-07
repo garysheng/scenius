@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { spacesService } from '@/lib/services/client/spaces';
 import { useAuth } from '@/lib/hooks/use-auth';
+import { urlService } from '@/lib/services/client/url';
 
 interface JoinSpaceClientProps {
   id: string;
@@ -20,7 +21,7 @@ export function JoinSpaceClient({ id }: JoinSpaceClientProps) {
     if (!isLoading && !isAuthenticated) {
       // Save the space ID in sessionStorage to redirect after signup
       sessionStorage.setItem('pendingSpaceJoin', id);
-      router.push('/signup');
+      router.push(urlService.auth.signUp());
     }
   }, [isLoading, isAuthenticated, id, router]);
 
@@ -28,7 +29,7 @@ export function JoinSpaceClient({ id }: JoinSpaceClientProps) {
     try {
       setIsJoining(true);
       await spacesService.joinSpace(id);
-      router.push(`/spaces/${id}`);
+      router.push(urlService.spaces.detail(id));
     } catch (error: unknown) {
       if (error instanceof Error) {
         setError(error.message);
@@ -79,7 +80,7 @@ export function JoinSpaceClient({ id }: JoinSpaceClientProps) {
               </Button>
               <Button
                 variant="ghost"
-                onClick={() => router.push('/spaces')}
+                onClick={() => router.push(urlService.spaces.list())}
                 disabled={isJoining}
                 className="w-full"
               >

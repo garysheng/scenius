@@ -8,6 +8,7 @@ import { SpaceFrontend } from '@/types';
 import { useRouter } from 'next/navigation';
 import { spacesService } from '@/lib/services/client/spaces';
 import { useAuth } from '@/lib/hooks/use-auth';
+import { urlService } from '@/lib/services/client/url';
 
 export default function SpacesPage() {
   const [spaces, setSpaces] = useState<SpaceFrontend[]>([]);
@@ -39,7 +40,7 @@ export default function SpacesPage() {
 
     if (!authLoading) {
       if (!isAuthenticated) {
-        router.push('/signin');
+        router.push(urlService.auth.signIn());
       } else {
         loadSpaces();
       }

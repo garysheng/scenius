@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { User } from 'lucide-react';
+import { urlService } from '@/lib/services/client/url';
 
 export function Navbar() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -42,7 +43,7 @@ export function Navbar() {
                 asChild 
                 className="text-white hover:text-white hover:bg-white/10 transition-colors"
               >
-                <Link href="/spaces">Spaces</Link>
+                <Link href={urlService.spaces.list()}>Spaces</Link>
               </Button>
               <div className="relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-[hsl(var(--ai-primary))] via-[hsl(var(--accent-nebula))] to-[hsl(var(--ai-secondary))] rounded-full blur opacity-0 group-hover:opacity-40 transition duration-300" />
@@ -77,13 +78,13 @@ export function Navbar() {
                 asChild 
                 className="text-white hover:text-white hover:bg-white/10"
               >
-                <Link href="/signin">Sign In</Link>
+                <Link href={urlService.auth.signIn()}>Sign In</Link>
               </Button>
               <Button 
                 asChild 
                 className="bg-white text-[hsl(var(--ai-primary))] hover:bg-white/90 transition-all duration-300"
               >
-                <Link href="/signup">Sign Up</Link>
+                <Link href={urlService.auth.signUp()}>Sign Up</Link>
               </Button>
             </>
           )}

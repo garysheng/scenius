@@ -164,7 +164,7 @@ export const spacesService = {
     await deleteDoc(spaceRef);
   },
 
-  async joinSpace(id: string) {
+  async joinSpace(id: string, role: 'owner' | 'admin' | 'member' = 'member') {
     const auth = getAuth();
     if (!auth.currentUser) {
       throw new Error('You must be signed in to join a space');
@@ -184,10 +184,10 @@ export const spacesService = {
       throw new Error('You are already a member of this space');
     }
 
-    // Add user as member
+    // Add user as member with the specified role
     await setDoc(memberRef, {
       userId: auth.currentUser.uid,
-      role: 'member',
+      role,
       joinedAt: serverTimestamp()
     });
 

@@ -38,6 +38,7 @@ import debounce from 'lodash/debounce';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { urlService } from '@/lib/services/client/url';
 
 interface SpaceActionMenuProps {
   space: SpaceFrontend;
@@ -104,7 +105,7 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
       
       setIsOpen(false);
       router.refresh();
-      router.push('/spaces');
+      router.push(urlService.spaces.list());
     } catch (error) {
       console.error('Failed to leave space:', error);
       setLeaveError(error instanceof Error ? error.message : 'Failed to leave space');
@@ -342,7 +343,7 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
                     Configure your space settings
                   </p>
                 </div>
-                <Link href={`/spaces/${space.id}/settings`}>
+                <Link href={urlService.spaces.settings(space.id)}>
                   <Button variant="outline">
                     <Settings className="w-4 h-4 mr-2" />
                     Settings

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { SpaceFrontend } from '@/types';
 import { Users } from 'lucide-react';
+import { urlService } from '@/lib/services/client/url';
 
 interface SpaceCardProps {
   space: SpaceFrontend;
@@ -13,7 +14,7 @@ export function SpaceCard({ space }: SpaceCardProps) {
   const router = useRouter();
 
   const handleClick = () => {
-    router.push(`/spaces/${space.id}`);
+    router.push(urlService.spaces.detail(space.id));
   };
 
   return (

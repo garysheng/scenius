@@ -10,7 +10,9 @@ import {
   updateDoc,
   deleteDoc,
   getDocs,
-  increment
+  increment,
+  collectionGroup,
+  limit
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { 
@@ -147,6 +149,61 @@ export const accessControlService = {
       isRevoked: true,
       updatedAt: serverTimestamp()
     });
+  },
+
+  async verifyInviteLink(code: string): Promise<{
+    id: string;
+    spaceId: string;
+    code: string;
+    expiresAt: Date | null;
+    maxUses: number | null;
+    useCount: number;
+    isRevoked: boolean;
+    assignedRole: string;
+  } | null> {
+    // Query for the invite using the code
+    const invitesRef = collectionGroup(db, 'invites');
+    const q = query(invitesRef, where('code', '==', code), limit(1));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      return null;
+    }
+
+    const inviteDoc = snapshot.docs[0];
+    const data = inviteDoc.data();
+
+    // Check if invite is revoked
+    if (data.isRevoked) {
+      return null;
+    }
+
+    // Check if invite has expired
+    if (data.expiresAt && data.expiresAt.toDate() < new Date()) {
+      return null;
+    }
+
+    // Check if max uses has been reached
+    if (data.maxUses !== null && data.useCount >= data.maxUses) {
+      return null;
+    }
+
+    // Get the space ID from the invite document path
+    const spaceId = inviteDoc.ref.parent.parent?.id;
+    if (!spaceId) {
+      return null;
+    }
+
+    return {
+      id: inviteDoc.id,
+      spaceId,
+      code: data.code,
+      expiresAt: data.expiresAt ? data.expiresAt.toDate() : null,
+      maxUses: data.maxUses,
+      useCount: data.useCount,
+      isRevoked: data.isRevoked,
+      assignedRole: data.assignedRole
+    };
   },
 
   // Role Management

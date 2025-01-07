@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 
 import { SignInFormValues, signInSchema } from '@/types/auth';
 import { AuthService } from '@/lib/services/auth';
+import { urlService } from '@/lib/services/client/url';
 
 export function SignInForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +32,7 @@ export function SignInForm() {
       setIsLoading(true);
       setError(null);
       await AuthService.signIn(data);
-      router.push('/spaces'); // Redirect to spaces after login
+      router.push(urlService.spaces.list()); // Redirect to spaces after login
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -48,7 +49,7 @@ export function SignInForm() {
       setIsLoading(true);
       setError(null);
       await AuthService.signInWithGoogle();
-      router.push('/spaces');
+      router.push(urlService.spaces.list());
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -167,10 +168,7 @@ export function SignInForm() {
 
         <p className="text-sm text-center text-neutral-400">
           Don&apos;t have an account?{' '}
-          <Link
-            href="/signup"
-            className="text-purple-400 hover:text-purple-300 transition-colors"
-          >
+          <Link href={urlService.auth.signUp()} className="text-primary hover:underline">
             Sign up
           </Link>
         </p>

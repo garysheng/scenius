@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { ThreadView } from '@/components/messages/thread-view';
 import { SceniePanel } from './scenie-panel';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { urlService } from '@/lib/services/client/url';
 
 interface SpaceDetailProps {
   id: string;
@@ -130,7 +131,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push('/signin');
+      router.push(urlService.auth.signIn());
       return;
     }
 
@@ -308,7 +309,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
         <div className="max-w-7xl mx-auto text-center py-12">
           <p className="text-destructive">{error}</p>
           <Button
-            onClick={() => router.push('/spaces')}
+            onClick={() => router.push(urlService.spaces.list())}
             variant="outline"
             className="mt-4"
           >

@@ -23,6 +23,7 @@ import {
   Globe,
   Shield,
 } from 'lucide-react';
+import { urlService } from '@/lib/services/client/url';
 
 interface AccessControlSettingsProps {
   spaceId: string;
@@ -357,9 +358,8 @@ export function AccessControlSettings({ spaceId }: AccessControlSettingsProps) {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => {
-                                    navigator.clipboard.writeText(
-                                      `${window.location.origin}/invite/${link.code}`
-                                    );
+                                    const inviteUrl = urlService.invites.inviteWithDomain(link.code);
+                                    navigator.clipboard.writeText(inviteUrl);
                                   }}
                                 >
                                   <LinkIcon className="w-4 h-4" />
