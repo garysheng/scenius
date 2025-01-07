@@ -110,7 +110,7 @@ export function useAccessControl({ spaceId }: UseAccessControlProps) {
       }];
       
       await updateAccess({
-        inviteLinks: updatedInvites
+        inviteLinks: updatedInvites as InviteLink[]
       });
 
       return invite;

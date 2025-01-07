@@ -10,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { AccessControl } from '@/types';
 import { spacesService } from '@/lib/services/client/spaces';
 import { X } from 'lucide-react';
 import { accessControlService } from '@/lib/services/client/access-control';
