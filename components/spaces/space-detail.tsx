@@ -57,6 +57,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
   const [userRole, setUserRole] = useState<'owner' | 'admin' | 'member' | null>(null);
   const [activeTab, setActiveTab] = useState<'chat' | 'scenie'>('chat');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   const getChannelDisplayName = useCallback((channel: ChannelFrontend) => {
     if (channel.kind === 'DM' && user) {
@@ -139,8 +140,12 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
       try {
         const spaceData = await spacesService.getSpace(id);
         setSpace(spaceData);
+        setAccessDenied(false);
       } catch (err: unknown) {
         if (err instanceof Error) {
+          if (err.message === 'You do not have access to this space') {
+            setAccessDenied(true);
+          }
           setError(err.message);
         } else {
           setError('An unknown error occurred');
@@ -301,6 +306,24 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
 
   if (!isAuthenticated) {
     return null; // Will redirect in useEffect
+  }
+
+  if (accessDenied) {
+    return (
+      <main className="min-h-[calc(100vh-3.5rem)] cosmic-bg p-6">
+        <div className="max-w-7xl mx-auto text-center py-12">
+          <h2 className="text-xl font-semibold mb-4">Access Denied</h2>
+          <p className="text-destructive mb-4">You do not have permission to access this space.</p>
+          <Button
+            onClick={() => router.push(urlService.spaces.list())}
+            variant="outline"
+            className="mt-4"
+          >
+            Back to Spaces
+          </Button>
+        </div>
+      </main>
+    );
   }
 
   if (error) {

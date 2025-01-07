@@ -126,12 +126,12 @@ export default function SpacesPage() {
         </section>
 
         <section className="space-y-6">
-          <div>
-            <h2 className="text-2xl text-white font-bold bg-gradient-to-r from-secondary via-accent to-primary bg-clip-text text-transparent animate-gradient">
-              Public Spaces
-            </h2>
+          <div className="relative z-10">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent animate-gradient">
+              Recently Created Spaces
+            </h1>
             <p className="text-muted-foreground mt-1">
-              Open communities you can join
+              Communities that you may be able to join
             </p>
           </div>
 

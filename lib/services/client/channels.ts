@@ -47,13 +47,14 @@ export const channelsService = {
     }
 
     // Create new DM channel
+    const now = Timestamp.now();
     const docRef = await addDoc(channelsRef, {
       name: 'Direct Message',
       description: '',
       kind: 'DM',
       spaceId,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: now,
+      updatedAt: now,
       metadata: {
         messageCount: 0,
         lastMessageAt: null,

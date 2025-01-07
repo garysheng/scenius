@@ -153,52 +153,47 @@ export const spacesService = {
     try {
       console.log('Fetching space:', id);
       
-      // First check if the space exists
+      // First check if user has access before fetching any space data
+      const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      if (!userDoc.exists()) {
+        throw new Error('User not found');
+      }
+      
+      const userData = userDoc.data();
+      const { hasAccess } = await accessControlService.validateAccess(id, auth.currentUser.uid, userData.email);
+      
+      // Check membership
+      const memberDoc = await getDoc(doc(db, 'spaces', id, 'members', auth.currentUser.uid));
+      const isMember = memberDoc.exists();
+
+      // If not a member and no access, deny immediately
+      if (!isMember && !hasAccess) {
+        console.log('Access denied:', { userId: auth.currentUser.uid, spaceId: id });
+        throw new Error('You do not have access to this space');
+      }
+
+      // Only fetch space data if access is granted
       const spaceDoc = await getDoc(doc(db, 'spaces', id));
       if (!spaceDoc.exists()) {
         console.log('Space not found:', id);
         throw new Error('Space not found');
       }
 
-      // Then check if user is a member or if the space is public
-      const memberDoc = await getDoc(doc(db, 'spaces', id, 'members', auth.currentUser.uid));
       const spaceData = spaceDoc.data();
       
-      if (!memberDoc.exists()) {
-        // If not a member, check domain access
-        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-        if (!userDoc.exists()) {
-          throw new Error('User not found');
-        }
-        const userData = userDoc.data();
-        const { hasAccess, role } = await accessControlService.validateAccess(id, auth.currentUser.uid, userData.email);
-        
-        if (hasAccess) {
-          // Create member record with the assigned role
-          await setDoc(doc(db, 'spaces', id, 'members', auth.currentUser.uid), {
-            userId: auth.currentUser.uid,
-            role: role || 'member',
-            joinedAt: serverTimestamp()
-          });
-          
-          // Update member count
-          await updateDoc(doc(db, 'spaces', id), {
-            'metadata.memberCount': increment(1)
-          });
-        } else if (!spaceData.settings?.isPublic) {
-          console.log('User does not have access to space:', { userId: auth.currentUser.uid, spaceId: id });
-          throw new Error('You do not have access to this space');
-        }
+      // Double check for public access if not a member
+      if (!isMember && !hasAccess && !spaceData.settings?.isPublic) {
+        console.log('Access denied - not public:', { userId: auth.currentUser.uid, spaceId: id });
+        throw new Error('You do not have access to this space');
       }
 
       console.log('Space access granted:', { userId: auth.currentUser.uid, spaceId: id });
 
-      const data = spaceDoc.data();
       return {
         id: spaceDoc.id,
-        ...data,
-        createdAt: (data.createdAt as Timestamp).toDate(),
-        updatedAt: (data.updatedAt as Timestamp).toDate()
+        ...spaceData,
+        createdAt: (spaceData.createdAt as Timestamp).toDate(),
+        updatedAt: (spaceData.updatedAt as Timestamp).toDate()
       } as SpaceFrontend;
     } catch (error) {
       console.error('Error getting space:', error);

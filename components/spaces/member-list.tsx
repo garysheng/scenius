@@ -176,7 +176,10 @@ export function MemberList({ spaceId, selectedChannel, onChannelSelect }: Member
       if (existingDM) {
         onChannelSelect(existingDM);
       } else {
+        // Create DM and wait for it to be fully initialized
         const channelId = await channelsService.createDM(spaceId, [currentUser.id, userId]);
+        // Wait a moment for the channel to be fully created
+        await new Promise(resolve => setTimeout(resolve, 500));
         const channel = await channelsService.getChannel(spaceId, channelId);
         onChannelSelect(channel);
       }

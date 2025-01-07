@@ -13,6 +13,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { spacesService } from '@/lib/services/client/spaces';
 import { X } from 'lucide-react';
 import { accessControlService } from '@/lib/services/client/access-control';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { createSpaceSchema } from '@/lib/schemas/create-space';
+import Image from 'next/image';
 
 type CreateSpaceFormValues = {
   name: string;
@@ -43,7 +46,11 @@ export default function CreateSpacePage() {
         defaultRoleId: 'member'
       }
     },
+    resolver: zodResolver(createSpaceSchema)
   });
+
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const handleAddDomain = () => {
     if (!newDomain) return;
@@ -69,13 +76,42 @@ export default function CreateSpacePage() {
     setDomains(domains.filter(d => d !== domain));
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image must be less than 5MB');
+      return;
+    }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
   const onSubmit = async (data: CreateSpaceFormValues) => {
     try {
       setIsLoading(true);
       setError(null);
 
       // Create the space first
-      const spaceId = await spacesService.createSpace(data);
+      const spaceId = await spacesService.createSpace({
+        ...data,
+        avatarUrl: null // We'll update this after space creation
+      });
+
+      // Upload image if one was selected
+      if (imageFile) {
+        const avatarUrl = await spacesService.uploadSpaceImage(spaceId, imageFile);
+        await spacesService.updateSpace(spaceId, { avatarUrl });
+      }
 
       // Set up access control in the subcollection if domains are specified
       if (domains.length > 0) {
@@ -115,12 +151,49 @@ export default function CreateSpacePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
+                <Label>Profile Picture</Label>
+                <div className="flex items-center gap-4">
+                  <div className="relative w-20 h-20 rounded-full overflow-hidden bg-muted">
+                    {imagePreview ? (
+                      <Image
+                        src={imagePreview}
+                        alt="Space profile picture"
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Image
+                          src="/images/space-placeholder.svg"
+                          alt="Space profile picture placeholder"
+                          width={32}
+                          height={32}
+                          className="text-muted-foreground"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="cosmic-input"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Recommended: Square image, at least 256x256px
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="name">Space Name</Label>
                 <Input
                   id="name"
                   {...form.register('name')}
                   className="cosmic-input"
-                  placeholder="Enter space name"
+                  placeholder="Enter space name (min. 5 characters)"
                 />
                 {form.formState.errors.name && (
                   <p className="text-xs text-destructive">
@@ -135,7 +208,7 @@ export default function CreateSpacePage() {
                   id="description"
                   {...form.register('description')}
                   className="cosmic-input min-h-[100px]"
-                  placeholder="Describe your space"
+                  placeholder="Describe your space (min. 8 characters)"
                 />
                 {form.formState.errors.description && (
                   <p className="text-xs text-destructive">
