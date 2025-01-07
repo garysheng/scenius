@@ -203,12 +203,13 @@ export const spacesService = {
 
   async joinSpace(id: string, role: 'owner' | 'admin' | 'member' = 'member') {
     const auth = getAuth();
-    if (!auth.currentUser) {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
       throw new Error('You must be signed in to join a space');
     }
 
     try {
-      console.log('Attempting to join space:', { spaceId: id, userId: auth.currentUser.uid, role });
+      console.log('Attempting to join space:', { spaceId: id, userId: currentUser.uid, role });
 
       // Check if space exists
       const spaceRef = doc(db, 'spaces', id);
@@ -219,16 +220,16 @@ export const spacesService = {
       }
 
       // Check if user is already a member
-      const memberRef = doc(db, 'spaces', id, 'members', auth.currentUser.uid);
+      const memberRef = doc(db, 'spaces', id, 'members', currentUser.uid);
       const memberDoc = await getDoc(memberRef);
       if (memberDoc.exists()) {
-        console.log('User is already a member:', { userId: auth.currentUser.uid, spaceId: id });
+        console.log('User is already a member:', { userId: currentUser.uid, spaceId: id });
         throw new Error('You are already a member of this space');
       }
 
       // Add user as member with the specified role
       await setDoc(memberRef, {
-        userId: auth.currentUser.uid,
+        userId: currentUser.uid,
         role,
         joinedAt: serverTimestamp()
       });
@@ -238,7 +239,32 @@ export const spacesService = {
         'metadata.memberCount': increment(1)
       });
 
-      console.log('Successfully joined space:', { userId: auth.currentUser.uid, spaceId: id, role });
+      // Get space data for welcome message
+      const spaceData = spaceDoc.data();
+      
+      // Get recent messages for AI recap
+      const messagesQuery = query(
+        collectionGroup(db, 'messages'),
+        where('spaceId', '==', id),
+        orderBy('createdAt', 'desc'),
+        limit(50)
+      );
+      const messagesSnapshot = await getDocs(messagesQuery);
+      const recentMessages = messagesSnapshot.docs.map(doc => doc.data());
+
+      // Generate AI recap (placeholder for now)
+      const workspaceRecap = recentMessages.length > 0 
+        ? 'Recent discussions include various topics and active conversations.'
+        : 'This space is just getting started. Be the first to start a conversation!';
+
+      // Return welcome data
+      return {
+        name: spaceData.name,
+        description: spaceData.description,
+        workspaceRecap
+      };
+
+  
     } catch (error) {
       console.error('Error joining space:', error);
       throw error;

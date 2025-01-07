@@ -5,6 +5,7 @@ import { AuthProvider } from "@/components/providers/auth-provider";
 import { Navbar } from "@/components/layout/navbar";
 import { Providers } from './providers';
 import { urlService } from '@/lib/services/client/url';
+import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: "Scenius",
@@ -47,6 +48,7 @@ export default function RootLayout({
             {children}
           </AuthProvider>
         </Providers>
+        <Toaster />
         <div id="portal-root" />
       </body>
     </html>
