@@ -32,6 +32,7 @@ import { ThreadView } from '@/components/messages/thread-view';
 import { SceniePanel } from './scenie-panel';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { urlService } from '@/lib/services/client/url';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface SpaceDetailProps {
   id: string;
@@ -387,7 +388,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
           <div className="cosmic-card h-full flex flex-col relative">
             {/* Space Header */}
             <div className="p-3 flex items-center justify-between border-b border-border/50">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 max-w-[70%]">
                 {space.avatarUrl ? (
                   <img
                     src={space.avatarUrl}
@@ -399,9 +400,18 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                     <Users className="w-3 h-3 text-[hsl(var(--muted-foreground))]" />
                   </div>
                 )}
-                <h1 className="font-semibold text-sm truncate text-foreground">
-                  {space.name}
-                </h1>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <h1 className="font-semibold text-sm truncate text-foreground">
+                        {space.name}
+                      </h1>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{space.name}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               <div className="flex items-center gap-2">
                 <SpaceActionMenu space={space} />
