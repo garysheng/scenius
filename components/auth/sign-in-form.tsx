@@ -32,8 +32,12 @@ export function SignInForm() {
       setError(null);
       await AuthService.signIn(data);
       router.push('/spaces'); // Redirect to spaces after login
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unknown error occurred');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -45,8 +49,12 @@ export function SignInForm() {
       setError(null);
       await AuthService.signInWithGoogle();
       router.push('/spaces');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unknown error occurred');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -158,7 +166,7 @@ export function SignInForm() {
         </Button>
 
         <p className="text-sm text-center text-neutral-400">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Link
             href="/signup"
             className="text-purple-400 hover:text-purple-300 transition-colors"

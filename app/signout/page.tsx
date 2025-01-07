@@ -3,11 +3,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthService } from '@/lib/services/auth';
-import { useAuthStore } from '@/lib/stores/auth-store';
+import { useAuth } from '@/lib/hooks/use-auth';
 
 export default function SignOutPage() {
   const router = useRouter();
-  const { signOut } = useAuthStore();
+  const { signOut } = useAuth();
 
   useEffect(() => {
     const handleSignOut = async () => {

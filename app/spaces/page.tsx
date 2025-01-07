@@ -7,14 +7,14 @@ import { SpaceCard } from '@/components/spaces/space-card';
 import { SpaceFrontend } from '@/types';
 import { useRouter } from 'next/navigation';
 import { spacesService } from '@/lib/services/client/spaces';
-import { useAuthStore } from '@/lib/stores/auth-store';
+import { useAuth } from '@/lib/hooks/use-auth';
 
 export default function SpacesPage() {
   const [spaces, setSpaces] = useState<SpaceFrontend[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading } = useAuthStore();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -26,8 +26,12 @@ export default function SpacesPage() {
       try {
         const spaces = await spacesService.getSpaces();
         setSpaces(spaces);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError('An unknown error occurred');
+        }
       } finally {
         setIsLoading(false);
       }
@@ -105,7 +109,7 @@ export default function SpacesPage() {
         ) : spaces.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">
-              You haven't joined any spaces yet. Create one to get started!
+              You haven&apos;t joined any spaces yet. Create one to get started!
             </p>
           </div>
         ) : (

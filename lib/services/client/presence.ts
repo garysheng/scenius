@@ -15,7 +15,7 @@ export const presenceService = {
     const presenceRef = doc(db, 'presence', userId);
     await setDoc(presenceRef, {
       status,
-      customStatus,
+      customStatus: customStatus || null,
       lastSeen: serverTimestamp(),
       updatedAt: serverTimestamp()
     }, { merge: true });

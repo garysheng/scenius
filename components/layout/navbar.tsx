@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useAuthStore } from '@/lib/stores/auth-store';
+import Image from 'next/image';
+import { useAuth } from '@/lib/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { User } from 'lucide-react';
 
 export function Navbar() {
-  const { isAuthenticated, isLoading, user } = useAuthStore();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   return (
     <nav className="h-14 border-b border-[hsl(var(--border-dim))] bg-black/90 backdrop-blur supports-[backdrop-filter]:bg-black/80 sticky top-0 z-50">
@@ -42,11 +43,15 @@ export function Navbar() {
                 >
                   <Link href="/profile">
                     {user?.avatarUrl ? (
-                      <img 
-                        src={user.avatarUrl} 
-                        alt="Profile" 
-                        className="w-7 h-7 rounded-full ring-1 ring-[hsl(var(--border-dim))] group-hover:ring-[hsl(var(--border-glow))] transition-all duration-300"
-                      />
+                      <div className="relative w-7 h-7">
+                        <Image 
+                          src={user.avatarUrl} 
+                          alt="Profile"
+                          fill
+                          sizes="28px"
+                          className="rounded-full object-cover ring-1 ring-[hsl(var(--border-dim))] group-hover:ring-[hsl(var(--border-glow))] transition-all duration-300"
+                        />
+                      </div>
                     ) : (
                       <User className="w-5 h-5 text-[hsl(var(--text-primary))]" />
                     )}

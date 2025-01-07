@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Mic, Square, Send } from 'lucide-react';
+import { Mic, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -10,7 +10,7 @@ interface VoiceRecorderProps {
   isRecording?: boolean;
 }
 
-export function VoiceRecorder({ onRecordingComplete, isRecording: externalIsRecording }: VoiceRecorderProps) {
+export function VoiceRecorder({ onRecordingComplete }: VoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,8 +54,12 @@ export function VoiceRecorder({ onRecordingComplete, isRecording: externalIsReco
 
           await onRecordingComplete(audioBlob, data.transcription);
           setError(null);
-        } catch (err: any) {
-          setError(err.message);
+        } catch (err: unknown) {
+          if (err instanceof Error) {
+            setError(err.message);
+          } else {
+            setError('An unknown error occurred');
+          }
           console.error('Failed to process recording:', err);
         } finally {
           setIsProcessing(false);
@@ -67,8 +71,12 @@ export function VoiceRecorder({ onRecordingComplete, isRecording: externalIsReco
       mediaRecorder.current.start();
       setIsRecording(true);
       setError(null);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unknown error occurred');
+      }
       console.error('Failed to start recording:', err);
     }
   };

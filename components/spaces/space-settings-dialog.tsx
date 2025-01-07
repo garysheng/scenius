@@ -34,13 +34,20 @@ import { spacesService } from '@/lib/services/client/spaces';
 interface SpaceSettingsDialogProps {
   space: SpaceFrontend;
   trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function SpaceSettingsDialog({ space, trigger }: SpaceSettingsDialogProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function SpaceSettingsDialog({ 
+  space, 
+  trigger,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange 
+}: SpaceSettingsDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [name, setName] = useState(space.name);
   const [description, setDescription] = useState(space.description || '');
+  const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
 
   const handleSave = async () => {
@@ -52,7 +59,11 @@ export function SpaceSettingsDialog({ space, trigger }: SpaceSettingsDialogProps
         name: name.trim(),
         description: description.trim() || undefined,
       });
-      setIsOpen(false);
+      if (controlledOnOpenChange) {
+        controlledOnOpenChange(false);
+      } else {
+        setIsOpen(false);
+      }
       router.refresh();
     } catch (error) {
       console.error('Failed to update space:', error);
@@ -77,107 +88,117 @@ export function SpaceSettingsDialog({ space, trigger }: SpaceSettingsDialogProps
     }
   };
 
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <div className="flex items-center gap-2 text-sm text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))] transition-colors cursor-pointer">
+  const dialogContent = (
+    <DialogContent className="sm:max-w-2xl">
+      <DialogHeader>
+        <DialogTitle>Space Settings</DialogTitle>
+        <DialogDescription>
+          Manage your space settings and permissions
+        </DialogDescription>
+      </DialogHeader>
+
+      <Tabs defaultValue="general" className="mt-4">
+        <TabsList>
+          <TabsTrigger value="general" className="flex items-center gap-2">
             <Settings className="w-4 h-4" />
-            <span>Space Settings</span>
+            General
+          </TabsTrigger>
+          <TabsTrigger value="members" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Members
+          </TabsTrigger>
+          <TabsTrigger value="roles" className="flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            Roles
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="general" className="space-y-4 mt-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Space Name</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="cosmic-input"
+            />
           </div>
-        )}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Space Settings</DialogTitle>
-          <DialogDescription>
-            Manage your space settings and permissions
-          </DialogDescription>
-        </DialogHeader>
 
-        <Tabs defaultValue="general" className="mt-4">
-          <TabsList>
-            <TabsTrigger value="general" className="flex items-center gap-2">
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="cosmic-input min-h-[100px]"
+              placeholder="Describe your space..."
+            />
+          </div>
+
+          <div className="pt-4 border-t border-[hsl(var(--border-dim))]">
+            <Button 
+              variant="destructive"
+              className="w-full"
+              onClick={handleDelete}
+              disabled={isLoading}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Space
+            </Button>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="members" className="mt-4">
+          <div className="text-center py-8 text-[hsl(var(--text-secondary))]">
+            Member management coming soon
+          </div>
+        </TabsContent>
+
+        <TabsContent value="roles" className="mt-4">
+          <div className="text-center py-8 text-[hsl(var(--text-secondary))]">
+            Role management coming soon
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      <DialogFooter className="gap-2 sm:gap-0">
+        <Button
+          variant="ghost"
+          onClick={() => controlledOnOpenChange ? controlledOnOpenChange(false) : setIsOpen(false)}
+          disabled={isLoading}
+        >
+          <X className="w-4 h-4 mr-2" />
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSave}
+          disabled={isLoading}
+          className="gap-2"
+        >
+          <Settings className="w-4 h-4" />
+          Save Changes
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+
+  // Use controlled or uncontrolled state
+  const open = controlledOpen !== undefined ? controlledOpen : isOpen;
+  const onOpenChange = controlledOnOpenChange || setIsOpen;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {!controlledOpen && (
+        <DialogTrigger asChild>
+          {trigger || (
+            <div className="flex items-center gap-2 text-sm text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))] transition-colors cursor-pointer">
               <Settings className="w-4 h-4" />
-              General
-            </TabsTrigger>
-            <TabsTrigger value="members" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Members
-            </TabsTrigger>
-            <TabsTrigger value="roles" className="flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              Roles
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="general" className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Space Name</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="cosmic-input"
-              />
+              <span>Space Settings</span>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="cosmic-input min-h-[100px]"
-                placeholder="Describe your space..."
-              />
-            </div>
-
-            <div className="pt-4 border-t border-[hsl(var(--border-dim))]">
-              <Button 
-                variant="destructive"
-                className="w-full"
-                onClick={handleDelete}
-                disabled={isLoading}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete Space
-              </Button>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="members" className="mt-4">
-            <div className="text-center py-8 text-[hsl(var(--text-secondary))]">
-              Member management coming soon
-            </div>
-          </TabsContent>
-
-          <TabsContent value="roles" className="mt-4">
-            <div className="text-center py-8 text-[hsl(var(--text-secondary))]">
-              Role management coming soon
-            </div>
-          </TabsContent>
-        </Tabs>
-
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button
-            variant="ghost"
-            onClick={() => setIsOpen(false)}
-            disabled={isLoading}
-          >
-            <X className="w-4 h-4 mr-2" />
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={isLoading}
-            className="gap-2"
-          >
-            <Settings className="w-4 h-4" />
-            Save Changes
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+          )}
+        </DialogTrigger>
+      )}
+      {dialogContent}
     </Dialog>
   );
 } 

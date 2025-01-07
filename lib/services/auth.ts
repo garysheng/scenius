@@ -1,4 +1,4 @@
-import { 
+import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -37,8 +37,11 @@ export class AuthService {
       const { user } = await createUserWithEmailAndPassword(auth, email, password);
       await this.createUserProfile(user, username, fullName);
       return user;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(error.message);
+      }
+      throw new Error('Failed to sign up');
     }
   }
 
@@ -46,8 +49,11 @@ export class AuthService {
     try {
       const { user } = await signInWithEmailAndPassword(auth, email, password);
       return user;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(error.message);
+      }
+      throw new Error('Failed to sign in');
     }
   }
 
@@ -55,31 +61,40 @@ export class AuthService {
     try {
       const provider = new GoogleAuthProvider();
       const { user } = await signInWithPopup(auth, provider);
-      
+
       // Create profile if it doesn't exist
       const fullName = user.displayName || 'Anonymous';
       const username = user.email?.split('@')[0] || 'user';
       await this.createUserProfile(user, username, fullName);
-      
+
       return user;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(error.message);
+      }
+      throw new Error('Failed to sign in with Google');
     }
   }
 
   static async resetPassword(email: string) {
     try {
       await sendPasswordResetEmail(auth, email);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(error.message);
+      }
+      throw new Error('Failed to reset password');
     }
   }
 
   static async signOut() {
     try {
       await firebaseSignOut(auth);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(error.message);
+      }
+      throw new Error('Failed to sign out');
     }
   }
 } 

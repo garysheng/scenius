@@ -3,12 +3,13 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuthStore } from '@/lib/stores/auth-store';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { User } from 'lucide-react';
+import { useAuth } from '@/lib/hooks/use-auth';
 
 export default function ProfilePage() {
-  const { user, isAuthenticated, isLoading } = useAuthStore();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -43,13 +44,17 @@ export default function ProfilePage() {
               <div className="text-center">
                 <div className="w-32 h-32 mx-auto relative">
                   {user.avatarUrl ? (
-                    <div className="relative group">
+                    <div className="relative group w-full h-full">
                       <div className="absolute -inset-1 bg-gradient-to-r from-[hsl(var(--human-primary))] to-[hsl(var(--human-secondary))] rounded-full blur opacity-25 group-hover:opacity-40 transition duration-1000" />
-                      <img
-                        src={user.avatarUrl}
-                        alt={user.username || 'Profile'}
-                        className="relative w-full h-full rounded-full object-cover ring-2 ring-[hsl(var(--border-glow))]"
-                      />
+                      <div className="relative w-full h-full">
+                        <Image
+                          src={user.avatarUrl}
+                          alt={user.username || 'Profile'}
+                          fill
+                          sizes="128px"
+                          className="rounded-full object-cover ring-2 ring-[hsl(var(--border-glow))]"
+                        />
+                      </div>
                     </div>
                   ) : (
                     <div className="relative group">

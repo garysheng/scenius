@@ -39,8 +39,12 @@ export function CreateChannelDialog({ spaceId, trigger, onChannelCreated }: Crea
       setIsOpen(false);
       onChannelCreated?.();
       form.reset();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unknown error occurred');
+      }
     } finally {
       setIsLoading(false);
     }

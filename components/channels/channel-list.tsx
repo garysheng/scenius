@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MessageSquare, Mic, Hash } from 'lucide-react';
+import { Hash } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { ChannelFrontend } from '@/types';
 import { channelsService } from '@/lib/services/client/channels';
@@ -23,8 +23,12 @@ export function ChannelList({ spaceId, selectedChannel, onChannelSelect }: Chann
       try {
         const channelData = await channelsService.getChannels(spaceId);
         setChannels(channelData);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError('An unknown error occurred');
+        }
       } finally {
         setIsLoading(false);
       }

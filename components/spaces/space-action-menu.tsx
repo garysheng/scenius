@@ -34,7 +34,9 @@ interface SpaceActionMenuProps {
 
 export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const inviteLink = typeof window !== 'undefined' 
     ? `${window.location.origin}/spaces/join/${space.id}`
@@ -50,9 +52,14 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
     }
   };
 
+  const handleSettingsClick = () => {
+    setIsSettingsOpen(true);
+    setIsDropdownOpen(false);
+  };
+
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
         <DropdownMenuTrigger asChild>
           <Button 
             variant="ghost" 
@@ -65,23 +72,30 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
         <DropdownMenuContent align="end">
           <DropdownMenuItem 
             className="gap-2"
-            onSelect={() => setIsInviteOpen(true)}
+            onSelect={() => {
+              setIsInviteOpen(true);
+              setIsDropdownOpen(false);
+            }}
           >
             <Users className="w-4 h-4" />
             Invite People
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <SpaceSettingsDialog 
-            space={space} 
-            trigger={
-              <DropdownMenuItem className="gap-2">
-                <Settings className="w-4 h-4" />
-                Space Settings
-              </DropdownMenuItem>
-            }
-          />
+          <DropdownMenuItem 
+            className="gap-2"
+            onSelect={handleSettingsClick}
+          >
+            <Settings className="w-4 h-4" />
+            Space Settings
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <SpaceSettingsDialog 
+        space={space} 
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+      />
 
       <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
         <DialogContent className="sm:max-w-md">

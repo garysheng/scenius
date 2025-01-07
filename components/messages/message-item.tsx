@@ -1,10 +1,9 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Users, Play, Pause, Volume2 } from 'lucide-react';
+import { Play, Pause, Volume2 } from 'lucide-react';
 import Image from 'next/image';
 import { MessageFrontend, UserFrontend } from '@/types';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
 interface MessageItemProps {

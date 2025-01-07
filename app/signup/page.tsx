@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 
 import { SignUpFormValues, signUpSchema } from '@/types/auth';
 import { AuthService } from '@/lib/services/auth';
@@ -37,8 +36,12 @@ export default function SignUpPage() {
       setError(null);
       await AuthService.signUp(data);
       router.push('/spaces'); // Redirect to spaces after signup
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unknown error occurred');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -50,8 +53,12 @@ export default function SignUpPage() {
       setError(null);
       await AuthService.signInWithGoogle();
       router.push('/spaces');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unknown error occurred');
+      }
     } finally {
       setIsLoading(false);
     }

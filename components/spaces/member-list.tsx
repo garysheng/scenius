@@ -1,12 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, Circle, Clock, MinusCircle, User } from 'lucide-react';
+import { Circle, Clock, MinusCircle, User } from 'lucide-react';
 import Image from 'next/image';
 import { UserFrontend, UserPresenceFrontend } from '@/types';
 import { usersService } from '@/lib/services/client/users';
 import { presenceService } from '@/lib/services/client/presence';
-import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -49,7 +48,7 @@ export function MemberList({ spaceId }: MemberListProps) {
     });
 
     return () => unsubscribe();
-  }, [spaceId]);
+  }, [spaceId, users]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

@@ -4,11 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Users, 
-  Settings, 
   MessageSquare,
-  Bot,
-  Shield,
-  Trophy,
   ChevronDown,
   Plus,
   Hash,
@@ -23,7 +19,7 @@ import { spacesService } from '@/lib/services/client/spaces';
 import { messagesService } from '@/lib/services/client/messages';
 import { ChannelList } from '@/components/channels/channel-list';
 import { CreateChannelDialog } from '@/components/channels/create-channel-dialog';
-import { useAuthStore } from '@/lib/stores/auth-store';
+import { useAuth } from '@/lib/hooks/use-auth';
 import { usersService } from '@/lib/services/client/users';
 import { MessageList } from '@/components/messages/message-list';
 import { VoiceRecorder } from '@/components/messages/voice-recorder';
@@ -47,7 +43,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
   const [messageInput, setMessageInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading, user } = useAuthStore();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
 
   // Subscribe to messages when channel changes
   useEffect(() => {
@@ -69,8 +65,12 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
       setIsSending(true);
       await messagesService.sendMessage(id, selectedChannel.id, messageInput.trim(), user.id);
       setMessageInput('');
-    } catch (err: any) {
-      console.error('Failed to send message:', err);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error('Failed to send message:', err.message);
+      } else {
+        console.error('Failed to send message:', err);
+      }
     } finally {
       setIsSending(false);
     }
@@ -93,8 +93,12 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
       try {
         const spaceData = await spacesService.getSpace(id);
         setSpace(spaceData);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError('An unknown error occurred');
+        }
       } finally {
         setIsLoading(false);
       }
@@ -332,8 +336,12 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                             user.id,
                             transcription
                           );
-                        } catch (err: any) {
-                          console.error('Failed to send voice message:', err);
+                        } catch (err: unknown) {
+                          if (err instanceof Error) {
+                            console.error('Failed to send voice message:', err.message);
+                          } else {
+                            console.error('Failed to send voice message:', err);
+                          }
                         } finally {
                           setIsSending(false);
                         }
