@@ -21,12 +21,12 @@ export default function SpacesPage() {
   useEffect(() => {
     const loadSpaces = async () => {
       try {
-        const [userSpaces, publicSpacesList] = await Promise.all([
+        const [userSpaces, recentSpaces] = await Promise.all([
           spacesService.getSpaces(),
-          spacesService.getPublicSpaces()
+          spacesService.getRecentSpaces()
         ]);
         setSpaces(userSpaces);
-        setPublicSpaces(publicSpacesList);
+        setPublicSpaces(recentSpaces);
       } catch (err: unknown) {
         if (err instanceof Error) {
           setError(err.message);
@@ -117,7 +117,7 @@ export default function SpacesPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
               {spaces.map((space) => (
                 <SpaceCard key={space.id} space={space} />
               ))}
@@ -151,7 +151,7 @@ export default function SpacesPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
               {publicSpaces.map((space) => (
                 <SpaceCard key={space.id} space={space} />
               ))}

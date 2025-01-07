@@ -70,31 +70,43 @@ export const channelsService = {
     const channelsQuery = query(channelsRef, orderBy('name', 'asc'));
     const snapshot = await getDocs(channelsQuery);
 
+    const defaultMetadata = {
+      messageCount: 0,
+      lastMessageAt: null,
+      participants: []
+    };
+
     const channels = await Promise.all(snapshot.docs.map(async (doc) => {
       const data = doc.data();
       const channel: ChannelFrontend = {
         id: doc.id,
-        spaceId: data.spaceId,
-        name: data.name,
-        description: data.description,
-        kind: data.kind,
-        permissions: data.permissions,
-        createdAt: (data.createdAt as Timestamp).toDate(),
-        updatedAt: (data.updatedAt as Timestamp).toDate(),
+        spaceId: data.spaceId || spaceId,
+        name: data.name || 'Unnamed Channel',
+        description: data.description || '',
+        kind: data.kind || 'CHANNEL',
+        permissions: data.permissions || [],
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
         metadata: {
-          ...data.metadata,
-          lastMessageAt: data.metadata.lastMessageAt ? 
-            (data.metadata.lastMessageAt as Timestamp).toDate() : 
+          ...defaultMetadata,
+          ...(data.metadata || {}),
+          lastMessageAt: data.metadata?.lastMessageAt ? 
+            (data.metadata.lastMessageAt as Timestamp)?.toDate() : 
             null
         }
       };
 
       // If it's a DM channel, fetch participant details
-      if (data.kind === 'DM' && data.metadata.participantIds) {
-        const participants = await Promise.all(
-          data.metadata.participantIds.map((id: string) => usersService.getUser(id))
-        );
-        channel.metadata.participants = participants;
+      if (data.kind === 'DM' && data.metadata?.participantIds?.length) {
+        try {
+          const participants = await Promise.all(
+            data.metadata.participantIds.map((id: string) => usersService.getUser(id))
+          );
+          channel.metadata.participants = participants;
+        } catch (error) {
+          console.error('Failed to fetch DM participants:', error);
+          channel.metadata.participants = [];
+        }
       }
 
       return channel;
@@ -112,29 +124,41 @@ export const channelsService = {
     }
 
     const data = channelDoc.data();
+    const defaultMetadata = {
+      messageCount: 0,
+      lastMessageAt: null,
+      participants: []
+    };
+
     const channel: ChannelFrontend = {
       id: channelDoc.id,
-      spaceId: data.spaceId,
-      name: data.name,
-      description: data.description,
-      kind: data.kind,
-      permissions: data.permissions,
-      createdAt: (data.createdAt as Timestamp).toDate(),
-      updatedAt: (data.updatedAt as Timestamp).toDate(),
+      spaceId: data.spaceId || spaceId,
+      name: data.name || 'Unnamed Channel',
+      description: data.description || '',
+      kind: data.kind || 'CHANNEL',
+      permissions: data.permissions || [],
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date(),
       metadata: {
-        ...data.metadata,
-        lastMessageAt: data.metadata.lastMessageAt ? 
-          (data.metadata.lastMessageAt as Timestamp).toDate() : 
+        ...defaultMetadata,
+        ...(data.metadata || {}),
+        lastMessageAt: data.metadata?.lastMessageAt ? 
+          (data.metadata.lastMessageAt as Timestamp)?.toDate() : 
           null
       }
     };
 
     // If it's a DM channel, fetch participant details
-    if (data.kind === 'DM' && data.metadata.participantIds) {
-      const participants = await Promise.all(
-        data.metadata.participantIds.map((id: string) => usersService.getUser(id))
-      );
-      channel.metadata.participants = participants;
+    if (data.kind === 'DM' && data.metadata?.participantIds?.length) {
+      try {
+        const participants = await Promise.all(
+          data.metadata.participantIds.map((id: string) => usersService.getUser(id))
+        );
+        channel.metadata.participants = participants;
+      } catch (error) {
+        console.error('Failed to fetch DM participants:', error);
+        channel.metadata.participants = [];
+      }
     }
 
     return channel;
@@ -145,31 +169,43 @@ export const channelsService = {
     const channelsQuery = query(channelsRef, orderBy('name', 'asc'));
 
     return onSnapshot(channelsQuery, async (snapshot) => {
+      const defaultMetadata = {
+        messageCount: 0,
+        lastMessageAt: null,
+        participants: []
+      };
+
       const channels = await Promise.all(snapshot.docs.map(async (doc) => {
         const data = doc.data();
         const channel: ChannelFrontend = {
           id: doc.id,
-          spaceId: data.spaceId,
-          name: data.name,
-          description: data.description,
-          kind: data.kind,
-          permissions: data.permissions,
-          createdAt: (data.createdAt as Timestamp).toDate(),
-          updatedAt: (data.updatedAt as Timestamp).toDate(),
+          spaceId: data.spaceId || spaceId,
+          name: data.name || 'Unnamed Channel',
+          description: data.description || '',
+          kind: data.kind || 'CHANNEL',
+          permissions: data.permissions || [],
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
           metadata: {
-            ...data.metadata,
-            lastMessageAt: data.metadata.lastMessageAt ? 
-              (data.metadata.lastMessageAt as Timestamp).toDate() : 
+            ...defaultMetadata,
+            ...(data.metadata || {}),
+            lastMessageAt: data.metadata?.lastMessageAt ? 
+              (data.metadata.lastMessageAt as Timestamp)?.toDate() : 
               null
           }
         };
 
         // If it's a DM channel, fetch participant details
-        if (data.kind === 'DM' && data.metadata.participantIds) {
-          const participants = await Promise.all(
-            data.metadata.participantIds.map((id: string) => usersService.getUser(id))
-          );
-          channel.metadata.participants = participants;
+        if (data.kind === 'DM' && data.metadata?.participantIds?.length) {
+          try {
+            const participants = await Promise.all(
+              data.metadata.participantIds.map((id: string) => usersService.getUser(id))
+            );
+            channel.metadata.participants = participants;
+          } catch (error) {
+            console.error('Failed to fetch DM participants:', error);
+            channel.metadata.participants = [];
+          }
         }
 
         return channel;

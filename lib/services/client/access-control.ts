@@ -354,127 +354,69 @@ export const accessControlService = {
   },
 
   // Access Validation
-  async validateAccess(spaceId: string, userId: string, email: string): Promise<{
-    hasAccess: boolean;
-    role?: string;
-    method?: 'EMAIL_LIST' | 'DOMAIN' | 'INVITE';
-  }> {
-    console.log('Validating access:', { spaceId, userId, email });
+  async validateAccess(spaceId: string, userId: string, email: string): Promise<{ hasAccess: boolean; shouldJoin?: boolean }> {
+    try {
+      // Check if space exists and if it's public
+      const spaceDoc = await getDoc(doc(db, 'spaces', spaceId));
+      if (!spaceDoc.exists()) {
+        return { hasAccess: false };
+      }
 
-    const access = await this.getSpaceAccess(spaceId);
-    if (!access) {
-      console.log('No access config found for space:', spaceId);
+      const spaceData = spaceDoc.data();
+      
+      // Check membership first
+      const memberDoc = await getDoc(doc(db, 'spaces', spaceId, 'members', userId));
+      if (memberDoc.exists()) {
+        return { hasAccess: true };
+      }
+
+      // Check if space is public
+      if (spaceData.settings?.isPublic) {
+        console.log('Space is public, granting access and flagging for join');
+        return { hasAccess: true, shouldJoin: true };
+      }
+
+      // Get access config
+      const accessConfig = await getDoc(doc(db, 'spaces', spaceId, 'access', 'config'));
+      if (!accessConfig.exists()) {
+        return { hasAccess: false };
+      }
+
+      const config = accessConfig.data();
+
+      // Check email list
+      if (config.emailList?.enabled && config.emailList.emails.includes(email)) {
+        console.log('Email list match found');
+        return { hasAccess: true, shouldJoin: true };
+      }
+
+      // Check domains
+      if (config.domains?.length > 0) {
+        const userDomain = email.split('@')[1];
+        if (config.domains.includes(userDomain)) {
+          console.log('Domain match found');
+          return { hasAccess: true, shouldJoin: true };
+        }
+      }
+
+      // Check invite links
+      if (config.inviteLinks?.length > 0) {
+        const hasValidInvite = config.inviteLinks.some((link: InviteLink) => 
+          !link.isRevoked && 
+          (!link.expiresAt || link.expiresAt.toDate() > new Date()) &&
+          (!link.maxUses || link.useCount < link.maxUses)
+        );
+        if (hasValidInvite) {
+          console.log('Valid invite found');
+          return { hasAccess: true, shouldJoin: true };
+        }
+      }
+
+      console.log('No valid access method found');
+      return { hasAccess: false };
+    } catch (error) {
+      console.error('Error validating access:', error);
       return { hasAccess: false };
     }
-
-    console.log('Access config:', access);
-
-    let highestPriorityRole = {
-      role: access.roleAssignment.defaultRole,
-      priority: -1
-    };
-
-    // Check email list
-    if (access.emailList.enabled && access.emailList.emails.includes(email)) {
-      console.log('Email found in email list');
-      const rule = access.roleAssignment.rules.find(r =>
-        r.condition.accessMethod === 'EMAIL_LIST' &&
-        r.priority > highestPriorityRole.priority
-      );
-      if (rule) {
-        highestPriorityRole = { role: rule.role, priority: rule.priority };
-      }
-      return { hasAccess: true, role: highestPriorityRole.role, method: 'EMAIL_LIST' };
-    }
-
-    // Check domains
-    if (access.domains.length > 0) {
-      console.log('Checking domain access');
-      const emailDomain = email.split('@')[1];
-      console.log('User email domain:', emailDomain);
-      
-      // Check if domain is in the list
-      const hasMatch = access.domains.includes(emailDomain);
-      if (hasMatch) {
-        console.log(`Found domain match: ${emailDomain}`);
-        
-        // Use role assignment rules
-        console.log('Checking role assignment rules');
-        const rule = access.roleAssignment.rules.find(r => 
-          r.condition.accessMethod === 'DOMAIN' &&
-          r.priority > highestPriorityRole.priority
-        );
-        if (rule) {
-          console.log('Found matching role assignment rule:', rule);
-          highestPriorityRole = { role: rule.role, priority: rule.priority };
-        } else {
-          console.log('No matching role assignment rule, using default role');
-        }
-        return { 
-          hasAccess: true, 
-          role: highestPriorityRole.role, 
-          method: 'DOMAIN' 
-        };
-      } else {
-        console.log('No matching domain found');
-      }
-    } else {
-      console.log('No domains configured');
-    }
-
-    // Check invites
-    console.log('Checking invites');
-    const invitesRef = collection(db, 'spaces', spaceId, 'invites');
-    const invitesQuery = query(
-      invitesRef,
-      where('isRevoked', '==', false),
-      where('expiresAt', '>', Timestamp.now()),
-      where('useCount', '<', 'maxUses')
-    );
-
-    const invitesSnapshot = await getDocs(invitesQuery);
-    console.log('Found invites:', invitesSnapshot.docs.length);
-
-    for (const inviteDoc of invitesSnapshot.docs) {
-      const invite = inviteDoc.data() as InviteLink;
-      console.log('Checking invite:', invite);
-
-      // Skip if invite has reached max uses
-      if (invite.maxUses !== null && invite.useCount >= invite.maxUses) {
-        console.log('Invite has reached max uses');
-        continue;
-      }
-
-      // Skip if invite is expired
-      if (invite.expiresAt && invite.expiresAt.toDate() < new Date()) {
-        console.log('Invite has expired');
-        continue;
-      }
-
-      const rule = access.roleAssignment.rules.find(r =>
-        r.condition.accessMethod === 'INVITE' &&
-        r.priority > highestPriorityRole.priority
-      );
-
-      if (rule) {
-        console.log('Found matching role assignment rule for invite:', rule);
-        highestPriorityRole = { role: rule.role, priority: rule.priority };
-      }
-
-      // Update use count
-      await updateDoc(inviteDoc.ref, {
-        useCount: increment(1),
-        updatedAt: serverTimestamp()
-      });
-
-      return {
-        hasAccess: true,
-        role: invite.assignedRole || highestPriorityRole.role,
-        method: 'INVITE'
-      };
-    }
-
-    console.log('No valid access method found');
-    return { hasAccess: false };
   }
 }; 

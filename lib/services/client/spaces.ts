@@ -153,26 +153,7 @@ export const spacesService = {
     try {
       console.log('Fetching space:', id);
       
-      // First check if user has access before fetching any space data
-      const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-      if (!userDoc.exists()) {
-        throw new Error('User not found');
-      }
-      
-      const userData = userDoc.data();
-      const { hasAccess } = await accessControlService.validateAccess(id, auth.currentUser.uid, userData.email);
-      
-      // Check membership
-      const memberDoc = await getDoc(doc(db, 'spaces', id, 'members', auth.currentUser.uid));
-      const isMember = memberDoc.exists();
-
-      // If not a member and no access, deny immediately
-      if (!isMember && !hasAccess) {
-        console.log('Access denied:', { userId: auth.currentUser.uid, spaceId: id });
-        throw new Error('You do not have access to this space');
-      }
-
-      // Only fetch space data if access is granted
+      // First check if the space exists
       const spaceDoc = await getDoc(doc(db, 'spaces', id));
       if (!spaceDoc.exists()) {
         console.log('Space not found:', id);
@@ -181,10 +162,24 @@ export const spacesService = {
 
       const spaceData = spaceDoc.data();
       
-      // Double check for public access if not a member
-      if (!isMember && !hasAccess && !spaceData.settings?.isPublic) {
-        console.log('Access denied - not public:', { userId: auth.currentUser.uid, spaceId: id });
+      // Check if user has access
+      const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      if (!userDoc.exists()) {
+        throw new Error('User not found');
+      }
+      
+      const userData = userDoc.data();
+      const { hasAccess, shouldJoin } = await accessControlService.validateAccess(id, auth.currentUser.uid, userData.email);
+      
+      if (!hasAccess) {
+        console.log('User does not have access to space:', { userId: auth.currentUser.uid, spaceId: id });
         throw new Error('You do not have access to this space');
+      }
+
+      // If the user should be joined to the space, do it now
+      if (shouldJoin) {
+        console.log('Auto-joining user to space:', { userId: auth.currentUser.uid, spaceId: id });
+        await this.joinSpace(id);
       }
 
       console.log('Space access granted:', { userId: auth.currentUser.uid, spaceId: id });
@@ -616,5 +611,29 @@ export const spacesService = {
     await updateDoc(spaceRef, {
       imageUrl: null
     });
+  },
+
+  async getRecentSpaces(): Promise<SpaceFrontend[]> {
+    const spacesRef = collection(db, 'spaces');
+    const spacesQuery = query(
+      spacesRef,
+      orderBy('createdAt', 'desc'),
+      limit(6)
+    );
+    
+    const spaceDocs = await getDocs(spacesQuery);
+    const spaces: SpaceFrontend[] = [];
+
+    for (const spaceDoc of spaceDocs.docs) {
+      const data = spaceDoc.data();
+      spaces.push({
+        id: spaceDoc.id,
+        ...data,
+        createdAt: (data.createdAt as Timestamp).toDate(),
+        updatedAt: (data.updatedAt as Timestamp).toDate()
+      } as SpaceFrontend);
+    }
+
+    return spaces;
   }
 }; 

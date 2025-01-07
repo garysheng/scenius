@@ -8,5 +8,20 @@ service firebase.storage {
         && request.resource.contentType.matches('audio/.*')
         && request.resource.size < 10 * 1024 * 1024; // 10MB max
     }
+
+    match /users/{userId}/profile-picture {
+      allow read: if true; // Allow public read access to profile pictures
+      allow write: if request.auth != null 
+        && request.auth.uid == userId
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 5 * 1024 * 1024; // 5MB max
+    }
+
+    match /spaces/{spaceId}/profile-picture {
+      allow read: if true; // Allow public read access to space profile pictures
+      allow write: if request.auth != null
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 5 * 1024 * 1024; // 5MB max
+    }
   }
 } 

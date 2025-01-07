@@ -9,4 +9,4 @@ interface PageProps {
 export default async function JoinSpacePage({ params }: PageProps) {
   const { id } = await params;
   return <JoinSpaceClient id={id} />;
-} 
+}

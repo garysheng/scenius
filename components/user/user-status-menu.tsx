@@ -129,8 +129,8 @@ export function UserStatusMenu() {
     }
   };
 
-  const initials = user.username?.slice(0, 2).toUpperCase() || 
-                  user.fullName?.split(' ').map(n => n[0]).join('').toUpperCase() || 
+  const initials = user.fullName?.slice(0, 2).toUpperCase() || 
+                  user.username?.slice(0, 2).toUpperCase() || 
                   '??';
 
   return (
@@ -146,7 +146,7 @@ export function UserStatusMenu() {
                 <div className="absolute -inset-1 bg-gradient-to-r from-[hsl(var(--human-primary))] to-[hsl(var(--human-secondary))] rounded-full blur opacity-25 group-hover:opacity-40 transition duration-300" />
                 <Image
                   src={user.avatarUrl}
-                  alt={user.username || 'User avatar'}
+                  alt={user.fullName || user.username || 'User avatar'}
                   width={32}
                   height={32}
                   sizes="32px"
@@ -169,7 +169,7 @@ export function UserStatusMenu() {
           </div>
           <div className="flex flex-col items-start">
             <span className="text-sm font-medium text-[hsl(var(--text-primary))]">
-              {user.username || user.fullName}
+              {user.fullName || user.username}
             </span>
             <span className="text-xs text-[hsl(var(--text-secondary))]">
               {customStatus || currentStatus}

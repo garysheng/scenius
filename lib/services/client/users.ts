@@ -1,4 +1,5 @@
 import { collection, doc, getDoc, getDocs, query, where, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db } from '@/lib/firebase';
 import { User, UserFrontend } from '@/types';
 
@@ -13,6 +14,8 @@ interface UserService {
   getUsers(userIds: string[]): Promise<Record<string, UserFrontend>>;
   updateUser(userId: string, data: UpdateUserData): Promise<void>;
   getSpaceUsers(spaceId: string): Promise<Record<string, UserFrontend>>;
+  uploadProfilePicture(userId: string, file: File): Promise<string>;
+  removeProfilePicture(userId: string): Promise<void>;
 }
 
 export const usersService: UserService = {
@@ -106,5 +109,41 @@ export const usersService: UserService = {
     });
 
     return users;
+  },
+
+  async uploadProfilePicture(userId: string, file: File): Promise<string> {
+    const storage = getStorage();
+    const imageRef = ref(storage, `users/${userId}/profile-picture`);
+    
+    await uploadBytes(imageRef, file);
+    const downloadUrl = await getDownloadURL(imageRef);
+
+    // Update the user document with the new image URL
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      avatarUrl: downloadUrl,
+      updatedAt: serverTimestamp()
+    });
+
+    return downloadUrl;
+  },
+
+  async removeProfilePicture(userId: string): Promise<void> {
+    const storage = getStorage();
+    const imageRef = ref(storage, `users/${userId}/profile-picture`);
+    
+    try {
+      await deleteObject(imageRef);
+    } catch (error) {
+      // Ignore if file doesn't exist
+      console.log('No existing profile picture to delete', error);
+    }
+
+    // Update the user document to remove the image URL
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      avatarUrl: null,
+      updatedAt: serverTimestamp()
+    });
   }
 }; 
