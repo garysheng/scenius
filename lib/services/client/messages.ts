@@ -100,7 +100,6 @@ export const messagesService = {
         uploadTask.on(
           'state_changed',
           (snapshot) => {
-            // You can track progress here if needed
             const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
             console.log('Upload is ' + progress + '% done');
           },
@@ -108,34 +107,66 @@ export const messagesService = {
             console.error('Upload failed:', error);
             reject(error);
           },
-          () => resolve(uploadTask)
+          () => {
+            console.log('Upload completed');
+            resolve(null);
+          }
         );
       });
 
       // Get the download URL
       const voiceUrl = await getDownloadURL(audioRef);
 
-      // Create message in Firestore
+      // Create message document
       const messagesRef = collection(db, 'spaces', spaceId, 'channels', channelId, 'messages');
-      await addDoc(messagesRef, {
-        content: transcription, // Use transcription as content
+      const channelRef = doc(db, 'spaces', spaceId, 'channels', channelId);
+
+      // Analyze transcription for semantic tags
+      const semanticTags = await messageAnalysisService.analyzeMessage(transcription);
+
+      const messageData = {
+        content: transcription,
         userId,
         channelId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         type: 'VOICE',
+        threadId: null,
         metadata: {
           reactions: {},
           edited: false,
           attachments: [{
+            id: fileName,
             voiceUrl,
-            transcription,
-            mimeType: 'audio/webm'
-          }]
+            fileName,
+            fileSize: audioBlob.size,
+            mimeType: 'audio/webm',
+            uploadStatus: 'complete' as const,
+            uploadProgress: 100
+          }],
+          semanticTags,
+          status: 'sent'
         }
+      };
+
+      const messageRef = await addDoc(messagesRef, messageData);
+
+      // Update channel metadata
+      await updateDoc(channelRef, {
+        'metadata.lastMessageAt': serverTimestamp(),
+        'metadata.messageCount': increment(1),
+        'metadata.lastMessageSenderId': userId
       });
+
+      return {
+        id: messageRef.id,
+        ...messageData,
+        createdAt: Timestamp.now().toDate(),
+        updatedAt: Timestamp.now().toDate(),
+        threadId: null
+      } as MessageFrontend;
     } catch (error) {
-      console.error('Error sending voice message:', error);
+      console.error('Failed to send voice message:', error);
       throw error;
     }
   },

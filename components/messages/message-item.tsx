@@ -173,7 +173,7 @@ export function MessageItem({
               >
                 <div className="relative w-48 h-48 rounded-lg overflow-hidden border border-border/50">
                   <Image
-                    src={attachment.thumbnailUrl || attachment.fileUrl}
+                    src={attachment.thumbnailUrl || attachment.fileUrl || ''}
                     alt={attachment.fileName}
                     fill
                     className="object-cover transition-transform group-hover:scale-105"
@@ -347,11 +347,9 @@ export function MessageItem({
                 )}
               </Button>
               <Volume2 className="h-4 w-4 text-muted-foreground" />
-              {message.metadata.attachments?.[0]?.transcription && (
-                <p className="text-sm text-muted-foreground">
-                  {message.metadata.attachments[0].transcription}
-                </p>
-              )}
+              <p className="text-sm text-foreground">
+                {message.content}
+              </p>
               <audio
                 ref={audioRef}
                 onEnded={handleAudioEnded}

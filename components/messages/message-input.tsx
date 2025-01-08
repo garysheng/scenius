@@ -97,14 +97,14 @@ export function MessageInput({
     
     for (const file of files) {
       try {
-        const attachment: FileAttachment & { progress?: number } = {
+        const attachment: FileAttachment = {
           id: crypto.randomUUID(),
           fileName: file.name,
           fileSize: file.size,
           mimeType: file.type,
           fileUrl: '',
           uploadStatus: 'uploading',
-          progress: 0
+          uploadProgress: 0
         };
 
         setAttachments(prev => [...prev, attachment]);
@@ -117,7 +117,7 @@ export function MessageInput({
             setAttachments(prev => 
               prev.map(a => 
                 a.id === attachment.id 
-                  ? { ...a, progress } 
+                  ? { ...a, uploadProgress: progress } 
                   : a
               )
             );
@@ -159,7 +159,7 @@ export function MessageInput({
                 <div className="h-1 w-20 bg-[hsl(var(--muted-foreground))] rounded-full overflow-hidden">
                   <div
                     className="h-full bg-primary transition-all duration-300"
-                    style={{ width: `${attachment.progress}%` }}
+                    style={{ width: `${attachment.uploadProgress}%` }}
                   />
                 </div>
               )}

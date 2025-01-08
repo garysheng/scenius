@@ -74,6 +74,7 @@ export const filesService = {
               fileSize: file.size,
               mimeType: file.type,
               uploadStatus: 'complete',
+              uploadProgress: 100,
               thumbnailUrl: file.type.startsWith('image/') ? downloadUrl : undefined
             };
 

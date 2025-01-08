@@ -150,13 +150,12 @@ export type UserPresenceFrontend = Omit<UserPresence, 'updatedAt'> & {
 
 export interface FileAttachment {
   id: string;
-  fileUrl: string;
+  fileUrl?: string;
+  voiceUrl?: string;
   fileName: string;
   fileSize: number;
   mimeType: string;
   thumbnailUrl?: string;
   uploadStatus: 'uploading' | 'complete' | 'error';
-  uploadProgress?: number;
-  voiceUrl?: string;
-  transcription?: string;
+  uploadProgress: number;
 }
