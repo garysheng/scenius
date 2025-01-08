@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import {
-  SpaceAccess,
+  SpaceAccessConfig,
   InviteLink,
   Role,
   Permission,
@@ -28,7 +28,7 @@ import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/constants/roles';
 
 export const accessControlService = {
   // Space Access Management
-  async getSpaceAccess(spaceId: string): Promise<SpaceAccess | null> {
+  async getSpaceAccess(spaceId: string): Promise<SpaceAccessConfig | null> {
     const accessRef = doc(db, 'spaces', spaceId, 'access', 'config');
     const accessDoc = await getDoc(accessRef);
     
@@ -46,10 +46,10 @@ export const accessControlService = {
       data.domains = data.domains.domains;
     }
     
-    return data as SpaceAccess;
+    return data as SpaceAccessConfig;
   },
 
-  async updateSpaceAccess(spaceId: string, access: Partial<SpaceAccess>): Promise<void> {
+  async updateSpaceAccess(spaceId: string, access: Partial<SpaceAccessConfig>): Promise<void> {
     const accessRef = doc(db, 'spaces', spaceId, 'access', 'config');
     const accessDoc = await getDoc(accessRef);
 
@@ -58,6 +58,7 @@ export const accessControlService = {
       // Create initial access config if it doesn't exist
       const initialConfig = {
         spaceId,
+        isOpen: false,
         emailList: {
           enabled: false,
           emails: []
@@ -356,24 +357,16 @@ export const accessControlService = {
   // Access Validation
   async validateAccess(spaceId: string, userId: string, email: string): Promise<{ hasAccess: boolean; shouldJoin?: boolean }> {
     try {
-      // Check if space exists and if it's public
+      // Check if space exists
       const spaceDoc = await getDoc(doc(db, 'spaces', spaceId));
       if (!spaceDoc.exists()) {
         return { hasAccess: false };
       }
-
-      const spaceData = spaceDoc.data();
       
       // Check membership first
       const memberDoc = await getDoc(doc(db, 'spaces', spaceId, 'members', userId));
       if (memberDoc.exists()) {
         return { hasAccess: true };
-      }
-
-      // Check if space is public
-      if (spaceData.settings?.isPublic) {
-        console.log('Space is public, granting access and flagging for join');
-        return { hasAccess: true, shouldJoin: true };
       }
 
       // Get access config
@@ -383,6 +376,13 @@ export const accessControlService = {
       }
 
       const config = accessConfig.data();
+      console.log('Access config:', config);
+
+      // Check if space is open
+      if (config.isOpen === true) {
+        console.log('Space is open, granting access');
+        return { hasAccess: true, shouldJoin: true };
+      }
 
       // Check email list
       if (config.emailList?.enabled && config.emailList.emails.includes(email)) {

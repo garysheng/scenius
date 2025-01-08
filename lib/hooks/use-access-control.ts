@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { accessControlService } from '@/lib/services/client/access-control';
 import { 
-  SpaceAccess, 
+  SpaceAccessConfig, 
   Role, 
   Permission, 
   PermissionType,
@@ -17,7 +17,7 @@ export function useAccessControl({ spaceId }: UseAccessControlProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [accessConfig, setAccessConfig] = useState<SpaceAccess | null>(null);
+  const [accessConfig, setAccessConfig] = useState<SpaceAccessConfig | null>(null);
 
   // Load access configuration
   useEffect(() => {
@@ -39,7 +39,7 @@ export function useAccessControl({ spaceId }: UseAccessControlProps) {
   }, [spaceId]);
 
   // Access Management
-  const updateAccess = useCallback(async (updates: Partial<SpaceAccess>) => {
+  const updateAccess = useCallback(async (updates: Partial<SpaceAccessConfig>) => {
     if (!spaceId) return;
     try {
       await accessControlService.updateSpaceAccess(spaceId, updates);

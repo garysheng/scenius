@@ -8,21 +8,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { spacesService } from '@/lib/services/client/spaces';
 import { X } from 'lucide-react';
 import { accessControlService } from '@/lib/services/client/access-control';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createSpaceSchema } from '@/lib/schemas/create-space';
 import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
 
 type CreateSpaceFormValues = {
   name: string;
   description: string;
   avatarUrl: string | null;
   settings: {
-    isPublic: boolean;
+    isOpen: boolean;
     allowGuests: boolean;
     defaultRoleId: string;
   };
@@ -41,7 +40,7 @@ export default function CreateSpacePage() {
       description: '',
       avatarUrl: null,
       settings: {
-        isPublic: true,
+        isOpen: true,
         allowGuests: false,
         defaultRoleId: 'member'
       }
@@ -113,12 +112,16 @@ export default function CreateSpacePage() {
         await spacesService.updateSpace(spaceId, { avatarUrl });
       }
 
-      // Set up access control in the subcollection if domains are specified
-      if (domains.length > 0) {
-        await accessControlService.updateSpaceAccess(spaceId, {
-          domains: domains
-        });
-      }
+      // Set up access control in the subcollection
+      await accessControlService.updateSpaceAccess(spaceId, {
+        isOpen: data.settings.isOpen,
+        domains: domains,
+        emailList: {
+          enabled: false,
+          emails: []
+        },
+        inviteLinks: []
+      });
 
       router.push(`/spaces/${spaceId}`);
     } catch (err: unknown) {
@@ -223,100 +226,102 @@ export default function CreateSpacePage() {
             <CardHeader>
               <h2 className="text-lg font-semibold">Access Control</h2>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Tabs defaultValue="basic" className="w-full">
-                <TabsList className="w-full relative z-20">
-                  <TabsTrigger value="basic" className="flex-1">Basic</TabsTrigger>
-                  <TabsTrigger value="token" className="flex-1">Token Gate</TabsTrigger>
-                  <TabsTrigger value="domain" className="flex-1">Domain</TabsTrigger>
-                </TabsList>
-                <TabsContent value="basic" className="space-y-4 mt-4">
-                  <div className="flex items-center justify-between relative z-20">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="isPublic">Public Space</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Allow anyone to join your space
-                      </p>
-                    </div>
-                    <Switch
-                      id="isPublic"
-                      checked={form.watch('settings.isPublic')}
-                      onCheckedChange={(checked) => form.setValue('settings.isPublic', checked)}
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between relative z-20">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="allowGuests">Allow Guests</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Let users preview content before joining
-                      </p>
-                    </div>
-                    <Switch
-                      id="allowGuests"
-                      checked={form.watch('settings.allowGuests')}
-                      onCheckedChange={(checked) => form.setValue('settings.allowGuests', checked)}
-                    />
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="token" className="space-y-4 mt-4">
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Access Type</Label>
                   <p className="text-sm text-muted-foreground">
-                    Token gating coming soon. This will allow you to restrict access based on token ownership.
+                    Choose who can access your space
                   </p>
-                </TabsContent>
-                
-                <TabsContent value="domain" className="space-y-4 mt-4">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Domain Whitelist</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Add domains to restrict access to specific email domains
-                      </p>
-                      
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Enter domain (e.g., company.com)"
-                          value={newDomain}
-                          onChange={(e) => setNewDomain(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleAddDomain();
-                            }
-                          }}
-                        />
-                        <Button type="button" onClick={handleAddDomain}>
-                          Add
-                        </Button>
-                      </div>
-                    </div>
+                </div>
 
-                    {domains.length > 0 && (
-                      <div className="space-y-2">
-                        <Label>Added Domains</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {domains.map((domain) => (
-                            <div
-                              key={domain}
-                              className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm"
-                            >
-                              {domain}
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveDomain(domain)}
-                                className="text-primary hover:text-primary/80"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                <div className="grid gap-4">
+                  <div className="flex items-start space-x-3">
+                    <input
+                      type="radio"
+                      id="open"
+                      name="accessType"
+                      className="mt-1"
+                      checked={form.watch('settings.isOpen')}
+                      onChange={() => {
+                        form.setValue('settings.isOpen', true);
+                        setDomains([]);
+                      }}
+                    />
+                    <div>
+                      <Label htmlFor="open" className="text-base font-medium">Open Space</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Anyone can join your space. Best for public communities and open collaboration.
+                      </p>
+                    </div>
                   </div>
-                </TabsContent>
-              </Tabs>
+
+                  <div className="flex items-start space-x-3">
+                    <input
+                      type="radio"
+                      id="domain"
+                      name="accessType"
+                      className="mt-1"
+                      checked={!form.watch('settings.isOpen')}
+                      onChange={() => {
+                        form.setValue('settings.isOpen', false);
+                      }}
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="domain" className="text-base font-medium">Domain Gated</Label>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Only users with specific email domains can join. Best for organizations and private communities.
+                      </p>
+
+                      {!form.watch('settings.isOpen') && (
+                        <div className="space-y-4">
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Enter domain (e.g., company.com)"
+                              value={newDomain}
+                              onChange={(e) => setNewDomain(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddDomain();
+                                }
+                              }}
+                            />
+                            <Button type="button" onClick={handleAddDomain}>
+                              Add
+                            </Button>
+                          </div>
+
+                          {domains.length > 0 && (
+                            <div className="space-y-2">
+                              <div className="flex flex-wrap gap-2">
+                                {domains.map((domain) => (
+                                  <Badge
+                                    key={domain}
+                                    variant="secondary"
+                                    className="flex items-center gap-1"
+                                  >
+                                    {domain}
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-4 w-4 p-0 hover:bg-transparent"
+                                      onClick={() => handleRemoveDomain(domain)}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 

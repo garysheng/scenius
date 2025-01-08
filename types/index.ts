@@ -69,7 +69,7 @@ export interface Message {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   deleted?: boolean;
-  threadId?: string; // Parent message ID if this is a thread reply
+  threadId: string | null; // Parent message ID if this is a thread reply
   metadata: {
     reactions: Record<string, string[]>;
     edited: boolean;
@@ -160,21 +160,3 @@ export interface FileAttachment {
   voiceUrl?: string;
   transcription?: string;
 }
-
-interface MessageMetadata {
-  reactions: Record<string, string[]>;
-  edited: boolean;
-  attachments: FileAttachment[];
-  threadInfo?: {
-    replyCount: number;
-    lastReplyAt: Timestamp | null;
-    participantIds: string[];
-  };
-  status: 'sending' | 'sent' | 'delivered' | 'read';
-  editedAt?: Timestamp;
-  semanticTags: Array<{
-    type: 'topic' | 'entity' | 'sentiment' | 'intent' | 'category';
-    value: string;
-    confidence: number;
-  }>;
-} 

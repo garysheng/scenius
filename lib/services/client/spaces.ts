@@ -45,11 +45,33 @@ export const spacesService = {
       metadata: {
         memberCount: 1,
         channelCount: 2 // Starting with 2 default channels
+      },
+      settings: {
+        allowGuests: data.settings.allowGuests,
+        defaultRoleId: data.settings.defaultRoleId
       }
     });
 
-    // Add creator as a member
-    const memberRef = doc(collection(db, 'spaces', spaceRef.id, 'members'), auth.currentUser.uid);
+    // Set up initial access control configuration
+    const accessRef = doc(db, 'spaces', spaceRef.id, 'access', 'config');
+    batch.set(accessRef, {
+      spaceId: spaceRef.id,
+      emailList: {
+        enabled: false,
+        emails: []
+      },
+      domains: [],
+      inviteLinks: [],
+      roleAssignment: {
+        defaultRole: data.settings.defaultRoleId,
+        rules: []
+      },
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+
+    // Create owner member document
+    const memberRef = doc(db, 'spaces', spaceRef.id, 'members', auth.currentUser.uid);
     batch.set(memberRef, {
       userId: auth.currentUser.uid,
       role: 'owner',
@@ -84,24 +106,6 @@ export const spacesService = {
         messageCount: 0,
         lastMessageAt: null
       }
-    });
-
-    // Create initial access config
-    const accessRef = doc(db, 'spaces', spaceRef.id, 'access', 'config');
-    batch.set(accessRef, {
-      spaceId: spaceRef.id,
-      emailList: {
-        enabled: false,
-        emails: []
-      },
-      domains: [],
-      inviteLinks: [],
-      roleAssignment: {
-        defaultRole: 'member',
-        rules: []
-      },
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
     });
 
     await batch.commit();
@@ -545,28 +549,32 @@ export const spacesService = {
   },
 
   async getPublicSpaces(): Promise<SpaceFrontend[]> {
+    // Look for spaces with open access
     const spacesRef = collection(db, 'spaces');
-    const spacesQuery = query(
-      spacesRef,
-      where('settings.isPublic', '==', true),
-      orderBy('metadata.memberCount', 'desc'),
-      limit(6)
-    );
-    
-    const spaceDocs = await getDocs(spacesQuery);
+    const spaceDocs = await getDocs(spacesRef);
     const spaces: SpaceFrontend[] = [];
 
     for (const spaceDoc of spaceDocs.docs) {
-      const data = spaceDoc.data();
-      spaces.push({
-        id: spaceDoc.id,
-        ...data,
-        createdAt: (data.createdAt as Timestamp).toDate(),
-        updatedAt: (data.updatedAt as Timestamp).toDate()
-      } as SpaceFrontend);
+      const accessDoc = await getDoc(doc(db, 'spaces', spaceDoc.id, 'access', 'config'));
+      if (accessDoc.exists()) {
+        const accessData = accessDoc.data();
+        // Consider a space "public" if it has isOpen set to true
+        if (accessData.isOpen) {
+          const data = spaceDoc.data();
+          spaces.push({
+            id: spaceDoc.id,
+            ...data,
+            createdAt: (data.createdAt as Timestamp).toDate(),
+            updatedAt: (data.updatedAt as Timestamp).toDate()
+          } as SpaceFrontend);
+        }
+      }
     }
 
-    return spaces;
+    // Sort by member count and limit to 6
+    return spaces
+      .sort((a, b) => (b.metadata?.memberCount || 0) - (a.metadata?.memberCount || 0))
+      .slice(0, 6);
   },
 
   async uploadSpaceImage(spaceId: string, file: File): Promise<string> {

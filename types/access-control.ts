@@ -26,8 +26,9 @@ export interface RoleAssignment {
 }
 
 // Space Access Configuration
-export interface SpaceAccess {
+export interface SpaceAccessConfig {
   spaceId: string;
+  isOpen: boolean;
   emailList: {
     enabled: boolean;
     emails: string[];

@@ -4,7 +4,6 @@ import { useEffect, useRef } from 'react';
 import { MessageFrontend, UserFrontend } from '@/types';
 import { MessageItem } from './message-item';
 import { useSearchParams } from 'next/navigation';
-import { StarfieldBackground } from '@/components/effects/starfield-background';
 
 interface MessageListProps {
   messages: MessageFrontend[];
@@ -44,32 +43,27 @@ export function MessageList({
   }, [messageId, messages]);
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="relative flex-1">
-        <StarfieldBackground />
-        <div className="absolute inset-0 p-4 overflow-y-auto">
-          <div className="space-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                ref={el => {
-                  if (el) messageRefs.current[message.id] = el;
-                }}
-                className="transition-colors duration-300"
-              >
-                <MessageItem
-                  message={message}
-                  user={users[message.userId]}
-                  spaceId={spaceId}
-                  onChannelSelect={onChannelSelect}
-                  onThreadOpen={onThreadOpen}
-                  isThread={isThread}
-                  spaceRole={spaceRole}
-                />
-              </div>
-            ))}
+    <div className="flex-1 relative">
+      <div className="space-y-4 p-4">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            ref={el => {
+              if (el) messageRefs.current[message.id] = el;
+            }}
+            className="transition-colors duration-300"
+          >
+            <MessageItem
+              message={message}
+              user={users[message.userId]}
+              spaceId={spaceId}
+              onChannelSelect={onChannelSelect}
+              onThreadOpen={onThreadOpen}
+              isThread={isThread}
+              spaceRole={spaceRole}
+            />
           </div>
-        </div>
+        ))}
       </div>
     </div>
   );

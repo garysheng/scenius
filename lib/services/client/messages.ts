@@ -31,6 +31,7 @@ export const messagesService = {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         type: 'TEXT',
+        threadId: null,
         metadata: {
           reactions: {},
           edited: false,
@@ -66,7 +67,8 @@ export const messagesService = {
         id: messageRef.id,
         ...messageData,
         createdAt: Timestamp.now().toDate(),
-        updatedAt: Timestamp.now().toDate()
+        updatedAt: Timestamp.now().toDate(),
+        threadId: null
       } as MessageFrontend;
     } catch (error) {
       console.error('MessagesService - Failed to send message:', error);
@@ -142,16 +144,32 @@ export const messagesService = {
     const messagesRef = collection(db, 'spaces', spaceId, 'channels', channelId, 'messages');
     const messagesQuery = query(
       messagesRef,
+      where('threadId', '==', null), // In Firestore, this matches both null and non-existent fields
       orderBy('createdAt', 'asc')
     );
 
     return onSnapshot(messagesQuery, (snapshot) => {
-      const messages = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-      })) as MessageFrontend[];
+      const messages = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          channelId: data.channelId,
+          content: data.content,
+          userId: data.userId,
+          type: data.type,
+          threadId: null, // Ensure threadId is null for top-level messages
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+          metadata: {
+            ...data.metadata,
+            threadInfo: data.metadata?.threadInfo || {
+              replyCount: 0,
+              lastReplyAt: null,
+              participantIds: []
+            }
+          }
+        } as MessageFrontend;
+      });
 
       callback(messages);
     });

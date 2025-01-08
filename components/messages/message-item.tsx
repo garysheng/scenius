@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { Play, Pause, Volume2, FileText, Paperclip, Download, ExternalLink } from 'lucide-react';
+import { Play, Pause, Volume2, FileText, Paperclip, Download, ExternalLink, MessageSquare } from 'lucide-react';
 import Image from 'next/image';
 import { MessageFrontend, UserFrontend } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -414,6 +414,23 @@ export function MessageItem({
                         </button>
                       );
                     })}
+
+                    {/* Thread Reply Count - Only show if there are replies */}
+                    {!isThread && message.metadata.threadInfo && message.metadata.threadInfo.replyCount > 0 && (
+                      <button
+                        onClick={handleReply}
+                        className={cn(
+                          "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs transition-colors",
+                          "bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted))]/80",
+                          "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <MessageSquare className="h-3 w-3" />
+                        <span>
+                          {message.metadata.threadInfo.replyCount} {message.metadata.threadInfo.replyCount === 1 ? 'reply' : 'replies'} • {message.metadata.threadInfo.participantIds.length} {message.metadata.threadInfo.participantIds.length === 1 ? 'person' : 'people'}
+                        </span>
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

@@ -29,10 +29,12 @@ import { db } from '@/lib/firebase';
 import { channelsService } from '@/lib/services/client/channels';
 import { cn } from '@/lib/utils';
 import { ThreadView } from '@/components/messages/thread-view';
-import { SceniePanel } from './scenie-panel';
+import { SceniePanel } from '@/components/spaces/scenie-panel';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { urlService } from '@/lib/services/client/url';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { StarfieldBackground } from '@/components/effects/starfield-background';
+import { LoadingStars } from '@/components/ui/loading-stars';
 
 interface SpaceDetailProps {
   id: string;
@@ -87,7 +89,8 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
         const q = query(channelsRef, orderBy('createdAt', 'asc'));
         const snapshot = await getDocs(q);
 
-        if (!snapshot.empty) {
+        // Only set the first channel if we don't have a selected channel and there are channels
+        if (!snapshot.empty && !selectedChannel?.id) {
           const firstChannel = snapshot.docs[0].data() as ChannelFrontend;
           firstChannel.id = snapshot.docs[0].id;
           setSelectedChannel(firstChannel);
@@ -97,38 +100,66 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
       }
     };
 
-    if (space && !selectedChannel) {
+    if (space && !selectedChannel?.id) {
       loadFirstChannel();
     }
-  }, [id, space, selectedChannel]);
+  }, [id, space, selectedChannel?.id]);
 
   // Subscribe to messages when channel changes
   useEffect(() => {
-    if (selectedChannel) {
-      const unsubscribe = messagesService.subscribeToMessages(
-        id,
-        selectedChannel.id,
-        (newMessages) => setMessages(newMessages)
-      );
+    if (!selectedChannel?.id) return;
 
-      return () => unsubscribe();
-    }
-  }, [id, selectedChannel]);
+    const channelId = selectedChannel.id; // Capture current channel ID
+    console.log('Subscribing to messages for channel:', channelId);
+    
+    const unsubscribe = messagesService.subscribeToMessages(
+      id,
+      channelId,
+      (newMessages) => {
+        // Only update messages if we're still on the same channel
+        if (selectedChannel?.id === channelId) {
+          console.log('Received new messages for channel:', channelId);
+          setMessages(newMessages);
+        }
+      }
+    );
+
+    return () => {
+      console.log('Unsubscribing from messages for channel:', channelId);
+      unsubscribe();
+    };
+  }, [id, selectedChannel?.id]);
 
   const handleSendMessage = async (content: string, attachments?: FileAttachment[]) => {
-    if (!user || !selectedChannel) return;
-    await messagesService.sendMessage(id, selectedChannel.id, content, user.id, attachments);
+    if (!user || !selectedChannel?.id) return;
+    
+    const channelId = selectedChannel.id; // Capture current channel ID
+    try {
+      await messagesService.sendMessage(id, channelId, content, user.id, attachments);
+      // Ensure we're still on the same channel
+      if (selectedChannel?.id === channelId) {
+        // The subscription will handle the update
+        console.log('Message sent successfully to channel:', channelId);
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
   };
 
   const handleSendVoiceMessage = async (blob: Blob, transcription: string) => {
     if (!user || !selectedChannel) return;
-    await messagesService.sendVoiceMessage(
-      id,
-      selectedChannel.id,
-      blob,
-      user.id,
-      transcription
-    );
+    try {
+      await messagesService.sendVoiceMessage(
+        id,
+        selectedChannel.id,
+        blob,
+        user.id,
+        transcription
+      );
+      // No need to do anything after sending - the subscription will handle the update
+    } catch (error) {
+      console.error('Failed to send voice message:', error);
+    }
   };
 
   useEffect(() => {
@@ -195,18 +226,27 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Handler for direct channel selection (used by ChannelList and MemberList)
-  const handleDirectChannelSelect = (channel: ChannelFrontend) => {
+  // Direct channel selection handler
+  const handleDirectChannelSelect = useCallback((channel: ChannelFrontend) => {
+    console.log('Selecting channel:', channel.id);
+    // Close thread if it exists since this is an explicit sidebar click
+    if (activeThread) {
+      setActiveThread(null);
+    }
     setSelectedChannel(channel);
     // Close sidebar on mobile after selection
     if (window.innerWidth <= 768) {
       setIsSidebarOpen(false);
     }
-  };
+  }, [activeThread]);
 
-  // Handler for channel ID selection (used by MessageList)
-  const handleChannelSelect = async (channelId: string) => {
+  // Channel ID selection handler (for message mentions/links)
+  const handleChannelSelect = useCallback(async (channelId: string) => {
+    // Don't close thread or change channel if one is active
+    if (activeThread) return;
+    
     try {
+      console.log('Loading channel:', channelId);
       const channel = await channelsService.getChannel(id, channelId);
       setSelectedChannel(channel);
       // Close sidebar on mobile after selection
@@ -216,7 +256,40 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
     } catch (error) {
       console.error('Failed to load channel:', error);
     }
-  };
+  }, [id, activeThread]);
+
+  // Handle URL parameters for deep linking
+  useEffect(() => {
+    if (!channelData || channelData.length === 0) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const channelId = params.get('channel');
+    const messageId = params.get('message');
+
+    // Don't change channel if there's an active thread
+    if (activeThread) return;
+
+    if (channelId) {
+      const channel = channelData.find((c: ChannelFrontend) => c.id === channelId);
+      if (channel && (!selectedChannel || selectedChannel.id !== channel.id)) {
+        setSelectedChannel(channel);
+
+        if (messageId) {
+          setTimeout(() => {
+            const messageElement = document.getElementById(`message-${messageId}`);
+            if (messageElement) {
+              messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              messageElement.classList.add('highlight-message');
+              setTimeout(() => messageElement.classList.remove('highlight-message'), 3000);
+            }
+          }, 500);
+        }
+      }
+    } else if (channelData.length > 0 && !selectedChannel?.id) {
+      // Only set first channel if no channel is currently selected
+      setSelectedChannel(channelData[0]);
+    }
+  }, [channelData, selectedChannel?.id, activeThread]);
 
   const handleThreadOpen = useCallback((message: MessageFrontend) => {
     const messageUser = users[message.userId] || null;
@@ -241,39 +314,6 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
 
     loadUserRole();
   }, [id, user, space]);
-
-  // Handle URL parameters for deep linking
-  useEffect(() => {
-    if (!channelData || channelData.length === 0) return;
-
-    const params = new URLSearchParams(window.location.search);
-    const channelId = params.get('channel');
-    const messageId = params.get('message');
-
-    if (channelId) {
-      const channel = channelData.find((c: ChannelFrontend) => c.id === channelId);
-      if (channel) {
-        setSelectedChannel(channel);
-
-        // If there's a specific message to scroll to
-        if (messageId) {
-          // Add a small delay to ensure the messages are loaded
-          setTimeout(() => {
-            const messageElement = document.getElementById(`message-${messageId}`);
-            if (messageElement) {
-              messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              // Add a highlight effect
-              messageElement.classList.add('highlight-message');
-              setTimeout(() => messageElement.classList.remove('highlight-message'), 3000);
-            }
-          }, 500);
-        }
-      }
-    } else if (channelData.length > 0) {
-      // If no channel specified, select the first one
-      setSelectedChannel(channelData[0]);
-    }
-  }, [channelData]);
 
   // Add useEffect to handle initial mobile state
   useEffect(() => {
@@ -347,11 +387,8 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
   if (!space) {
     return (
       <main className="min-h-[calc(100vh-3.5rem)] cosmic-bg">
-        <div className="flex h-[calc(100vh-3.5rem)]">
-          {/* Sidebar skeleton */}
-          <div className="w-64 cosmic-card animate-pulse" />
-          {/* Main content skeleton */}
-          <div className="flex-1 cosmic-card animate-pulse ml-[1px]" />
+        <div className="flex h-[calc(100vh-3.5rem)] items-center justify-center">
+          <LoadingStars size="lg" text="Loading space..." />
         </div>
       </main>
     );
@@ -507,8 +544,11 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
           "transition-[margin] duration-200 ease-in-out",
           isSidebarOpen ? "md:ml-[1px]" : "ml-0"
         )}>
+          <div className="fixed inset-0 pointer-events-none">
+            <StarfieldBackground />
+          </div>
           {selectedChannel ? (
-            <div className="flex h-full overflow-hidden">
+            <div className="flex h-full overflow-hidden relative z-10">
               {/* Main Channel Content */}
               <div className="flex-1 flex flex-col h-full overflow-hidden">
                 {/* Channel Header */}

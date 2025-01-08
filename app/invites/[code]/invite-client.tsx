@@ -7,6 +7,7 @@ import { accessControlService } from '@/lib/services/client/access-control';
 import { spacesService } from '@/lib/services/client/spaces';
 import { urlService } from '@/lib/services/client/url';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingStars } from '@/components/ui/loading-stars';
 
 interface InviteClientProps {
   code: string;
@@ -72,10 +73,7 @@ export function InviteClient({ code }: InviteClientProps) {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[hsl(var(--accent-nebula))] mx-auto" />
-          <p className="text-lg text-[hsl(var(--text-primary))]">Verifying invite...</p>
-        </div>
+        <LoadingStars size="lg" text="Verifying invite..." />
       </div>
     );
   }

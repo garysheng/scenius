@@ -9,7 +9,7 @@ export const createSpaceSchema = z.object({
     .max(500, 'Description cannot exceed 500 characters'),
   avatarUrl: z.string().nullable(),
   settings: z.object({
-    isPublic: z.boolean(),
+    isOpen: z.boolean(),
     allowGuests: z.boolean(),
     defaultRoleId: z.string()
   })

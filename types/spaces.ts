@@ -38,7 +38,6 @@ export interface Space {
   updatedAt: Timestamp;
   ownerId: string;
   settings: {
-    isPublic: boolean;
     allowGuests: boolean;
     defaultRoleId: string;
   };
