@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { MessageFrontend, UserFrontend } from '@/types';
 import { MessageItem } from './message-item';
 import { useSearchParams } from 'next/navigation';
+import { URL_PARAMS } from '@/lib/constants/url-params';
 
 interface MessageListProps {
   messages: MessageFrontend[];
@@ -25,7 +26,7 @@ export function MessageList({
   spaceRole 
 }: MessageListProps) {
   const searchParams = useSearchParams();
-  const messageId = searchParams.get('message');
+  const messageId = searchParams.get(URL_PARAMS.SEARCH.MESSAGE);
   const messageRefs = useRef<Record<string, HTMLDivElement>>({});
 
   useEffect(() => {

@@ -35,6 +35,7 @@ import { urlService } from '@/lib/services/client/url';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { StarfieldBackground } from '@/components/effects/starfield-background';
 import { LoadingStars } from '@/components/ui/loading-stars';
+import { URL_PARAMS } from '@/lib/constants/url-params';
 
 interface SpaceDetailProps {
   id: string;
@@ -85,11 +86,21 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
   useEffect(() => {
     const loadFirstChannel = async () => {
       try {
+        // Check URL parameters first
+        const params = new URLSearchParams(window.location.search);
+        const channelId = params.get('channel');
+
+        if (channelId) {
+          const channel = await channelsService.getChannel(id, channelId);
+          setSelectedChannel(channel);
+          return;
+        }
+
+        // If no URL parameter, load first channel
         const channelsRef = collection(db, 'spaces', id, 'channels');
         const q = query(channelsRef, orderBy('createdAt', 'asc'));
         const snapshot = await getDocs(q);
 
-        // Only set the first channel if we don't have a selected channel and there are channels
         if (!snapshot.empty && !selectedChannel?.id) {
           const firstChannel = snapshot.docs[0].data() as ChannelFrontend;
           firstChannel.id = snapshot.docs[0].id;
@@ -234,6 +245,11 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
       setActiveThread(null);
     }
     setSelectedChannel(channel);
+    // Clear URL parameters
+    const url = new URL(window.location.href);
+    url.searchParams.delete(URL_PARAMS.SEARCH.CHANNEL);
+    url.searchParams.delete(URL_PARAMS.SEARCH.MESSAGE);
+    window.history.replaceState({}, '', url.toString());
     // Close sidebar on mobile after selection
     if (window.innerWidth <= 768) {
       setIsSidebarOpen(false);
@@ -249,6 +265,11 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
       console.log('Loading channel:', channelId);
       const channel = await channelsService.getChannel(id, channelId);
       setSelectedChannel(channel);
+      // Clear URL parameters
+      const url = new URL(window.location.href);
+      url.searchParams.delete(URL_PARAMS.SEARCH.CHANNEL);
+      url.searchParams.delete(URL_PARAMS.SEARCH.MESSAGE);
+      window.history.replaceState({}, '', url.toString());
       // Close sidebar on mobile after selection
       if (window.innerWidth <= 768) {
         setIsSidebarOpen(false);
@@ -257,39 +278,6 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
       console.error('Failed to load channel:', error);
     }
   }, [id, activeThread]);
-
-  // Handle URL parameters for deep linking
-  useEffect(() => {
-    if (!channelData || channelData.length === 0) return;
-
-    const params = new URLSearchParams(window.location.search);
-    const channelId = params.get('channel');
-    const messageId = params.get('message');
-
-    // Don't change channel if there's an active thread
-    if (activeThread) return;
-
-    if (channelId) {
-      const channel = channelData.find((c: ChannelFrontend) => c.id === channelId);
-      if (channel && (!selectedChannel || selectedChannel.id !== channel.id)) {
-        setSelectedChannel(channel);
-
-        if (messageId) {
-          setTimeout(() => {
-            const messageElement = document.getElementById(`message-${messageId}`);
-            if (messageElement) {
-              messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              messageElement.classList.add('highlight-message');
-              setTimeout(() => messageElement.classList.remove('highlight-message'), 3000);
-            }
-          }, 500);
-        }
-      }
-    } else if (channelData.length > 0 && !selectedChannel?.id) {
-      // Only set first channel if no channel is currently selected
-      setSelectedChannel(channelData[0]);
-    }
-  }, [channelData, selectedChannel?.id, activeThread]);
 
   const handleThreadOpen = useCallback((message: MessageFrontend) => {
     const messageUser = users[message.userId] || null;
@@ -302,6 +290,54 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
   const handleThreadClose = useCallback(() => {
     setActiveThread(null);
   }, []);
+
+  // Handle URL parameters for deep linking
+  useEffect(() => {
+    if (!channelData || channelData.length === 0) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const messageId = params.get(URL_PARAMS.SEARCH.MESSAGE);
+    const channelId = params.get(URL_PARAMS.SEARCH.CHANNEL);
+
+    // Don't change channel if there's an active thread
+    if (activeThread) return;
+
+    // Handle message loading and thread opening
+    if (messageId && channelId) {
+      const loadMessage = async () => {
+        try {
+          // Get the message
+          const message = await messagesService.getMessage(id, channelId, messageId);
+          
+          // If it's a thread reply, get and open the parent thread
+          if (message.threadId) {
+            const parentMessage = await messagesService.getMessage(id, channelId, message.threadId);
+            handleThreadOpen(parentMessage);
+          }
+
+          // Wait a bit for the UI to update before scrolling
+          setTimeout(() => {
+            const messageElement = document.getElementById(`message-${messageId}`);
+            if (messageElement) {
+              messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              messageElement.classList.add('highlight-message');
+              setTimeout(() => messageElement.classList.remove('highlight-message'), 3000);
+            }
+          }, 1000);
+
+          // Clear URL parameters after loading
+          const url = new URL(window.location.href);
+          url.searchParams.delete(URL_PARAMS.SEARCH.CHANNEL);
+          url.searchParams.delete(URL_PARAMS.SEARCH.MESSAGE);
+          window.history.replaceState({}, '', url.toString());
+        } catch (error) {
+          console.error('Failed to load message:', error);
+        }
+      };
+
+      loadMessage();
+    }
+  }, [channelData, activeThread, id, handleThreadOpen]);
 
   // Add effect to fetch user role
   useEffect(() => {

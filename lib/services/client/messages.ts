@@ -1,4 +1,4 @@
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc, increment, runTransaction, where, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc, increment, runTransaction, where, deleteDoc, Timestamp, getDoc } from 'firebase/firestore';
 import { ref, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 import { FileAttachment, MessageFrontend } from '@/types';
@@ -364,6 +364,40 @@ export const messagesService = {
       });
     } catch (error) {
       console.error('Failed to update message:', error);
+      throw error;
+    }
+  },
+
+  async getMessage(spaceId: string, channelId: string, messageId: string): Promise<MessageFrontend> {
+    const messageRef = doc(db, 'spaces', spaceId, 'channels', channelId, 'messages', messageId);
+    
+    try {
+      const messageDoc = await getDoc(messageRef);
+      if (!messageDoc.exists()) {
+        throw new Error('Message not found');
+      }
+
+      const data = messageDoc.data();
+      return {
+        id: messageDoc.id,
+        channelId: data.channelId,
+        content: data.content,
+        userId: data.userId,
+        type: data.type,
+        threadId: data.threadId,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+        metadata: {
+          ...data.metadata,
+          threadInfo: data.metadata?.threadInfo || {
+            replyCount: 0,
+            lastReplyAt: null,
+            participantIds: []
+          }
+        }
+      } as MessageFrontend;
+    } catch (error) {
+      console.error('Failed to get message:', error);
       throw error;
     }
   }

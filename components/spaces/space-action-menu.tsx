@@ -199,7 +199,7 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               </div>
 
-              <ScrollArea className="max-h-[400px]">
+              <ScrollArea className="h-[400px]">
                 {isSearching ? (
                   <div className="text-center py-8">
                     <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
@@ -212,11 +212,14 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
                 ) : searchResults.length > 0 ? (
                   <div className="space-y-2 p-2">
                     {searchResults.map((result) => (
-                      <Link 
+                      <button 
                         key={result.id} 
-                        href={result.url}
-                        className="block p-3 rounded-lg hover:bg-muted transition-colors"
-                        onClick={() => setIsOpen(false)}
+                        className="block w-full text-left p-3 rounded-lg hover:bg-muted transition-colors"
+                        onClick={() => {
+                          setIsOpen(false);
+                          // Force a full page reload to the result URL
+                          window.location.href = result.url;
+                        }}
                       >
                         <div className="flex items-start gap-3">
                           <div className="mt-1 text-muted-foreground">
@@ -236,7 +239,7 @@ export function SpaceActionMenu({ space }: SpaceActionMenuProps) {
                             </p>
                           </div>
                         </div>
-                      </Link>
+                      </button>
                     ))}
                   </div>
                 ) : null}
