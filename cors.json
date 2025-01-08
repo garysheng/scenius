@@ -1,8 +1,19 @@
 [
   {
     "origin": ["*"],
-    "method": ["GET", "HEAD", "PUT", "POST", "DELETE"],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE", "OPTIONS"],
     "maxAgeSeconds": 3600,
-    "responseHeader": ["Content-Type", "Content-Length", "Content-Range", "Content-Encoding", "Content-Language", "Cache-Control", "Expires", "Last-Modified", "ETag"]
+    "responseHeader": [
+      "Content-Type",
+      "Content-Length",
+      "Content-Range",
+      "Content-Encoding",
+      "Content-Language",
+      "Cache-Control",
+      "Expires",
+      "Last-Modified",
+      "ETag",
+      "Authorization"
+    ]
   }
 ] 

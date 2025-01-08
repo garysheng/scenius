@@ -1,0 +1,40 @@
+{
+  "firestore": {
+    "rules": "firebase.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Access-Control-Allow-Origin",
+            "value": "https://scene.chat"
+          },
+          {
+            "key": "Access-Control-Allow-Methods",
+            "value": "GET, HEAD, PUT, POST, DELETE, OPTIONS"
+          },
+          {
+            "key": "Access-Control-Allow-Headers",
+            "value": "Content-Type, Content-Length, Content-Range, Content-Encoding, Content-Language, Cache-Control, Expires, Last-Modified, ETag, Authorization"
+          },
+          {
+            "key": "Access-Control-Max-Age",
+            "value": "3600"
+          }
+        ]
+      }
+    ]
+  }
+} 
