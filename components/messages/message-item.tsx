@@ -445,6 +445,8 @@ export function MessageItem({
             onDelete={handleDelete}
             onEdit={handleEdit}
             messageId={message.id}
+            spaceId={spaceId}
+            channelId={message.channelId}
           />
         </div>
       </div>

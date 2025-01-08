@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Smile, MessageSquare, MoreVertical } from 'lucide-react';
+import { Smile, MessageSquare, MoreVertical, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmojiPicker } from './emoji-picker';
 import {
@@ -11,6 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
+import { urlService } from '@/lib/services/client/url';
+import { useToast } from '@/hooks/use-toast';
 
 interface MessageActionsProps {
   onReaction: (emoji: string) => void;
@@ -20,13 +22,26 @@ interface MessageActionsProps {
   onDelete?: () => void;
   messageId: string;
   onEdit: () => void;
+  spaceId: string;
+  channelId: string;
 }
 
-export function MessageActions({ onReaction, onReply, canDelete, canEdit, onDelete, onEdit }: MessageActionsProps) {
+export function MessageActions({ 
+  onReaction, 
+  onReply, 
+  canDelete, 
+  canEdit, 
+  onDelete, 
+  onEdit,
+  messageId,
+  spaceId,
+  channelId 
+}: MessageActionsProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showAbove, setShowAbove] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -87,6 +102,16 @@ export function MessageActions({ onReaction, onReply, canDelete, canEdit, onDele
     }
   }, [onDelete]);
 
+  const handleCopyLink = useCallback(async () => {
+    const url = urlService.spaces.message(spaceId, channelId, messageId);
+    const absoluteUrl = window.location.origin + url;
+    await navigator.clipboard.writeText(absoluteUrl);
+    toast({
+      description: "Link copied to clipboard",
+      duration: 2000
+    });
+  }, [spaceId, channelId, messageId, toast]);
+
   return (
     <div 
       ref={containerRef} 
@@ -103,22 +128,6 @@ export function MessageActions({ onReaction, onReply, canDelete, canEdit, onDele
       >
         <Smile className="h-4 w-4" />
       </Button>
-
-      {showEmojiPicker && (
-        <div 
-          className="absolute z-[9999] right-0"
-          style={{
-            [showAbove ? 'bottom' : 'top']: '100%',
-            marginTop: showAbove ? undefined : '0.5rem',
-            marginBottom: showAbove ? '0.5rem' : undefined
-          }}
-        >
-          <div className="bg-[hsl(var(--background))] rounded-lg shadow-lg border border-border p-2">
-            <EmojiPicker onEmojiSelect={handleEmojiSelect} />
-          </div>
-        </div>
-      )}
-
       <Button
         variant="ghost"
         size="icon"
@@ -127,7 +136,14 @@ export function MessageActions({ onReaction, onReply, canDelete, canEdit, onDele
       >
         <MessageSquare className="h-4 w-4" />
       </Button>
-
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+        onClick={handleCopyLink}
+      >
+        <Link2 className="h-4 w-4" />
+      </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -139,25 +155,32 @@ export function MessageActions({ onReaction, onReply, canDelete, canEdit, onDele
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {(canDelete || canEdit) && (
-            <>
-              {canEdit && (
-                <DropdownMenuItem onClick={handleEditClick}>
-                  Edit Message
-                </DropdownMenuItem>
-              )}
-              {canDelete && (
-                <DropdownMenuItem 
-                  className="text-destructive"
-                  onClick={handleDeleteClick}
-                >
-                  Delete Message
-                </DropdownMenuItem>
-              )}
-            </>
+          {canEdit && (
+            <DropdownMenuItem onClick={handleEditClick}>
+              Edit message
+            </DropdownMenuItem>
+          )}
+          {canDelete && (
+            <DropdownMenuItem 
+              onClick={handleDeleteClick}
+              className="text-destructive"
+            >
+              Delete message
+            </DropdownMenuItem>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {showEmojiPicker && (
+        <div 
+          className={cn(
+            "absolute z-50 right-0",
+            showAbove ? "bottom-full mb-2" : "top-full mt-2"
+          )}
+        >
+          <EmojiPicker onEmojiSelect={handleEmojiSelect} />
+        </div>
+      )}
     </div>
   );
 } 

@@ -88,7 +88,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
       try {
         // Check URL parameters first
         const params = new URLSearchParams(window.location.search);
-        const channelId = params.get('channel');
+        const channelId = params.get(URL_PARAMS.SEARCH.CHANNEL);
 
         if (channelId) {
           const channel = await channelsService.getChannel(id, channelId);
@@ -245,7 +245,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
       setActiveThread(null);
     }
     setSelectedChannel(channel);
-    // Clear URL parameters
+    // Update URL without triggering navigation
     const url = new URL(window.location.href);
     url.searchParams.delete(URL_PARAMS.SEARCH.CHANNEL);
     url.searchParams.delete(URL_PARAMS.SEARCH.MESSAGE);
@@ -265,7 +265,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
       console.log('Loading channel:', channelId);
       const channel = await channelsService.getChannel(id, channelId);
       setSelectedChannel(channel);
-      // Clear URL parameters
+      // Update URL without triggering navigation
       const url = new URL(window.location.href);
       url.searchParams.delete(URL_PARAMS.SEARCH.CHANNEL);
       url.searchParams.delete(URL_PARAMS.SEARCH.MESSAGE);
@@ -306,6 +306,12 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
     if (messageId && channelId) {
       const loadMessage = async () => {
         try {
+          // First, select the channel if it's not already selected
+          if (!selectedChannel || selectedChannel.id !== channelId) {
+            const channel = await channelsService.getChannel(id, channelId);
+            setSelectedChannel(channel);
+          }
+
           // Get the message
           const message = await messagesService.getMessage(id, channelId, messageId);
           
@@ -336,8 +342,25 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
       };
 
       loadMessage();
+    } else if (channelId) {
+      // If only channel is specified, just select the channel
+      const loadChannel = async () => {
+        try {
+          const channel = await channelsService.getChannel(id, channelId);
+          setSelectedChannel(channel);
+          
+          // Clear URL parameters after loading
+          const url = new URL(window.location.href);
+          url.searchParams.delete(URL_PARAMS.SEARCH.CHANNEL);
+          window.history.replaceState({}, '', url.toString());
+        } catch (error) {
+          console.error('Failed to load channel:', error);
+        }
+      };
+
+      loadChannel();
     }
-  }, [channelData, activeThread, id, handleThreadOpen]);
+  }, [channelData, activeThread, id, handleThreadOpen, selectedChannel]);
 
   // Add effect to fetch user role
   useEffect(() => {

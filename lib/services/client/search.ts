@@ -10,6 +10,7 @@ import {
 import { db } from '@/lib/firebase';
 import { Message } from '@/types';
 import { SemanticTag } from '@/types/messages';
+import { urlService } from '@/lib/services/client/url';
 
 export interface SearchResult {
   id: string;
@@ -62,7 +63,7 @@ export const searchService = {
           type: 'channel',
           title: data.name,
           snippet: data.description,
-          url: `/spaces/${spaceId}?channel=${doc.id}`,
+          url: urlService.spaces.channel(spaceId, doc.id),
           timestamp: data.createdAt.toDate(),
           relevance: 1,
           channelId: doc.id
@@ -106,7 +107,7 @@ export const searchService = {
             type: 'message',
             title: `Message in #${channelDoc.data().name}`,
             snippet: data.content,
-            url: `/spaces/${spaceId}?channel=${channelDoc.id}&message=${doc.id}`,
+            url: urlService.spaces.message(spaceId, channelDoc.id, doc.id),
             timestamp: data.createdAt.toDate(),
             relevance: 1,
             message: {
@@ -157,7 +158,7 @@ export const searchService = {
             type: 'message',
             title: `Message in #${channelDoc.data().name}`,
             snippet: data.content,
-            url: `/spaces/${spaceId}?channel=${channelDoc.id}&message=${doc.id}`,
+            url: urlService.spaces.message(spaceId, channelDoc.id, doc.id),
             timestamp: data.createdAt.toDate(),
             relevance: 0.8,
             message: {
