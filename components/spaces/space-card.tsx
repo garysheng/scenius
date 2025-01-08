@@ -19,7 +19,7 @@ export function SpaceCard({ space }: SpaceCardProps) {
 
   return (
     <div className="cursor-pointer" onClick={handleClick}>
-      <Card className="relative bg-[hsl(var(--elevation-1))] h-full rounded-lg p-6 ring-1 ring-[hsl(var(--border-dim))] hover:ring-[hsl(var(--border-glow))] hover:bg-[hsl(var(--elevation-2))] transition-all duration-300">
+      <Card className="relative bg-[hsl(var(--elevation-1))] h-full rounded-lg p-6 ring-1 ring-[hsl(var(--border-dim))] hover:ring-2 hover:ring-[hsl(var(--border-glow))] hover:bg-[hsl(var(--elevation-2))] transition-all duration-300">
         <div className="flex items-start justify-between">
           <div className="space-y-3">
             <h3 className="text-lg font-semibold text-[hsl(var(--text-primary))]">

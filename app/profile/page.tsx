@@ -242,7 +242,7 @@ export default function ProfilePage() {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2">
-                    <h1 className="text-2xl font-semibold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                    <h1 className="text-2xl font-semibold bg-gradient-to-r from-purple-500 to-purple-900 bg-clip-text text-transparent">
                       {user.fullName || user.username}
                     </h1>
                     {user.fullName && (
@@ -270,7 +270,7 @@ export default function ProfilePage() {
                 <Button 
                   asChild 
                   variant="outline" 
-                  className="w-full border-gray-200 text-gray-700 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
+                  className="w-full text-white border-gray-200 hover:bg-red-50 hover:text-black hover:border-black transition-colors"
                 >
                   <Link href="/signout">Sign Out</Link>
                 </Button>
