@@ -8,7 +8,6 @@ import { searchService, SearchResult } from '@/lib/services/client/search';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { urlService } from '@/lib/services/client/url';
 
 interface SearchPanelProps {
   spaceId: string;
