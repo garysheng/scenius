@@ -36,7 +36,7 @@ export default function SignUpPage() {
     mode: 'onChange',
   });
 
-  const { formState: { errors, isValid }, getValues, trigger } = form;
+  const { formState: { errors, isValid }, trigger } = form;
 
   const validateInitialFields = async () => {
     const result = await trigger(['email', 'username']);
