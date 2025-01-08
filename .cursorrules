@@ -1,3 +1,7 @@
+// NextJS 15 Server-Side ID Page Template
+// Use this structure for [id] pages in NextJS 15 with metadata generation
+
+/*
 import { Metadata } from 'next';
 import { SpaceDetail } from '@/components/spaces/space-detail';
 import { spacesService } from '@/lib/services/client/spaces';
@@ -54,3 +58,11 @@ export default async function SpaceDetailPage({ params }: PageProps) {
   const { id } = await params;
   return <SpaceDetail id={id} />;
 }
+*/
+
+// Key points:
+// 1. PageProps interface uses Promise<{ id: string }> for params
+// 2. generateMetadata is async and awaits params.id
+// 3. Page component is async and awaits params.id
+// 4. Comprehensive OpenGraph and Twitter metadata for SEO
+// 5. Error handling with fallback metadata 
