@@ -7,7 +7,7 @@ import {
   signOut as firebaseSignOut,
   User as FirebaseUser
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { SignInFormValues, SignUpFormValues } from '@/types/auth';
 
@@ -32,6 +32,15 @@ export class AuthService {
     });
   }
 
+  private static async updateUserStatus(userId: string) {
+    const userRef = doc(db, 'users', userId);
+    await setDoc(userRef, {
+      status: 'online',
+      lastSeen: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  }
+
   static async signUp({ email, password, username, fullName }: SignUpFormValues) {
     try {
       const { user } = await createUserWithEmailAndPassword(auth, email, password);
@@ -48,6 +57,7 @@ export class AuthService {
   static async signIn({ email, password }: SignInFormValues) {
     try {
       const { user } = await signInWithEmailAndPassword(auth, email, password);
+      await this.updateUserStatus(user.uid);
       return user;
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -62,10 +72,19 @@ export class AuthService {
       const provider = new GoogleAuthProvider();
       const { user } = await signInWithPopup(auth, provider);
 
-      // Create profile if it doesn't exist
-      const fullName = user.displayName || 'Anonymous';
-      const username = user.email?.split('@')[0] || 'user';
-      await this.createUserProfile(user, username, fullName);
+      // Check if user profile exists
+      const userRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userRef);
+
+      if (!userDoc.exists()) {
+        // Only create profile if it doesn't exist
+        const fullName = user.displayName || 'Anonymous';
+        const username = user.email?.split('@')[0] || 'user';
+        await this.createUserProfile(user, username, fullName);
+      } else {
+        // Just update the status
+        await this.updateUserStatus(user.uid);
+      }
 
       return user;
     } catch (error: unknown) {

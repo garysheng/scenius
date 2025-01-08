@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { spacesService } from '@/lib/services/client/spaces';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { urlService } from '@/lib/services/client/url';
+import { LoadingStars } from '@/components/ui/loading-stars';
 
 export default function SpacesPage() {
   const [spaces, setSpaces] = useState<SpaceFrontend[]>([]);
@@ -51,19 +52,11 @@ export default function SpacesPage() {
     router.push('/spaces/create');
   };
 
-  if (authLoading) {
+  if (authLoading || isLoading) {
     return (
-      <main className="min-h-screen cosmic-bg p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <div className="h-24 cosmic-card animate-pulse rounded-lg" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                className="h-48 cosmic-card animate-pulse rounded-lg"
-              />
-            ))}
-          </div>
+      <main className="min-h-screen cosmic-bg">
+        <div className="flex h-screen items-center justify-center">
+          <LoadingStars size="lg" text="Loading spaces..." />
         </div>
       </main>
     );
@@ -101,16 +94,7 @@ export default function SpacesPage() {
             </div>
           )}
 
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  className="h-48 cosmic-card animate-pulse rounded-lg"
-                />
-              ))}
-            </div>
-          ) : spaces.length === 0 ? (
+          {spaces.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">
                 You haven&apos;t joined any spaces yet. Create one to get started!
@@ -135,16 +119,7 @@ export default function SpacesPage() {
             </p>
           </div>
 
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  className="h-48 cosmic-card animate-pulse rounded-lg"
-                />
-              ))}
-            </div>
-          ) : publicSpaces.length === 0 ? (
+          {publicSpaces.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">
                 No public spaces available at the moment.

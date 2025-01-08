@@ -9,34 +9,46 @@ import {
   onAuthStateChanged,
   User as FirebaseUser
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User } from '@/types';
 
-async function createOrUpdateUserDoc(firebaseUser: FirebaseUser) {
+// Only used during signup
+async function createNewUserDoc(firebaseUser: FirebaseUser, username: string) {
   const userRef = doc(db, 'users', firebaseUser.uid);
-  const userDoc = await getDoc(userRef);
+  const now = Timestamp.fromDate(new Date());
+  
+  const newUserData: User = {
+    id: firebaseUser.uid,
+    email: firebaseUser.email || '',
+    username,
+    fullName: '',
+    avatarUrl: null,
+    status: 'online',
+    lastSeen: now,
+    createdAt: now,
+    updatedAt: now,
+    preferences: {
+      notifications: true,
+      theme: 'dark',
+      language: 'en'
+    }
+  };
+  
+  await setDoc(userRef, newUserData);
+  return newUserData;
+}
 
-  if (!userDoc.exists()) {
-    // Create new user document
-    await setDoc(userRef, {
-      id: firebaseUser.uid,
-      email: firebaseUser.email,
-      username: firebaseUser.email?.split('@')[0] || `user_${firebaseUser.uid.slice(0, 6)}`,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      metadata: {
-        lastSignIn: serverTimestamp()
-      }
-    });
-  } else {
-    // Update last sign in
-    await setDoc(userRef, {
-      metadata: {
-        lastSignIn: serverTimestamp()
-      }
-    }, { merge: true });
-  }
+// Only updates status and timestamps
+async function updateUserStatus(userId: string) {
+  const userRef = doc(db, 'users', userId);
+  const now = Timestamp.fromDate(new Date());
+  
+  await setDoc(userRef, {
+    status: 'online',
+    lastSeen: now,
+    updatedAt: now
+  }, { merge: true });
 }
 
 export function useAuth() {
@@ -50,25 +62,24 @@ export function useAuth() {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          // Ensure user document exists
-          await createOrUpdateUserDoc(firebaseUser);
-
-          // Get the user document
           const userRef = doc(db, 'users', firebaseUser.uid);
           const userDoc = await getDoc(userRef);
-          const userData = userDoc.data() as User;
-
-          setUser(userData);
-          setIsLoading(false);
+          
+          if (!userDoc.exists()) {
+            console.error('User document not found after sign in');
+            setUser(null);
+          } else {
+            const userData = userDoc.data() as User;
+            setUser(userData);
+          }
         } catch (error) {
-          console.error('Error setting up user:', error);
+          console.error('Error getting user data:', error);
           setUser(null);
-          setIsLoading(false);
         }
       } else {
         setUser(null);
-        setIsLoading(false);
       }
+      setIsLoading(false);
     });
 
     return () => unsubscribe();
@@ -77,28 +88,41 @@ export function useAuth() {
   const signIn = async (email: string, password: string) => {
     const auth = getAuth();
     const { user: firebaseUser } = await signInWithEmailAndPassword(auth, email, password);
-    await createOrUpdateUserDoc(firebaseUser);
+    
+    // First get the current user data
+    const userRef = doc(db, 'users', firebaseUser.uid);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      throw new Error('User document not found');
+    }
+    
+    // Then update only the status
+    await updateUserStatus(firebaseUser.uid);
+    
+    // Get the updated user data
+    const updatedDoc = await getDoc(userRef);
+    const userData = updatedDoc.data() as User;
+    setUser(userData);
   };
 
   const signUp = async (email: string, password: string, username: string) => {
     const auth = getAuth();
     const { user: firebaseUser } = await createUserWithEmailAndPassword(auth, email, password);
-    
-    // Create user document with username
-    const userRef = doc(db, 'users', firebaseUser.uid);
-    await setDoc(userRef, {
-      id: firebaseUser.uid,
-      email: firebaseUser.email,
-      username,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      metadata: {
-        lastSignIn: serverTimestamp()
-      }
-    });
+    const userData = await createNewUserDoc(firebaseUser, username);
+    setUser(userData);
   };
 
   const signOut = async () => {
+    if (user) {
+      const userRef = doc(db, 'users', user.id);
+      const now = Timestamp.fromDate(new Date());
+      await setDoc(userRef, {
+        status: 'offline',
+        lastSeen: now,
+        updatedAt: now
+      }, { merge: true });
+    }
     const auth = getAuth();
     await firebaseSignOut(auth);
   };
