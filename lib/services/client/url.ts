@@ -3,6 +3,8 @@
  * Centralizes URL structure to make it easier to change URL schemes.
  */
 
+import { URL_PARAMS } from '@/lib/constants/url-params';
+
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.scenius.chat';
 
 export const urlService = {
@@ -34,7 +36,11 @@ export const urlService = {
     settings: (spaceId: string) => `/spaces/${spaceId}/settings`,
     
     /** Get the URL for a specific channel in a space */
-    channel: (spaceId: string, channelId: string) => `/spaces/${spaceId}/channels/${channelId}`,
+    channel: (spaceId: string, channelId: string) => `/spaces/${spaceId}?${URL_PARAMS.SEARCH.CHANNEL}=${channelId}`,
+
+    /** Get the URL for a specific message in a space */
+    message: (spaceId: string, channelId: string, messageId: string) => 
+      `/spaces/${spaceId}?${URL_PARAMS.SEARCH.CHANNEL}=${channelId}&${URL_PARAMS.SEARCH.MESSAGE}=${messageId}`,
   },
 
   /**
