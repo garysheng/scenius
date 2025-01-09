@@ -330,31 +330,70 @@ export function MessageItem({
             )}
           </div>
           {message.type === 'VOICE' ? (
-            <div className="mt-2 flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-foreground hover:text-foreground/80"
-                onClick={toggleAudio}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                ) : isPlaying ? (
-                  <Pause className="h-4 w-4" />
-                ) : (
-                  <Play className="h-4 w-4" />
+            <div className="mt-2 flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-foreground hover:text-foreground/80"
+                  onClick={toggleAudio}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : isPlaying ? (
+                    <Pause className="h-4 w-4" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                </Button>
+                <Volume2 className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm text-foreground">
+                  {message.content}
+                </p>
+                <audio
+                  ref={audioRef}
+                  onEnded={handleAudioEnded}
+                  className="hidden"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(message.metadata.reactions || {}).map(([emoji, userIds]) => {
+                  if (userIds.length === 0) return null;
+                  return (
+                    <button
+                      key={`${message.id}-reaction-${emoji}`}
+                      onClick={() => handleReaction(emoji)}
+                      className={cn(
+                        "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors",
+                        "bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted))]/80",
+                        userIds.includes(currentUser?.id || '') && "ring-1 ring-[hsl(var(--primary))]"
+                      )}
+                    >
+                      <span>{emoji}</span>
+                      <span className="text-muted-foreground">{userIds.length}</span>
+                    </button>
+                  );
+                })}
+
+                {/* Thread Reply Count - Only show if there are replies */}
+                {!isThread && message.metadata.threadInfo && message.metadata.threadInfo.replyCount > 0 && (
+                  <button
+                    onClick={handleReply}
+                    className={cn(
+                      "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs transition-colors",
+                      "bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted))]/80",
+                      "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <MessageSquare className="h-3 w-3" />
+                    <span>
+                      {message.metadata.threadInfo.replyCount} {message.metadata.threadInfo.replyCount === 1 ? 'reply' : 'replies'} • {message.metadata.threadInfo.participantIds.length} {message.metadata.threadInfo.participantIds.length === 1 ? 'person' : 'people'}
+                    </span>
+                  </button>
                 )}
-              </Button>
-              <Volume2 className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm text-foreground">
-                {message.content}
-              </p>
-              <audio
-                ref={audioRef}
-                onEnded={handleAudioEnded}
-                className="hidden"
-              />
+              </div>
             </div>
           ) : (
             <div className="space-y-2">

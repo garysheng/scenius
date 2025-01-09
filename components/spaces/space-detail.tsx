@@ -686,7 +686,12 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                           channelId={selectedChannel.id}
                         />
                       </div>
-                      {activeTab === 'chat' && <GlobalPushToTalk />}
+                      {/* Global Push to Talk */}
+                      {activeTab === 'chat' && (
+                        <GlobalPushToTalk
+                          activeThread={activeThread}
+                        />
+                      )}
                     </TabsContent>
                     <TabsContent value="scenie" className="grow data-[state=active]:flex min-h-0">
                       <SceniePanel
