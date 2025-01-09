@@ -36,6 +36,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { StarfieldBackground } from '@/components/effects/starfield-background';
 import { LoadingStars } from '@/components/ui/loading-stars';
 import { URL_PARAMS } from '@/lib/constants/url-params';
+import { useChannel } from '@/lib/contexts/channel-context';
+import { GlobalPushToTalk } from '@/components/push-to-talk/global-push-to-talk';
 
 interface SpaceDetailProps {
   id: string;
@@ -45,11 +47,12 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
   const [space, setSpace] = useState<SpaceFrontend | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedChannel, setSelectedChannel] = useState<ChannelFrontend | null>(null);
   const [channelData, setChannelData] = useState<ChannelFrontend[]>([]);
   const [messages, setMessages] = useState<MessageFrontend[]>([]);
   const [users, setUsers] = useState<Record<string, UserFrontend>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageContainerRef = useRef<HTMLDivElement>(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [isChannelsSectionExpanded, setIsChannelsSectionExpanded] = useState(true);
@@ -62,6 +65,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
   const [activeTab, setActiveTab] = useState<'chat' | 'scenie'>('chat');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
+  const { selectedChannel, setSelectedChannel } = useChannel();
 
   const getChannelDisplayName = useCallback((channel: ChannelFrontend) => {
     if (channel.kind === 'DM' && user) {
@@ -116,6 +120,16 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
     }
   }, [id, space, selectedChannel?.id]);
 
+  // Check if we're near bottom when scrolling
+  const handleScroll = useCallback(() => {
+    if (!messageContainerRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = messageContainerRef.current;
+    const scrollPosition = scrollHeight - scrollTop - clientHeight;
+    // If we're within 100px of the bottom, enable auto-scroll
+    setShouldAutoScroll(scrollPosition < 100);
+  }, []);
+
   // Subscribe to messages when channel changes
   useEffect(() => {
     if (!selectedChannel?.id) return;
@@ -131,6 +145,8 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
         if (selectedChannel?.id === channelId) {
           console.log('Received new messages for channel:', channelId);
           setMessages(newMessages);
+          // Reset auto-scroll when changing channels
+          setShouldAutoScroll(true);
         }
       }
     );
@@ -234,8 +250,10 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (shouldAutoScroll && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, shouldAutoScroll]);
 
   // Direct channel selection handler
   const handleDirectChannelSelect = useCallback((channel: ChannelFrontend) => {
@@ -638,7 +656,11 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                 <div className="flex-1 flex flex-col min-h-0">
                   <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'chat' | 'scenie')} className="flex-1 flex flex-col min-h-0">
                     <TabsContent value="chat" className="grow data-[state=active]:flex flex-col min-h-0">
-                      <div className="flex-1 overflow-y-auto">
+                      <div 
+                        ref={messageContainerRef}
+                        className="flex-1 overflow-y-auto"
+                        onScroll={handleScroll}
+                      >
                         <MessageList
                           messages={messages}
                           users={users}
@@ -648,6 +670,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                           isThread={false}
                           spaceRole={userRole || undefined}
                         />
+                        <div ref={messagesEndRef} />
                       </div>
                       {/* Chat Input */}
                       <div className="shrink-0 p-4 border-t border-border/50">
@@ -663,6 +686,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                           channelId={selectedChannel.id}
                         />
                       </div>
+                      {activeTab === 'chat' && <GlobalPushToTalk />}
                     </TabsContent>
                     <TabsContent value="scenie" className="grow data-[state=active]:flex min-h-0">
                       <SceniePanel

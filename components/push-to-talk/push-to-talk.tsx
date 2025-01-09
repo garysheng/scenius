@@ -5,6 +5,7 @@ import { Mic } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePushToTalk } from './use-push-to-talk';
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface PushToTalkProps {
   onRecordingStart?: () => void;
@@ -14,12 +15,13 @@ interface PushToTalkProps {
   size?: 'small' | 'medium' | 'large';
   disabled?: boolean;
   className?: string;
+  isFixed?: boolean;
 }
 
 const positionClasses = {
-  'top-right': 'top-4 right-4',
-  'middle-right': 'top-1/2 -translate-y-1/2 right-4',
-  'bottom-right': 'bottom-4 right-4'
+  'top-right': 'top-8 right-8',
+  'middle-right': 'top-1/2 -translate-y-1/2 right-8',
+  'bottom-right': 'bottom-8 right-8'
 };
 
 const sizeClasses = {
@@ -41,7 +43,8 @@ export function PushToTalk({
   showAudioLevel = true,
   size = 'medium',
   disabled = false,
-  className
+  className,
+  isFixed = false
 }: PushToTalkProps) {
   const { toast } = useToast();
   const {
@@ -128,38 +131,73 @@ export function PushToTalk({
     }
   }, [isRecording, stopRecording]);
 
-  if (!hasPermission && !disabled) {
-    return null; // Don't show button until permission is granted
-  }
-
   return (
-    <button
-      className={cn(
-        'fixed z-50 rounded-full shadow-lg transition-all duration-200',
-        'bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2',
-        'focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
-        isRecording && 'animate-pulse bg-destructive hover:bg-destructive/90',
-        disabled && 'opacity-50 cursor-not-allowed',
-        positionClasses[position],
-        sizeClasses[size],
-        className
-      )}
-      onMouseDown={disabled ? undefined : startRecording}
-      onMouseUp={disabled ? undefined : stopRecording}
-      onMouseLeave={isRecording ? stopRecording : undefined}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      disabled={disabled}
-      aria-label={isRecording ? 'Stop recording' : 'Start recording'}
-      title="Hold to record (or press space bar)"
-    >
-      <Mic className={cn('text-white', sizeIconClasses[size])} />
-      {showAudioLevel && isRecording && (
-        <div 
-          className="absolute inset-0 rounded-full bg-white/20 transition-transform duration-75"
-          style={{ transform: `scale(${1 + audioLevel * 0.5})` }}
-        />
-      )}
-    </button>
+    <TooltipProvider>
+      <Tooltip delayDuration={200}>
+        <TooltipTrigger asChild>
+          <button
+            className={cn(
+              'rounded-full transition-all duration-200',
+              'flex items-center justify-center relative overflow-hidden',
+              'bg-gradient-to-br from-white to-slate-100',
+              'hover:from-purple-500 hover:to-purple-600 hover:shadow-[0_0_50px_0px_rgba(168,85,247,0.4)]',
+              'group',
+              'focus:outline-none focus:ring-4 focus:ring-white/20',
+              'shadow-[0_0_40px_-5px_rgba(255,255,255,0.5)]',
+              'dark:from-slate-200 dark:to-white dark:hover:from-white dark:hover:to-slate-100',
+              isRecording && [
+                'from-purple-500 to-purple-600',
+                'shadow-[0_0_50px_0px_rgba(168,85,247,0.4)]'
+              ],
+              disabled && 'opacity-50 cursor-not-allowed',
+              isFixed && [
+                'fixed z-[100]',
+                positionClasses[position]
+              ],
+              sizeClasses[size],
+              className
+            )}
+            onMouseDown={disabled ? undefined : startRecording}
+            onMouseUp={disabled ? undefined : stopRecording}
+            onMouseLeave={isRecording ? stopRecording : undefined}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            disabled={disabled}
+            aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+            title="Hold to record (or press space bar)"
+          >
+            <div className={cn(
+              "absolute inset-0 rounded-full transition-opacity duration-200",
+              "bg-[conic-gradient(from_0deg,theme(colors.purple.200),theme(colors.purple.500),theme(colors.purple.200))]",
+              isRecording ? "opacity-100" : "opacity-0"
+            )} />
+            <div className={cn(
+              "absolute inset-[2px] rounded-full transition-colors duration-200",
+              isRecording ? "bg-purple-500" : "bg-white"
+            )} />
+
+            {showAudioLevel && isRecording && (
+              <div 
+                className="absolute inset-[2px] rounded-full bg-white/10 transition-all duration-75 ease-out"
+                style={{ 
+                  transform: `scale(${1 + audioLevel * 0.15})`,
+                  opacity: 0.3 + audioLevel * 0.7
+                }}
+              />
+            )}
+            <Mic className={cn(
+              'relative z-10 transition-colors duration-200',
+              isRecording || 'hover:text-white',
+              isRecording ? 'text-white' : 'text-purple-500 dark:text-purple-400',
+              sizeIconClasses[size],
+              isRecording && 'scale-90 transition-transform duration-200'
+            )} />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="left" className="max-w-[200px]">
+          <p>Hold to record a voice message. Release to send to the current channel.</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 } 

@@ -8,7 +8,7 @@ interface UsePushToTalkOptions {
 
 export function usePushToTalk({ onRecordingStart, onRecordingStop }: UsePushToTalkOptions) {
   const [isRecording, setIsRecording] = useState(false);
-  const [hasPermission, setHasPermission] = useState(false);
+  const [hasPermission, setHasPermission] = useState(true);
   const [audioLevel, setAudioLevel] = useState(0);
   const [error, setError] = useState<Error | null>(null);
 

@@ -46,9 +46,9 @@ export default function RootLayout({
           <AuthProvider>
             <Navbar />
             {children}
+            <Toaster />
           </AuthProvider>
         </Providers>
-        <Toaster />
         <div id="portal-root" />
       </body>
     </html>
