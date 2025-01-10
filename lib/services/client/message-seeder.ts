@@ -1,71 +1,70 @@
-import { db } from '@/lib/firebase';
-import { collection, doc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { ConversationContext } from '@/types/conversations';
 import { messageGeneratorService } from './message-generator';
+import { db } from '@/lib/firebase';
+import { collection, writeBatch, doc, Timestamp } from 'firebase/firestore';
 
-interface ParticipantRole {
-  userId: string;
-  role: {
-    description: string;
-    traits: string;
-  };
-}
-
-interface ConversationContext {
-  topic: string;
-  tone: 'casual' | 'formal' | 'technical';
-  duration: 'short' | 'medium' | 'long';
-  scenario: string;
-}
-
-interface MessageSeedRequest {
+interface MessageSeederRequest {
   spaceId: string;
   channelId: string;
-  participants: ParticipantRole[];
+  participants: {
+    userId: string;
+    role: {
+      description: string;
+      traits: string;
+    };
+  }[];
   context: ConversationContext;
 }
 
 class MessageSeederService {
-  private prepareParticipantsForGenerator(participants: ParticipantRole[]) {
-    return participants.map(p => ({
-      userId: p.userId,
-      role: {
-        description: p.role.description,
-        traits: p.role.traits.split(',').map(t => t.trim()).filter(t => t)
-      }
-    }));
-  }
+  async seedMessages(request: MessageSeederRequest): Promise<number> {
+    console.log('Starting message seeding with request:', request);
 
-  async seedMessages(request: MessageSeedRequest) {
-    const { spaceId, channelId, participants, context } = request;
-    
-    // Generate messages using the generator service
-    const generatedMessages = await messageGeneratorService.generateMessages({
-      participants: this.prepareParticipantsForGenerator(participants),
-      context
-    });
-    
-    // Use batched writes for better performance
-    const batch = writeBatch(db);
-    const messagesRef = collection(db, 'spaces', spaceId, 'channels', channelId, 'messages');
-
-    generatedMessages.forEach(message => {
-      const docRef = doc(messagesRef);
-      batch.set(docRef, {
-        content: message.content,
-        userId: message.userId,
-        channelId,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        type: 'TEXT',
-        metadata: {
-          reactions: {},
-          edited: false
-        }
+    try {
+      // Generate messages using the message generator service
+      const generatedMessages = await messageGeneratorService.generateMessages({
+        participants: request.participants.map((p, index) => ({
+          id: String(index + 1),
+          ...p
+        })),
+        context: request.context
       });
-    });
 
-    await batch.commit();
-    return generatedMessages.length;
+      console.log('Generated messages:', generatedMessages);
+
+      // Create a batch write
+      const batch = writeBatch(db);
+      const messagesRef = collection(db, 'spaces', request.spaceId, 'channels', request.channelId, 'messages');
+
+      // Add each message to the batch
+      generatedMessages.forEach(message => {
+        const messageDoc = doc(messagesRef);
+        batch.set(messageDoc, {
+          channelId: request.channelId,
+          content: message.content,
+          createdAt: Timestamp.fromDate(message.timestamp),
+          metadata: {
+            attachments: [],
+            edited: false,
+            reactions: {},
+            status: 'sent'
+          },
+          type: 'TEXT',
+          updatedAt: Timestamp.fromDate(message.timestamp),
+          userId: message.userId,
+          threadId: null
+        });
+      });
+
+      // Commit the batch
+      await batch.commit();
+      console.log(`Successfully seeded ${generatedMessages.length} messages`);
+
+      return generatedMessages.length;
+    } catch (error) {
+      console.error('Error seeding messages:', error);
+      throw error;
+    }
   }
 }
 

@@ -18,6 +18,7 @@ import { messageSeederService } from '@/lib/services/client/message-seeder';
 import { Loader2 } from 'lucide-react';
 import { useSpacesAndChannels } from '@/lib/hooks/use-spaces-and-channels';
 import { useSpaceUsers } from '@/lib/hooks/use-space-users';
+import { CONVERSATION_PRESETS } from '@/lib/config/conversation-presets';
 
 interface Participant {
   id: string;
@@ -41,6 +42,7 @@ export default function MessageSeederPage() {
   const [spaceId, setSpaceId] = useState<string>('');
   const [channelId, setChannelId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [status, setStatus] = useState<string>('');
   const [participants, setParticipants] = useState<Participant[]>([
     { id: '1', userId: '', role: { description: '', traits: '' } }
   ]);
@@ -56,6 +58,31 @@ export default function MessageSeederPage() {
   
   // Get users for selected space
   const { users, loading: loadingUsers, error: usersError } = useSpaceUsers(spaceId);
+
+  const handlePresetSelect = (presetId: string) => {
+    const preset = CONVERSATION_PRESETS[presetId];
+    if (!preset) return;
+
+    // Set context
+    setContext(preset.context);
+
+    // Set up participants with empty userIds but preset roles
+    setParticipants(
+      preset.participants.map((p, index) => ({
+        id: String(index + 1),
+        userId: '',
+        role: {
+          description: p.role,
+          traits: p.traits
+        }
+      }))
+    );
+
+    toast({
+      title: "Preset Loaded",
+      description: `Loaded the "${preset.name}" preset. Please select users for each role.`
+    });
+  };
 
   const addParticipant = () => {
     setParticipants([
@@ -115,8 +142,17 @@ export default function MessageSeederPage() {
     }
 
     setIsLoading(true);
+    setStatus('Starting message generation...');
 
     try {
+      // Log the request
+      console.log('Submitting message seed request:', {
+        spaceId,
+        channelId,
+        participants,
+        context
+      });
+
       const messageCount = await messageSeederService.seedMessages({
         spaceId,
         channelId,
@@ -124,19 +160,25 @@ export default function MessageSeederPage() {
         context
       });
 
+      setStatus('Messages generated successfully!');
       toast({
         title: "Success",
         description: `Generated ${messageCount} messages successfully`
       });
     } catch (error) {
       console.error('Error generating messages:', error);
+      setStatus('Failed to generate messages');
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to generate messages"
       });
     } finally {
-      setIsLoading(false);
+      // Clear status after a delay
+      setTimeout(() => {
+        setStatus('');
+        setIsLoading(false);
+      }, 2000);
     }
   };
 
@@ -160,6 +202,28 @@ export default function MessageSeederPage() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-bold">Message Seeder</h1>
+      
+      {/* Preset Selection */}
+      <Card className="p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Conversation Preset</h2>
+          <Select onValueChange={handlePresetSelect}>
+            <SelectTrigger className="w-[300px]">
+              <SelectValue placeholder="Select a preset conversation" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(CONVERSATION_PRESETS).map(([id, preset]) => (
+                <SelectItem key={id} value={id}>
+                  <div>
+                    <div className="font-medium">{preset.name}</div>
+                    <div className="text-sm text-muted-foreground">{preset.description}</div>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </Card>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Space & Channel Selection */}
@@ -362,19 +426,29 @@ export default function MessageSeederPage() {
         </div>
       </Card>
 
-      {/* Action Buttons */}
-      <div className="flex justify-end space-x-4">
-        <Button variant="outline" onClick={handleReset} disabled={isLoading}>Reset</Button>
-        <Button onClick={handleSubmit} disabled={isLoading}>
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            'Generate Messages'
+      {/* Action Buttons and Status */}
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-muted-foreground">
+          {status && (
+            <div className="flex items-center gap-2">
+              {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              <span>{status}</span>
+            </div>
           )}
-        </Button>
+        </div>
+        <div className="flex space-x-4">
+          <Button variant="outline" onClick={handleReset} disabled={isLoading}>Reset</Button>
+          <Button onClick={handleSubmit} disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              'Generate Messages'
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );

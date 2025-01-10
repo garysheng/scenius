@@ -1,78 +1,131 @@
-interface MessageGeneratorRequest {
-  participants: {
-    userId: string;
-    role: {
-      description: string;
-      traits: string[];
-    };
-  }[];
-  context: {
-    topic: string;
-    tone: 'casual' | 'formal' | 'technical';
-    duration: 'short' | 'medium' | 'long';
-    scenario: string;
+import { ConversationContext } from '@/types/conversations';
+import { MessageSeederUser } from '@/types/users';
+
+interface Participant {
+  id: string;
+  userId: string;
+  user?: MessageSeederUser;
+  role: {
+    description: string;
+    traits: string;
   };
 }
 
+interface MessageGeneratorRequest {
+  participants: Participant[];
+  context: ConversationContext;
+}
+
 interface GeneratedMessage {
-  content: string;
   userId: string;
+  content: string;
   timestamp: Date;
 }
 
-const MESSAGES_PER_DURATION = {
-  short: { min: 5, max: 10 },
-  medium: { min: 15, max: 25 },
-  long: { min: 30, max: 50 }
-};
-
 class MessageGeneratorService {
-  private async generatePrompt(request: MessageGeneratorRequest): Promise<string> {
+  private generatePrompt(request: MessageGeneratorRequest): string {
     const { participants, context } = request;
     
-    const participantsDescription = participants
-      .map(p => {
-        const traits = p.role.traits.length > 0 
-          ? `Their traits are: ${p.role.traits.join(', ')}`
-          : '';
-        return `User ${p.userId}: ${p.role.description}. ${traits}`;
-      })
-      .join('\n');
+    // Create a detailed system prompt
+    const systemPrompt = `You are tasked with generating a natural ${context.duration} conversation between ${participants.length} participants.
+The conversation should be ${context.tone} in tone and focus on the topic: "${context.topic}"
 
-    return `Generate a realistic conversation between multiple participants.
-
-Topic: ${context.topic}
-Tone: ${context.tone}
 Scenario: ${context.scenario}
 
-Participants:
-${participantsDescription}
+Participants and their roles:
+${participants.map((p, i) => `Participant ${i + 1}: ${p.role.description}
+Traits: ${p.role.traits}`).join('\n\n')}
 
-The conversation should feel natural and reflect each participant's role and traits.
-Each message should be in the format:
-userId: message content
+Important guidelines:
+1. Generate messages that feel natural and flow well
+2. Stay true to each participant's defined role and traits
+3. Keep the conversation focused on the topic while allowing for natural tangents
+4. Maintain consistent personality and voice for each participant
+5. Include natural conversation elements like questions, reactions, and references to previous messages
+6. Format each message as: [participant1]|||[message content] for the first participant, [participant2]|||[message content] for the second, etc.
 
-Generate a conversation with multiple back-and-forth exchanges that tells a coherent story.`;
+The conversation should have a clear beginning, middle, and end structure.`;
+
+    return systemPrompt;
+  }
+
+  private async callLLM(prompt: string): Promise<string> {
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate conversation');
+      }
+
+      const data = await response.json();
+      return data.conversation;
+    } catch (error) {
+      console.error('Error calling LLM:', error);
+      throw error;
+    }
+  }
+
+  private parseGeneratedMessages(rawConversation: string, participants: Participant[]): GeneratedMessage[] {
+    console.log('Parsing raw conversation:', rawConversation);
+    
+    const lines = rawConversation.split('\n').filter(line => line.trim());
+    const messages: GeneratedMessage[] = [];
+    
+    // Start from 120 minutes ago
+    const startTime = new Date(Date.now() - 120 * 60000);
+    let currentTime = startTime;
+
+    // Create a mapping of participant numbers to userIds
+    const participantMap = new Map<string, string>();
+    participants.forEach((p, index) => {
+      participantMap.set(`participant${index + 1}`, p.userId);
+    });
+
+    console.log('Participant mapping:', Object.fromEntries(participantMap));
+
+    for (const line of lines) {
+      const [participantKey, content] = line.split('|||').map(part => part.trim());
+      if (participantKey && content) {
+        // Get the actual userId from our mapping
+        const userId = participantMap.get(participantKey);
+        console.log('Processing line:', { participantKey, userId, content });
+        
+        if (userId) {
+          messages.push({
+            userId,
+            content,
+            timestamp: new Date(currentTime)
+          });
+          // Add between 1-3 minutes between messages
+          currentTime = new Date(currentTime.getTime() + 60000 + Math.random() * 120000);
+        }
+      }
+    }
+
+    console.log('Parsed messages:', messages);
+    return messages;
   }
 
   async generateMessages(request: MessageGeneratorRequest): Promise<GeneratedMessage[]> {
-    const { duration } = request.context;
-    const { min, max } = MESSAGES_PER_DURATION[duration];
-    const messageCount = Math.floor(Math.random() * (max - min + 1)) + min;
-    
-    // TODO: Integrate with actual AI service
-    // For now, return placeholder messages
-    const messages: GeneratedMessage[] = [];
-    const startTime = new Date(Date.now() - messageCount * 60000); // Messages spread over messageCount minutes
+    console.log('Generating messages with request:', request);
 
-    for (let i = 0; i < messageCount; i++) {
-      const participant = request.participants[i % request.participants.length];
-      messages.push({
-        content: `Test message ${i + 1} from participant with role: ${participant.role.description}`,
-        userId: participant.userId,
-        timestamp: new Date(startTime.getTime() + i * 60000)
-      });
-    }
+    // Generate the conversation prompt
+    const prompt = this.generatePrompt(request);
+    console.log('Generated prompt:', prompt);
+
+    // Call the LLM to generate the conversation
+    const rawConversation = await this.callLLM(prompt);
+    console.log('Raw conversation from LLM:', rawConversation);
+
+    // Parse and format the generated messages
+    const messages = this.parseGeneratedMessages(rawConversation, request.participants);
+    console.log('Final messages:', messages);
 
     return messages;
   }
