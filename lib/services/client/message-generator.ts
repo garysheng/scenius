@@ -1,5 +1,5 @@
 import { ConversationContext } from '@/types/conversations';
-import { MessageSeederUser } from '@/types/users';
+import { MessageSeederUser } from '@/types/message-seeder-users';
 
 interface Participant {
   id: string;

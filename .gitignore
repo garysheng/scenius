@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Firebase Admin
+scenius-e2adc-firebase-adminsdk-jvw4w-7572a77938.json
