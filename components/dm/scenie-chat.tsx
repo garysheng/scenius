@@ -71,38 +71,40 @@ export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
       <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
         <div className="flex flex-col gap-4">
           {messages.map((message) => (
-            <div
-              key={message.id}
-              className={cn(
-                'flex gap-3 max-w-[80%]',
-                message.sender === 'user' ? 'ml-auto' : 'mr-auto'
-              )}
-            >
-              {message.sender === 'scenie' && (
-                <Avatar className="h-8 w-8">
-                  <div className="flex h-full w-full items-center justify-center bg-primary text-primary-foreground text-sm">
-                    S
-                  </div>
-                </Avatar>
-              )}
+            message.content && (
               <div
+                key={message.id}
                 className={cn(
-                  'rounded-lg p-3',
-                  message.sender === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
+                  'flex gap-3 max-w-[80%]',
+                  message.sender === 'user' ? 'ml-auto' : 'mr-auto'
                 )}
               >
-                {message.content}
+                {message.sender === 'scenie' && (
+                  <Avatar className="h-8 w-8">
+                    <div className="flex h-full w-full items-center justify-center bg-primary text-primary-foreground text-sm">
+                      S
+                    </div>
+                  </Avatar>
+                )}
+                <div
+                  className={cn(
+                    'rounded-lg p-3',
+                    message.sender === 'user'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted'
+                  )}
+                >
+                  {message.content}
+                </div>
+                {message.sender === 'user' && (
+                  <Avatar className="h-8 w-8">
+                    <div className="flex h-full w-full items-center justify-center bg-secondary text-secondary-foreground text-sm">
+                      U
+                    </div>
+                  </Avatar>
+                )}
               </div>
-              {message.sender === 'user' && (
-                <Avatar className="h-8 w-8">
-                  <div className="flex h-full w-full items-center justify-center bg-secondary text-secondary-foreground text-sm">
-                    U
-                  </div>
-                </Avatar>
-              )}
-            </div>
+            )
           ))}
           {isLoading && (
             <div className="flex gap-3">

@@ -469,7 +469,7 @@ Remember: You MUST use tools to get context before responding to questions about
 
     console.log('Starting streamText with tools');
     const result = streamText({
-        model: openai('gpt-4'),
+        model: openai('gpt-4o'),
         messages: [systemMessage, ...messages],
         tools,
         maxSteps: 3, // Allow up to 3 steps for tool usage
