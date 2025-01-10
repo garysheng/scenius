@@ -43,10 +43,11 @@ export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
+    const trimmedInput = inputValue.trim();
+    if (!trimmedInput) return;
 
     try {
-      await sendMessage(inputValue);
+      await sendMessage(trimmedInput);
       setInputValue('');
     } catch (err) {
       console.error('Error sending message:', err);
