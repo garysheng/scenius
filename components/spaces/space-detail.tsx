@@ -38,6 +38,7 @@ import { LoadingStars } from '@/components/ui/loading-stars';
 import { URL_PARAMS } from '@/lib/constants/url-params';
 import { useChannel } from '@/lib/contexts/channel-context';
 import { GlobalPushToTalk } from '@/components/push-to-talk/global-push-to-talk';
+import { ScenieChat } from '@/components/dm/scenie-chat';
 
 interface SpaceDetailProps {
   id: string;
@@ -66,6 +67,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
   const { selectedChannel, setSelectedChannel } = useChannel();
+  const [isScenieChatActive, setIsScenieChatActive] = useState(false);
 
   const getChannelDisplayName = useCallback((channel: ChannelFrontend) => {
     if (channel.kind === 'DM' && user) {
@@ -263,6 +265,9 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
       setActiveThread(null);
     }
     setSelectedChannel(channel);
+    setIsScenieChatActive(false); // Reset Scenie state when selecting a channel
+    setIsChannelsSectionExpanded(true);
+    setIsDMSectionExpanded(true);
     // Update URL without triggering navigation
     const url = new URL(window.location.href);
     url.searchParams.delete(URL_PARAMS.SEARCH.CHANNEL);
@@ -540,6 +545,29 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
 
             {/* Navigation */}
             <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
+              {/* Scenie Button */}
+              <button
+                onClick={() => {
+                  setIsScenieChatActive(true);
+                  setSelectedChannel(null);
+                  setIsChannelsSectionExpanded(false);
+                  setIsDMSectionExpanded(false);
+                  // Close sidebar on mobile after selection
+                  if (window.innerWidth <= 768) {
+                    setIsSidebarOpen(false);
+                  }
+                }}
+                className={cn(
+                  "flex items-center gap-2 w-full px-2 py-1.5 rounded-md transition-colors",
+                  isScenieChatActive
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-primary/10 hover:text-foreground"
+                )}
+              >
+                <Bot className="w-4 h-4" />
+                <span className="text-sm font-medium">Scenie</span>
+              </button>
+
               {/* Channels Section */}
               <div>
                 <div
@@ -624,7 +652,15 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
           <div className="fixed inset-0 pointer-events-none">
             <StarfieldBackground />
           </div>
-          {selectedChannel ? (
+          {isScenieChatActive ? (
+            <div className="flex h-full overflow-hidden relative z-10">
+              <ScenieChat 
+                spaceId={id} 
+                userId={user?.id || ''} 
+                className="flex-1 border-none rounded-none"
+              />
+            </div>
+          ) : selectedChannel ? (
             <div className="flex h-full overflow-hidden relative z-10">
               {/* Main Channel Content */}
               <div className="flex-1 flex flex-col h-full overflow-hidden">

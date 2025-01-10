@@ -1,18 +1,40 @@
 'use client';
 
+import { useParams } from 'next/navigation';
+import { useCurrentSpace } from '@/lib/hooks/use-current-space';
+import { useAuth } from '@/lib/hooks/use-auth';
 import { ScenieChat } from '@/components/dm/scenie-chat';
+import { LoadingStars } from '@/components/ui/loading-stars';
 
 export default function ScenieDMPage() {
-  return (
-    <main className="flex min-h-screen bg-background/95">
-      <div className="flex-1 container max-w-4xl mx-auto h-[calc(100vh-4rem)] my-8">
-        <div className="h-full rounded-lg border shadow-sm bg-background">
-          <ScenieChat 
-            spaceId="CwmGtxMRlSmTk95T7Dec" // town square
-            userId="N1zZQAcjSVaFkJHQR080RzmmS562" // 
-          />
-        </div>
+  const params = useParams();
+  const spaceId = params?.spaceId as string;
+  const { user, isLoading: authLoading } = useAuth();
+  const { space, isLoading: spaceLoading } = useCurrentSpace(spaceId);
+
+  if (authLoading || spaceLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <LoadingStars />
       </div>
-    </main>
+    );
+  }
+
+  if (!user || !space) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-muted-foreground">Access denied</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen">
+      <ScenieChat 
+        spaceId={space.id} 
+        userId={user.id} 
+        className="flex-1"
+      />
+    </div>
   );
 } 

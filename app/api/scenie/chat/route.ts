@@ -7,6 +7,9 @@ import { Timestamp } from 'firebase-admin/firestore';
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
 
+// Set the maximum number of messages to retrieve
+const MAX_MESSAGES = 300;
+
 const db = adminDb;
 
 interface SpaceMessage {
@@ -53,7 +56,7 @@ const tools = {
       spaceId: z.string().describe('The space ID to get activity from'),
       limit: z.number().optional().describe('Number of messages to retrieve per channel'),
     }),
-    execute: async ({ spaceId, limit = 10 }) => {
+    execute: async ({ spaceId, limit = MAX_MESSAGES }) => {
       console.log('Executing getSpaceContext for space:', spaceId);
       try {
         // Get all channels in the space
