@@ -14,6 +14,38 @@ export interface ConversationPreset {
 }
 
 export const CONVERSATION_PRESETS: Record<string, ConversationPreset> = {
+  'scientific-breakthrough': {
+    name: 'Scientific Breakthrough',
+    description: 'A scientist having a breakthrough moment, talking through their derivation',
+    context: {
+      topic: 'Deriving a groundbreaking formula while talking through the process',
+      tone: 'technical',
+      duration: 'long',
+      scenario: 'A physicist is on the verge of a breakthrough, talking through their thought process as they derive a new formula that could change our understanding of the universe'
+    },
+    participants: [
+      {
+        role: "brilliant physicist working through a complex problem, getting increasingly excited as the pieces fall into place. Start uncertain, build confidence as the solution emerges, end in euphoria",
+        traits: 'brilliant, obsessive, methodical, increasingly excited'
+      }
+    ]
+  },
+  'paranoid-monologue': {
+    name: 'Paranoid Monologue',
+    description: 'A person descending into paranoid thoughts, talking to themselves',
+    context: {
+      topic: 'Crazy person ranting to himself',
+      tone: 'casual',
+      duration: 'long',
+      scenario: 'Gary is going insane talking to himself'
+    },
+    participants: [
+      {
+        role: "Gary is going insane talking to himself",
+        traits: 'paranoid, freaking out'
+      }
+    ]
+  },
   'historical-chat': {
     name: 'Historical Figures Chat',
     description: 'A casual chat between historical figures in the Scenius Town Square',

@@ -281,6 +281,28 @@ export function MessageItem({
     }
   };
 
+  const formatMessageTime = (date: Date) => {
+    const today = new Date();
+    const messageDate = new Date(date);
+    
+    // Check if the message is from today
+    if (messageDate.toDateString() === today.toDateString()) {
+      // If today, just show time
+      return messageDate.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } else {
+      // If not today, show date and time
+      return messageDate.toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+  };
+
   return (
     <ErrorBoundary>
       <div 
@@ -320,10 +342,7 @@ export function MessageItem({
               )}
             </span>
             <span className="text-xs text-muted-foreground">
-              {message.createdAt.toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
+              {formatMessageTime(message.createdAt)}
             </span>
             {message.metadata.edited && (
               <span className="text-xs text-muted-foreground">(edited)</span>

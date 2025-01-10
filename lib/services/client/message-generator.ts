@@ -33,7 +33,7 @@ The conversation should be ${context.tone} in tone and focus on the topic: "${co
 Scenario: ${context.scenario}
 
 Participants and their roles:
-${participants.map((p, i) => `Participant ${i + 1}: ${p.role.description}
+${participants.map((p, i) => `Participant ${i + 1} (MUST use exactly "participant${i + 1}" as the message prefix): ${p.role.description}
 Traits: ${p.role.traits}`).join('\n\n')}
 
 Important guidelines:
@@ -42,7 +42,13 @@ Important guidelines:
 3. Keep the conversation focused on the topic while allowing for natural tangents
 4. Maintain consistent personality and voice for each participant
 5. Include natural conversation elements like questions, reactions, and references to previous messages
-6. Format each message as: [participant1]|||[message content] for the first participant, [participant2]|||[message content] for the second, etc.
+6. IMPORTANT: Format each message EXACTLY as: participant1|||[message] for first participant, participant2|||[message] for second, etc.
+   DO NOT use names or other identifiers - ONLY use participant1, participant2, etc.
+
+Example format:
+participant1|||Hello everyone!
+participant2|||Hi there, great to be here.
+participant3|||Hello, excited to join this conversation.
 
 The conversation should have a clear beginning, middle, and end structure.`;
 
@@ -90,21 +96,29 @@ The conversation should have a clear beginning, middle, and end structure.`;
     console.log('Participant mapping:', Object.fromEntries(participantMap));
 
     for (const line of lines) {
+      // Skip empty lines
+      if (!line.trim()) continue;
+
       const [participantKey, content] = line.split('|||').map(part => part.trim());
-      if (participantKey && content) {
-        // Get the actual userId from our mapping
-        const userId = participantMap.get(participantKey);
-        console.log('Processing line:', { participantKey, userId, content });
+      if (!participantKey || !content) {
+        console.warn('Skipping malformed line:', line);
+        continue;
+      }
+
+      // Get the actual userId from our mapping
+      const userId = participantMap.get(participantKey);
+      console.log('Processing line:', { participantKey, userId, content });
         
-        if (userId) {
-          messages.push({
-            userId,
-            content,
-            timestamp: new Date(currentTime)
-          });
-          // Add between 1-3 minutes between messages
-          currentTime = new Date(currentTime.getTime() + 60000 + Math.random() * 120000);
-        }
+      if (userId) {
+        messages.push({
+          userId,
+          content,
+          timestamp: new Date(currentTime)
+        });
+        // Add between 1-3 minutes between messages
+        currentTime = new Date(currentTime.getTime() + 60000 + Math.random() * 120000);
+      } else {
+        console.warn('Unknown participant key:', participantKey);
       }
     }
 
