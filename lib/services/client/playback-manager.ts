@@ -2,7 +2,12 @@ import { deepgramService } from './deepgram';
 import { voiceAssignmentService } from './voice-assignment';
 import { VoicePlaybackState, VoicePlaybackMessage } from '@/lib/types/voice-playback';
 
+/**
+ * Manages text-to-speech playback of messages using Deepgram's TTS service
+ * Handles voice assignments, audio caching, and sequential message playback
+ */
 class PlaybackManager {
+  // Current state of the playback system
   private state: VoicePlaybackState = {
     isPlaying: false,
     currentMessageId: null,
@@ -10,16 +15,23 @@ class PlaybackManager {
     voiceAssignments: new Map()
   };
 
+  // Queue of messages waiting to be played
   private messageQueue: VoicePlaybackMessage[] = [];
+  // Currently playing audio element
   private currentAudio: HTMLAudioElement | null = null;
+  // Cache of generated audio to avoid re-fetching
   private audioCache = new Map<string, ArrayBuffer>();
+  // Listeners for message status updates
   private messageStatusListeners = new Set<(message: VoicePlaybackMessage) => void>();
+  // Current space context
   private currentSpaceId: string | null = null;
+  // Complete list of messages for context
   private allMessages: VoicePlaybackMessage[] = [];
+  // Index of current message in the list
   private currentMessageIndex: number = -1;
 
   constructor() {
-    // Clear cache when tab becomes inactive
+    // Clear audio cache when tab becomes inactive to free memory
     if (typeof window !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
@@ -29,6 +41,12 @@ class PlaybackManager {
     }
   }
 
+  /**
+   * Start playing a sequence of messages
+   * @param messages - Array of messages to play
+   * @param spaceId - ID of the current space
+   * @param startFromMessageId - Optional ID of message to start from
+   */
   async startPlayback(messages: VoicePlaybackMessage[], spaceId: string, startFromMessageId?: string): Promise<void> {
     if (this.state.isPlaying) {
       await this.stopPlayback();
@@ -56,20 +74,23 @@ class PlaybackManager {
     this.state.isPlaying = true;
     this.state.startTime = new Date();
 
-    // Load voice assignments
+    // Load voice assignments for all users in the space
     this.state.voiceAssignments = await voiceAssignmentService.getSpaceAssignments(spaceId);
 
     // Start playing
     await this.playNextMessage();
   }
 
+  /**
+   * Stop all playback and reset state
+   */
   async stopPlayback(): Promise<void> {
     if (this.currentAudio) {
       this.currentAudio.pause();
       this.currentAudio = null;
     }
 
-    // Update status of remaining messages to 'queued'
+    // Reset all message statuses
     this.messageQueue.forEach(msg => {
       this.updateMessageStatus(msg.id, 'queued');
     });
@@ -82,6 +103,9 @@ class PlaybackManager {
     this.currentMessageIndex = -1;
   }
 
+  /**
+   * Pause the current message playback
+   */
   async pausePlayback(): Promise<void> {
     if (this.currentAudio) {
       this.currentAudio.pause();
@@ -89,6 +113,9 @@ class PlaybackManager {
     this.state.isPlaying = false;
   }
 
+  /**
+   * Resume playing the current message
+   */
   async resumePlayback(): Promise<void> {
     if (this.currentAudio) {
       await this.currentAudio.play();
@@ -96,13 +123,17 @@ class PlaybackManager {
     }
   }
 
+  /**
+   * Skip to a specific message in the queue
+   * @param messageId - ID of message to skip to
+   */
   async skipToMessage(messageId: string): Promise<void> {
     const messageIndex = this.allMessages.findIndex(m => m.id === messageId);
     if (messageIndex === -1) return;
 
     this.currentMessageIndex = messageIndex;
     
-    // Update status of skipped messages to 'queued'
+    // Reset status of all messages
     this.messageQueue.forEach(msg => {
       this.updateMessageStatus(msg.id, 'queued');
     });
@@ -121,15 +152,26 @@ class PlaybackManager {
     await this.playNextMessage();
   }
 
+  /**
+   * Get the current state of the playback system
+   */
   getPlaybackState(): VoicePlaybackState {
     return { ...this.state };
   }
 
+  /**
+   * Add a listener for message status updates
+   * @param listener - Function to call when a message status changes
+   * @returns Function to remove the listener
+   */
   addMessageStatusListener(listener: (message: VoicePlaybackMessage) => void): () => void {
     this.messageStatusListeners.add(listener);
     return () => this.messageStatusListeners.delete(listener);
   }
 
+  /**
+   * Update the status of a message and notify listeners
+   */
   private updateMessageStatus(messageId: string, status: VoicePlaybackMessage['status']) {
     const message = this.messageQueue.find(m => m.id === messageId);
     if (message) {
@@ -138,6 +180,10 @@ class PlaybackManager {
     }
   }
 
+  /**
+   * Play the next message in the queue
+   * Handles voice assignment, audio generation/caching, and playback
+   */
   private async playNextMessage(): Promise<void> {
     if (!this.state.isPlaying || this.messageQueue.length === 0 || !this.currentSpaceId) {
       await this.stopPlayback();
@@ -152,14 +198,14 @@ class PlaybackManager {
     this.updateMessageStatus(message.id, 'playing');
 
     try {
-      // Get or assign voice
+      // Get or assign voice for the message author
       let voiceId = this.state.voiceAssignments.get(message.userId);
       if (!voiceId) {
         voiceId = await voiceAssignmentService.getVoiceAssignment(message.userId, this.currentSpaceId);
         this.state.voiceAssignments.set(message.userId, voiceId);
       }
 
-      // Get or generate audio
+      // Get or generate audio for the message
       let audioBuffer = this.audioCache.get(message.id);
       if (!audioBuffer) {
         audioBuffer = await deepgramService.generateSpeech(
@@ -173,7 +219,7 @@ class PlaybackManager {
         this.audioCache.set(message.id, audioBuffer);
       }
 
-      // Play audio
+      // Play the audio
       const blob = new Blob([audioBuffer], { type: 'audio/mp3' });
       const url = URL.createObjectURL(blob);
       

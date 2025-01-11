@@ -30,6 +30,10 @@ interface MessageActionsProps {
   allMessages: VoicePlaybackMessage[];
 }
 
+/**
+ * Message action buttons component
+ * Provides controls for reactions, replies, sharing, playback, and message management
+ */
 export function MessageActions({ 
   onReaction, 
   onReply, 
@@ -43,15 +47,18 @@ export function MessageActions({
   message,
   allMessages
 }: MessageActionsProps) {
+  // State for emoji picker visibility and positioning
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showAbove, setShowAbove] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const { startPlayback, stopPlayback, isPlaying, currentMessageId } = useMessagePlayback(spaceId);
 
+  // Get playback controls and state
+  const { startPlayback, stopPlayback, isPlaying, currentMessageId } = useMessagePlayback(spaceId);
   const isCurrentlyPlaying = isPlaying && currentMessageId === messageId;
 
+  // Handle clicks outside emoji picker to close it
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -68,28 +75,37 @@ export function MessageActions({
     };
   }, [showEmojiPicker]);
 
+  // Position emoji picker above or below based on available space
   useEffect(() => {
     if (showEmojiPicker && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const viewportHeight = window.innerHeight;
       const pickerHeight = 400; // Approximate height of emoji picker
       
-      // If there's not enough space below, show above
       setShowAbove(rect.bottom + pickerHeight > viewportHeight);
     }
   }, [showEmojiPicker]);
 
+  /**
+   * Toggle emoji picker visibility
+   */
   const handleSmileClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setShowEmojiPicker(prev => !prev);
   };
 
+  /**
+   * Handle emoji selection and close picker
+   */
   const handleEmojiSelect = (emoji: string) => {
     onReaction(emoji);
     setShowEmojiPicker(false);
   };
 
+  /**
+   * Handle message edit with loading state
+   */
   const handleEditClick = useCallback(async () => {
     try {
       setIsProcessing(true);
@@ -99,6 +115,9 @@ export function MessageActions({
     }
   }, [onEdit]);
 
+  /**
+   * Handle message deletion with loading state
+   */
   const handleDeleteClick = useCallback(async () => {
     if (!onDelete) return;
     try {
@@ -109,6 +128,9 @@ export function MessageActions({
     }
   }, [onDelete]);
 
+  /**
+   * Copy message link to clipboard
+   */
   const handleCopyLink = useCallback(async () => {
     const url = urlService.spaces.message(spaceId, channelId, messageId);
     const absoluteUrl = window.location.origin + url;
@@ -119,6 +141,10 @@ export function MessageActions({
     });
   }, [spaceId, channelId, messageId, toast]);
 
+  /**
+   * Handle text-to-speech playback
+   * Starts playback from current message or stops if already playing
+   */
   const handlePlaybackClick = useCallback(async (e: React.MouseEvent) => {
     try {
       e.stopPropagation();
