@@ -2,11 +2,9 @@
 
 import {
   Bot,
-  Trophy,
   Shield,
   Mic,
-  Brain,
-  Users
+  Brain
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
@@ -82,7 +80,7 @@ export default function Home() {
             </span>
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-            Scenius is an AI & crypto-first community platform where members earn points and tokens for valuable contributions, deploy blockchain-integrated AI agents, and communicate securely with voice anonymization - perfect for anon communities and DAOs.
+            Scenius is an AI-powered community platform where members can communicate securely with voice anonymization, deploy AI agents, and collaborate effectively using advanced tools for knowledge sharing and decision making.
           </p>
           <div className="flex items-center justify-center gap-4 pt-4">
             <Button
@@ -104,28 +102,22 @@ export default function Home() {
         </div>
 
         {/* Feature Cards Grid */}
-        <div id="features" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-7xl">
+        <div id="features" className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-5xl">
           <FeatureCard
-            title="Public Facing Community Agents"
-            description="Deploy tokenized AI agents—powered by Virtuals Protocol and elizaOS—that represent your community across social platforms."
+            title="Community AI Assistants"
+            description="Deploy AI assistants that help manage your community, provide support, and enhance collaboration between members."
             icon={Bot}
             glowColor="bg-gradient-to-r from-primary/50 to-accent/50"
           />
           <FeatureCard
-            title="Points & Streaming Rewards"
-            description="Recognize contributions with points and automatically stream tokens to contributors. Members can propose point awards for aligned actions."
-            icon={Trophy}
-            glowColor="bg-gradient-to-r from-accent/80 via-purple-500/80 to-secondary/80"
-          />
-          <FeatureCard
             title="Flexible Access Control"
-            description="Gate your community your way. Combine token requirements, email domains, whitelists, and Guild.xyz integration to create the perfect entry criteria."
+            description="Gate your community your way. Combine email domains, whitelists, and role-based permissions to create the perfect entry criteria."
             icon={Shield}
             glowColor="bg-gradient-to-r from-secondary/80 via-blue-500/80 to-primary/80"
           />
           <FeatureCard
             title="Voice-First Experience"
-            description="Natural voice conversations with privacy-first features. Keep your identity private with voice anonymization, custom voice filters, and secure audio processing - perfect for anon contributors."
+            description="Natural voice conversations with privacy-first features. Keep your identity private with voice anonymization, custom voice filters, and secure audio processing."
             icon={Mic}
             glowColor="bg-gradient-to-r from-primary/80 via-indigo-500/80 to-accent/80"
           />
@@ -134,12 +126,6 @@ export default function Home() {
             description="Harness your community's knowledge with AI-powered tools. Automatically organize discussions, surface insights, and make better decisions together."
             icon={Brain}
             glowColor="bg-gradient-to-r from-accent/80 via-fuchsia-500/80 to-secondary/80"
-          />
-          <FeatureCard
-            title="Expanding Integrations"
-            description="Connect with a growing ecosystem of AI and Web3 tools. From LLMs to token streaming protocols, we're building the infrastructure for communities to create and earn together."
-            icon={Users}
-            glowColor="bg-gradient-to-r from-secondary/50 to-primary/50"
           />
         </div>
       </div>
