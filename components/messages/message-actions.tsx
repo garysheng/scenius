@@ -119,10 +119,15 @@ export function MessageActions({
     });
   }, [spaceId, channelId, messageId, toast]);
 
-  const handlePlaybackClick = useCallback(async () => {
-    if (isCurrentlyPlaying) {
-      await stopPlayback();
-    } else {
+  const handlePlaybackClick = useCallback(async (e: React.MouseEvent) => {
+    try {
+      e.stopPropagation();
+      
+      if (isCurrentlyPlaying) {
+        await stopPlayback();
+        return;
+      }
+
       // Find the index of the current message
       const currentIndex = allMessages.findIndex(msg => msg.id === message.id);
       if (currentIndex === -1) return;
@@ -130,13 +135,34 @@ export function MessageActions({
       // Get all messages from current message onwards and filter out empty messages
       const messagesToPlay = allMessages
         .slice(currentIndex)
-        .filter(msg => msg.content && msg.content.trim().length > 0);
+        .filter(msg => msg.content?.trim().length > 0);
 
-      if (messagesToPlay.length === 0) return;
+      if (messagesToPlay.length === 0) {
+        toast({
+          description: "No text content to play",
+          variant: "destructive"
+        });
+        return;
+      }
       
       await startPlayback(messagesToPlay, spaceId);
+    } catch (error) {
+      console.error('Playback error:', error);
+      toast({
+        title: "Playback Error",
+        description: "Failed to start playback",
+        variant: "destructive"
+      });
     }
-  }, [isCurrentlyPlaying, stopPlayback, startPlayback, allMessages, spaceId, message.id]);
+  }, [
+    isCurrentlyPlaying, 
+    stopPlayback, 
+    startPlayback, 
+    allMessages, 
+    spaceId, 
+    message.id,
+    toast
+  ]);
 
   return (
     <div 
@@ -188,7 +214,7 @@ export function MessageActions({
         )}
         onClick={(e) => {
           e.stopPropagation();
-          handlePlaybackClick();
+          handlePlaybackClick(e);
         }}
       >
         {isCurrentlyPlaying ? (
