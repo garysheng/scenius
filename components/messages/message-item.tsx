@@ -302,6 +302,14 @@ export function MessageItem({
     }
   };
 
+  const voicePlaybackMessage = {
+    id: message.id,
+    content: message.content,
+    timestamp: message.createdAt,
+    userId: message.userId,
+    status: 'queued' as const
+  };
+
   return (
     <ErrorBoundary>
       <div 
@@ -507,6 +515,7 @@ export function MessageItem({
             messageId={message.id}
             spaceId={spaceId}
             channelId={message.channelId}
+            message={voicePlaybackMessage}
           />
         </div>
       </div>

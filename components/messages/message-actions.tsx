@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Smile, MessageSquare, MoreVertical, Link2 } from 'lucide-react';
+import { Smile, MessageSquare, MoreVertical, Link2, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmojiPicker } from './emoji-picker';
 import {
@@ -13,6 +13,8 @@ import {
 import { cn } from '@/lib/utils';
 import { urlService } from '@/lib/services/client/url';
 import { useToast } from '@/hooks/use-toast';
+import { useMessagePlayback } from '@/lib/hooks/use-message-playback';
+import { VoicePlaybackMessage } from '@/lib/types/voice-playback';
 
 interface MessageActionsProps {
   onReaction: (emoji: string) => void;
@@ -24,6 +26,7 @@ interface MessageActionsProps {
   onEdit: () => void;
   spaceId: string;
   channelId: string;
+  message: VoicePlaybackMessage;
 }
 
 export function MessageActions({ 
@@ -35,13 +38,17 @@ export function MessageActions({
   onEdit,
   messageId,
   spaceId,
-  channelId 
+  channelId,
+  message
 }: MessageActionsProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showAbove, setShowAbove] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+  const { startPlayback, stopPlayback, isPlaying, currentMessageId } = useMessagePlayback(spaceId);
+
+  const isCurrentlyPlaying = isPlaying && currentMessageId === messageId;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -73,12 +80,10 @@ export function MessageActions({
   const handleSmileClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Smile button clicked');
     setShowEmojiPicker(prev => !prev);
   };
 
   const handleEmojiSelect = (emoji: string) => {
-    console.log('MessageActions - handleEmojiSelect called with:', emoji);
     onReaction(emoji);
     setShowEmojiPicker(false);
   };
@@ -112,6 +117,14 @@ export function MessageActions({
     });
   }, [spaceId, channelId, messageId, toast]);
 
+  const handlePlaybackClick = useCallback(async () => {
+    if (isCurrentlyPlaying) {
+      await stopPlayback();
+    } else {
+      await startPlayback([message]);
+    }
+  }, [isCurrentlyPlaying, stopPlayback, startPlayback, message]);
+
   return (
     <div 
       ref={containerRef} 
@@ -124,7 +137,10 @@ export function MessageActions({
         variant="ghost"
         size="icon"
         className="h-8 w-8 text-muted-foreground hover:text-foreground"
-        onClick={handleSmileClick}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleSmileClick(e);
+        }}
       >
         <Smile className="h-4 w-4" />
       </Button>
@@ -132,7 +148,10 @@ export function MessageActions({
         variant="ghost"
         size="icon"
         className="h-8 w-8 text-muted-foreground hover:text-foreground"
-        onClick={onReply}
+        onClick={(e) => {
+          e.stopPropagation();
+          onReply();
+        }}
       >
         <MessageSquare className="h-4 w-4" />
       </Button>
@@ -140,9 +159,30 @@ export function MessageActions({
         variant="ghost"
         size="icon"
         className="h-8 w-8 text-muted-foreground hover:text-foreground"
-        onClick={handleCopyLink}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleCopyLink();
+        }}
       >
         <Link2 className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className={cn(
+          "h-8 w-8 text-muted-foreground hover:text-foreground",
+          isCurrentlyPlaying && "text-primary hover:text-primary"
+        )}
+        onClick={(e) => {
+          e.stopPropagation();
+          handlePlaybackClick();
+        }}
+      >
+        {isCurrentlyPlaying ? (
+          <VolumeX className="h-4 w-4" />
+        ) : (
+          <Volume2 className="h-4 w-4" />
+        )}
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
