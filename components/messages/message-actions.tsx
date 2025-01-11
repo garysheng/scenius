@@ -27,6 +27,7 @@ interface MessageActionsProps {
   spaceId: string;
   channelId: string;
   message: VoicePlaybackMessage;
+  allMessages: VoicePlaybackMessage[];
 }
 
 export function MessageActions({ 
@@ -39,7 +40,8 @@ export function MessageActions({
   messageId,
   spaceId,
   channelId,
-  message
+  message,
+  allMessages
 }: MessageActionsProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -121,9 +123,20 @@ export function MessageActions({
     if (isCurrentlyPlaying) {
       await stopPlayback();
     } else {
-      await startPlayback([message]);
+      // Find the index of the current message
+      const currentIndex = allMessages.findIndex(msg => msg.id === message.id);
+      if (currentIndex === -1) return;
+
+      // Get all messages from current message onwards and filter out empty messages
+      const messagesToPlay = allMessages
+        .slice(currentIndex)
+        .filter(msg => msg.content && msg.content.trim().length > 0);
+
+      if (messagesToPlay.length === 0) return;
+      
+      await startPlayback(messagesToPlay, spaceId);
     }
-  }, [isCurrentlyPlaying, stopPlayback, startPlayback, message]);
+  }, [isCurrentlyPlaying, stopPlayback, startPlayback, allMessages, spaceId, message.id]);
 
   return (
     <div 

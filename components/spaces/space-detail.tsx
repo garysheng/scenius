@@ -701,6 +701,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                           messages={messages}
                           users={users}
                           spaceId={id}
+                          channelId={selectedChannel.id}
                           onChannelSelect={handleChannelSelect}
                           onThreadOpen={handleThreadOpen}
                           isThread={false}

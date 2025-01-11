@@ -18,6 +18,7 @@ interface MessageListProps {
   onThreadOpen?: (message: MessageFrontend) => void;
   isThread?: boolean;
   spaceRole?: 'owner' | 'admin' | 'member';
+  channelId: string;
 }
 
 export function MessageList({ 
@@ -27,7 +28,8 @@ export function MessageList({
   onChannelSelect,
   onThreadOpen,
   isThread = false,
-  spaceRole 
+  spaceRole,
+  channelId
 }: MessageListProps) {
   const searchParams = useSearchParams();
   const messageId = searchParams.get(URL_PARAMS.SEARCH.MESSAGE);
@@ -83,6 +85,8 @@ export function MessageList({
               onThreadOpen={onThreadOpen}
               isThread={isThread}
               spaceRole={spaceRole}
+              allMessages={messages}
+              channelId={channelId}
             />
           </div>
         ))}

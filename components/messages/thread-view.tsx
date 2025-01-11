@@ -211,6 +211,7 @@ export function ThreadView({
             messages={[parentMessage]}
             users={users}
             spaceId={spaceId}
+            channelId={channelId}
             onChannelSelect={() => {}}
             isThread={true}
             spaceRole={spaceRole}
@@ -222,6 +223,7 @@ export function ThreadView({
           messages={replies}
           users={users}
           spaceId={spaceId}
+          channelId={channelId}
           onChannelSelect={() => {}}
           isThread={true}
           spaceRole={spaceRole}

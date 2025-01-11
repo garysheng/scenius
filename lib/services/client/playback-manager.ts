@@ -15,6 +15,8 @@ class PlaybackManager {
   private audioCache = new Map<string, ArrayBuffer>();
   private messageStatusListeners = new Set<(message: VoicePlaybackMessage) => void>();
   private currentSpaceId: string | null = null;
+  private allMessages: VoicePlaybackMessage[] = [];
+  private currentMessageIndex: number = -1;
 
   constructor() {
     // Clear cache when tab becomes inactive
@@ -27,15 +29,32 @@ class PlaybackManager {
     }
   }
 
-  async startPlayback(messages: VoicePlaybackMessage[], spaceId: string): Promise<void> {
+  async startPlayback(messages: VoicePlaybackMessage[], spaceId: string, startFromMessageId?: string): Promise<void> {
     if (this.state.isPlaying) {
       await this.stopPlayback();
     }
 
-    this.messageQueue = messages.map(msg => ({ ...msg, status: 'queued' as const }));
+    this.allMessages = messages;
+    this.currentSpaceId = spaceId;
+    
+    // Find the starting index
+    if (startFromMessageId) {
+      this.currentMessageIndex = this.allMessages.findIndex(m => m.id === startFromMessageId);
+      if (this.currentMessageIndex === -1) {
+        this.currentMessageIndex = 0;
+      }
+    } else {
+      this.currentMessageIndex = 0;
+    }
+
+    // Queue up messages from the current index
+    this.messageQueue = this.allMessages.slice(this.currentMessageIndex).map(msg => ({ 
+      ...msg, 
+      status: 'queued' as const 
+    }));
+
     this.state.isPlaying = true;
     this.state.startTime = new Date();
-    this.currentSpaceId = spaceId;
 
     // Load voice assignments
     this.state.voiceAssignments = await voiceAssignmentService.getSpaceAssignments(spaceId);
@@ -59,6 +78,8 @@ class PlaybackManager {
     this.state.currentMessageId = null;
     this.messageQueue = [];
     this.currentSpaceId = null;
+    this.allMessages = [];
+    this.currentMessageIndex = -1;
   }
 
   async pausePlayback(): Promise<void> {
@@ -76,16 +97,21 @@ class PlaybackManager {
   }
 
   async skipToMessage(messageId: string): Promise<void> {
-    const messageIndex = this.messageQueue.findIndex(m => m.id === messageId);
+    const messageIndex = this.allMessages.findIndex(m => m.id === messageId);
     if (messageIndex === -1) return;
 
+    this.currentMessageIndex = messageIndex;
+    
     // Update status of skipped messages to 'queued'
-    this.messageQueue.slice(0, messageIndex).forEach(msg => {
+    this.messageQueue.forEach(msg => {
       this.updateMessageStatus(msg.id, 'queued');
     });
 
-    // Remove messages before the target
-    this.messageQueue = this.messageQueue.slice(messageIndex);
+    // Queue up messages from the new index
+    this.messageQueue = this.allMessages.slice(this.currentMessageIndex).map(msg => ({
+      ...msg,
+      status: 'queued' as const
+    }));
     
     if (this.currentAudio) {
       this.currentAudio.pause();
@@ -122,6 +148,7 @@ class PlaybackManager {
     if (!message) return;
 
     this.state.currentMessageId = message.id;
+    this.currentMessageIndex = this.allMessages.findIndex(m => m.id === message.id);
     this.updateMessageStatus(message.id, 'playing');
 
     try {
@@ -155,6 +182,7 @@ class PlaybackManager {
         URL.revokeObjectURL(url);
         this.updateMessageStatus(message.id, 'completed');
         this.messageQueue.shift(); // Remove the played message
+        this.currentMessageIndex++; // Move to next message
         this.playNextMessage();
       });
 
@@ -163,6 +191,7 @@ class PlaybackManager {
       console.error('Error playing message:', error);
       this.updateMessageStatus(message.id, 'failed');
       this.messageQueue.shift(); // Remove the failed message
+      this.currentMessageIndex++; // Move to next message even if failed
       this.playNextMessage();
     }
   }

@@ -1,59 +1,63 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { playbackManager } from '@/lib/services/client/playback-manager';
-import { VoicePlaybackState, VoicePlaybackMessage } from '@/lib/types/voice-playback';
+import { VoicePlaybackMessage } from '@/lib/types/voice-playback';
 
 export function useMessagePlayback(spaceId: string) {
-  const [playbackState, setPlaybackState] = useState<VoicePlaybackState>(
-    playbackManager.getPlaybackState()
-  );
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
 
-  // Update state when playback changes
   useEffect(() => {
-    const interval = setInterval(() => {
-      setPlaybackState(playbackManager.getPlaybackState());
-    }, 100);
+    const state = playbackManager.getPlaybackState();
+    setIsPlaying(state.isPlaying);
+    setCurrentMessageId(state.currentMessageId);
 
-    return () => clearInterval(interval);
+    const listener = (message: VoicePlaybackMessage) => {
+      if (message.status === 'playing') {
+        setCurrentMessageId(message.id);
+        setIsPlaying(true);
+      } else if (message.status === 'completed' || message.status === 'failed') {
+        setCurrentMessageId(null);
+      }
+    };
+
+    const unsubscribe = playbackManager.addMessageStatusListener(listener);
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
-  // Start playback of messages
-  const startPlayback = useCallback(async (messages: VoicePlaybackMessage[]) => {
-    await playbackManager.startPlayback(messages, spaceId);
-    setPlaybackState(playbackManager.getPlaybackState());
+  const startPlayback = useCallback(async (messages: VoicePlaybackMessage[], startFromMessageId?: string) => {
+    await playbackManager.startPlayback(messages, spaceId, startFromMessageId);
+    setIsPlaying(true);
   }, [spaceId]);
 
-  // Stop playback
   const stopPlayback = useCallback(async () => {
     await playbackManager.stopPlayback();
-    setPlaybackState(playbackManager.getPlaybackState());
+    setIsPlaying(false);
+    setCurrentMessageId(null);
   }, []);
 
-  // Pause playback
   const pausePlayback = useCallback(async () => {
     await playbackManager.pausePlayback();
-    setPlaybackState(playbackManager.getPlaybackState());
+    setIsPlaying(false);
   }, []);
 
-  // Resume playback
   const resumePlayback = useCallback(async () => {
     await playbackManager.resumePlayback();
-    setPlaybackState(playbackManager.getPlaybackState());
+    setIsPlaying(true);
   }, []);
 
-  // Skip to specific message
   const skipToMessage = useCallback(async (messageId: string) => {
     await playbackManager.skipToMessage(messageId);
-    setPlaybackState(playbackManager.getPlaybackState());
   }, []);
 
   return {
-    playbackState,
+    isPlaying,
+    currentMessageId,
     startPlayback,
     stopPlayback,
     pausePlayback,
     resumePlayback,
-    skipToMessage,
-    isPlaying: playbackState.isPlaying,
-    currentMessageId: playbackState.currentMessageId
+    skipToMessage
   };
 } 

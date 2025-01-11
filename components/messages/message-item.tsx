@@ -12,15 +12,18 @@ import { messagesService } from '@/lib/services/client/messages';
 import { MessageActions } from './message-actions';
 import { Textarea } from '@/components/ui/textarea';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { VoicePlaybackMessage } from '@/lib/types/voice-playback';
 
 interface MessageItemProps {
   message: MessageFrontend;
-  user?: UserFrontend | null;
+  user: UserFrontend;
   spaceId: string;
   onChannelSelect: (channelId: string) => void;
-  isThread?: boolean;
   onThreadOpen?: (message: MessageFrontend) => void;
+  isThread?: boolean;
   spaceRole?: 'owner' | 'admin' | 'member';
+  allMessages: MessageFrontend[];
+  channelId: string;
 }
 
 function formatFileSize(bytes: number): string {
@@ -31,14 +34,16 @@ function formatFileSize(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
-export function MessageItem({ 
-  message, 
-  user, 
-  spaceId, 
+export function MessageItem({
+  message,
+  user,
+  spaceId,
   onChannelSelect,
-  isThread = false,
   onThreadOpen,
-  spaceRole
+  isThread = false,
+  spaceRole,
+  allMessages,
+  channelId
 }: MessageItemProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -302,13 +307,24 @@ export function MessageItem({
     }
   };
 
-  const voicePlaybackMessage = {
+  const voicePlaybackMessage: VoicePlaybackMessage = {
     id: message.id,
     content: message.content,
-    timestamp: message.createdAt,
     userId: message.userId,
-    status: 'queued' as const
+    status: 'queued',
+    timestamp: message.createdAt
   };
+
+  const allVoicePlaybackMessages = allMessages.map(msg => ({
+    id: msg.id,
+    content: msg.content,
+    userId: msg.userId,
+    status: 'queued' as const,
+    timestamp: msg.createdAt
+  }));
+
+  const canDeleteValue = canDelete();
+  const canEditValue = canEdit();
 
   return (
     <ErrorBoundary>
@@ -506,16 +522,17 @@ export function MessageItem({
 
         <div className="opacity-0 message-group-hover:opacity-100 transition-opacity absolute right-2 top-2">
           <MessageActions
+            messageId={message.id}
             onReaction={handleReaction}
             onReply={handleReply}
-            canDelete={canDelete()}
-            canEdit={canEdit()}
+            canDelete={canDeleteValue}
+            canEdit={canEditValue}
             onDelete={handleDelete}
             onEdit={handleEdit}
-            messageId={message.id}
             spaceId={spaceId}
-            channelId={message.channelId}
+            channelId={channelId}
             message={voicePlaybackMessage}
+            allMessages={allVoicePlaybackMessages}
           />
         </div>
       </div>
