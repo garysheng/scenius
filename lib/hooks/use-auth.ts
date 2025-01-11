@@ -70,6 +70,11 @@ export function useAuth() {
             setUser(null);
           } else {
             const userData = userDoc.data() as User;
+            console.log('Loaded user data:', {
+              id: userData.id,
+              avatarUrl: userData.avatarUrl,
+              hasAvatar: !!userData.avatarUrl
+            });
             setUser(userData);
           }
         } catch (error) {

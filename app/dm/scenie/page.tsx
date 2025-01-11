@@ -28,6 +28,12 @@ export default function ScenieDMPage() {
     );
   }
 
+  console.log('User data:', {
+    id: user.id,
+    avatarUrl: user.avatarUrl,
+    hasAvatar: !!user.avatarUrl
+  });
+
   return (
     <div className="flex h-screen">
       <ScenieChat 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useScenieChatHook } from '@/lib/hooks/use-scenie-chat';
-import { Avatar } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
@@ -9,18 +9,25 @@ import { Mic, MicOff, Send } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { GradientBackground } from '@/components/ui/gradient-background';
+import Image from 'next/image';
+import { useAuth } from '@/lib/hooks/use-auth';
 
 interface ScenieChatProps {
   spaceId: string;
   userId: string;
   className?: string;
-  userProfileUrl?: string;
 }
 
-export function ScenieChat({ spaceId, userId, className, userProfileUrl }: ScenieChatProps) {
+export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
   const [inputValue, setInputValue] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
   
+  console.log('User data in ScenieChat:', {
+    avatarUrl: user?.avatarUrl,
+    hasAvatar: !!user?.avatarUrl
+  });
+
   const {
     messages,
     isLoading,
@@ -86,9 +93,8 @@ export function ScenieChat({ spaceId, userId, className, userProfileUrl }: Sceni
               >
                 {message.sender === 'scenie' && (
                   <Avatar className="h-8 w-8">
-                    <div className="flex h-full w-full items-center justify-center">
-                      <img src="/logo.png" alt="Scenie" className="object-cover" />
-                    </div>
+                    <AvatarImage src="/logo.png" alt="Scenie" className="object-cover" />
+                    <AvatarFallback>S</AvatarFallback>
                   </Avatar>
                 )}
                 <div
@@ -103,14 +109,20 @@ export function ScenieChat({ spaceId, userId, className, userProfileUrl }: Sceni
                 </div>
                 {message.sender === 'user' && (
                   <Avatar className="h-8 w-8">
-                    {userProfileUrl ? (
-                      <div className="flex h-full w-full items-center justify-center">
-                        <img src={userProfileUrl} alt="User" className="h-full w-full object-cover rounded-full" />
+                    {user?.avatarUrl ? (
+                      <div className="relative w-full h-full">
+                        <Image 
+                          src={user.avatarUrl} 
+                          alt="User"
+                          fill
+                          sizes="32px"
+                          className="rounded-full object-cover"
+                        />
                       </div>
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-secondary text-secondary-foreground text-sm">
+                      <AvatarFallback className="bg-secondary text-secondary-foreground">
                         U
-                      </div>
+                      </AvatarFallback>
                     )}
                   </Avatar>
                 )}
@@ -120,9 +132,8 @@ export function ScenieChat({ spaceId, userId, className, userProfileUrl }: Sceni
           {isLoading && (
             <div className="flex gap-3">
               <Avatar className="h-8 w-8">
-                <div className="flex h-full w-full items-center justify-center">
-                  <img src="/logo.png" alt="Scenie" className="object-cover" />
-                </div>
+                <AvatarImage src="/logo.png" alt="Scenie" className="object-cover" />
+                <AvatarFallback>S</AvatarFallback>
               </Avatar>
               <div className="bg-muted rounded-lg p-3">
                 <div className="flex gap-1">

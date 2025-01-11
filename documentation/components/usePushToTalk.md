@@ -1,6 +1,6 @@
 # Push-to-Talk Component
 
-A reusable push-to-talk component that provides a floating microphone button and handles audio recording. The component is agnostic of what happens with the recorded audio, exposing callbacks for recording start and stop events.
+A reusable push-to-talk component that provides a floating microphone button and handles audio recording and transcription. The component is agnostic of what happens with the recorded audio, exposing callbacks for recording start and stop events.
 
 ## Features
 
@@ -11,6 +11,7 @@ A reusable push-to-talk component that provides a floating microphone button and
 - Haptic feedback on mobile devices
 - Accessibility support
 - Permission handling for microphone access
+- Automatic transcription of voice messages
 
 ## Usage
 
@@ -24,7 +25,8 @@ function YourComponent() {
 
   const handleRecordingStop = async (audioBlob: Blob) => {
     console.log('Recording stopped, audio blob:', audioBlob);
-    // Handle the audio blob (e.g., send to server, process locally)
+    // Audio is automatically transcribed and sent to the server
+    // The transcription is included in the message content
   };
 
   return (
@@ -78,7 +80,7 @@ const {
 | stopRecording | () => void | Stop recording |
 | hasPermission | boolean | Whether microphone permission is granted |
 | audioLevel | number | Current audio level (0-1) |
-| error | Error \| null | Any recording errors |
+| error | Error \| null | Any recording or transcription errors |
 
 ## Styling
 
@@ -112,12 +114,14 @@ The component uses CSS variables for easy customization:
 
 ## Implementation Details
 
-### Audio Recording
+### Audio Recording and Transcription
 
 - Uses Web Audio API for high-quality recording
 - Implements audio worklet for efficient audio level monitoring
 - Handles various audio formats (WebM, MP3)
 - Manages audio stream cleanup
+- Automatic transcription using OpenAI Whisper API
+- Transcription included in message content
 
 ### State Management
 
@@ -125,6 +129,7 @@ The component uses CSS variables for easy customization:
 - Handles permission state
 - Manages audio level updates
 - Error state handling
+- Transcription state management
 
 ### Performance
 
@@ -132,6 +137,7 @@ The component uses CSS variables for easy customization:
 - Minimal re-renders
 - Memory leak prevention
 - Proper cleanup on unmount
+- Optimized transcription pipeline
 
 ## Example Implementation
 
@@ -149,10 +155,11 @@ export function PushToTalk({
 }) {
   const [isRecording, setIsRecording] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
 
-  // ... recording logic ...
+  // ... recording and transcription logic ...
 
   return (
     <button
@@ -160,6 +167,7 @@ export function PushToTalk({
         'fixed z-50 rounded-full shadow-lg transition-all duration-200',
         'hover:bg-primary/90 focus:outline-none focus:ring-2',
         isRecording && 'animate-pulse bg-destructive',
+        isTranscribing && 'opacity-50',
         positionClasses[position],
         sizeClasses[size]
       )}
@@ -168,6 +176,7 @@ export function PushToTalk({
       onTouchStart={startRecording}
       onTouchEnd={stopRecording}
       aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+      disabled={isTranscribing}
     >
       <Mic className={cn('text-white', sizeIconClasses[size])} />
       {showAudioLevel && isRecording && (

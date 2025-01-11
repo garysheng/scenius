@@ -89,6 +89,25 @@ export function GlobalPushToTalk({ activeThread }: GlobalPushToTalkProps) {
         thread: recordingThread?.message.id
       });
 
+      // Get transcription first
+      const formData = new FormData();
+      formData.append('audio', audioBlob);
+
+      const transcriptionResponse = await fetch('/api/transcribe', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+        },
+        body: formData,
+      });
+
+      if (!transcriptionResponse.ok) {
+        const error = await transcriptionResponse.json();
+        throw new Error(error.details || error.error || 'Failed to transcribe audio');
+      }
+
+      const { transcript } = await transcriptionResponse.json();
+
       if (recordingThread) {
         // Send as thread reply
         const fileName = `${Date.now()}.webm`;
@@ -141,7 +160,7 @@ export function GlobalPushToTalk({ activeThread }: GlobalPushToTalkProps) {
           // Create new voice reply message
           const replyRef = doc(messagesRef);
           const newReply = {
-            content: "Voice message",
+            content: transcript,
             userId: user.id,
             channelId: recordingChannel.id,
             threadId: recordingThread.message.id,
@@ -189,7 +208,7 @@ export function GlobalPushToTalk({ activeThread }: GlobalPushToTalkProps) {
           recordingChannel.id,
           audioBlob,
           user.id,
-          "Voice message"
+          transcript
         );
 
         toast({
