@@ -1,5 +1,67 @@
 # DM Scenie Feature
 
+## DM Scenie Chat
+
+### Overview
+The Scenie Chat system provides a conversational interface for direct messaging within spaces. Messages are stored in a dedicated subcollection under each space member, ensuring persistence and easy retrieval.
+
+### Data Structure
+
+```typescript
+interface ScenieMessage {
+  id: string;
+  content: string;
+  timestamp: Date;
+  sender: 'user' | 'scenie';
+  mode: 'text' | 'voice';
+  contextType?: 'channel' | 'user' | 'space';
+  contextId?: string;
+  audioUrl?: string;
+}
+
+interface ScenieConversation {
+  id: string;
+  userId: string;
+  messages: ScenieMessage[];
+  createdAt: Date;
+  updatedAt: Date;
+  activeMode: 'text' | 'voice';
+}
+```
+
+### Storage Path
+Messages are stored in Firestore using the following path:
+```
+spaces/{spaceId}/members/{userId}/scenieChatMessages/conversation
+```
+
+### Message Persistence
+- Each member has a singleton conversation document
+- Messages are stored in a subcollection under the conversation document
+- Timestamps are maintained for both the conversation and individual messages
+- Messages include context about their origin (channel/user/space)
+
+### Backend Services
+
+1. **Chat Processing Pipeline**
+   - Message streaming with Server-Sent Events
+   - Context injection for Space/Channel/User data
+   - Tool calling middleware for Space actions
+
+2. **Voice Processing Pipeline**
+   - WebSocket-based conversation management
+   - Built-in speech-to-text processing
+   - Automatic turn-taking and conversation flow
+   - Real-time voice streaming with minimal latency
+   - Dynamic agent responses with context awareness
+
+### Integration with Message Seeder
+The Scenie Chat system integrates with the Message Seeder framework to:
+- Generate realistic conversation history
+- Maintain consistent context across generated messages
+- Support both text and voice message types
+- Preserve space and channel context in generated messages
+
 ## Overview
 DM Scenie is a direct messaging interface that allows users to have one-on-one conversations with Scenie, the Space Assistant. This feature provides both text-based chat and voice interaction modes, similar to ChatGPT's interface.
 

@@ -13,18 +13,38 @@ interface ConversationSeed {
   participants: {
     userId: string;
     conversationRole: {
-      description: string; // free-form description of their role in the conversation
-      traits?: string[]; // optional personality traits for this role
+      description: string; // Role description with context like "You are [name] in [space] in [channel]"
+      traits?: string[]; // Personality traits for this role
     };
   }[];
   context: {
-    topic: string;
-    tone: 'casual' | 'formal' | 'technical';
-    duration: 'short' | 'medium' | 'long'; // affects message count
-    scenario?: string; // optional detailed scenario description
+    scenario: string; // Detailed scenario description
+    duration: 'short' | 'medium' | 'long'; // affects message count (5-10, 10-20, or 20-30 messages)
   };
 }
 ```
+
+### Wizard Interface
+The message seeder uses a step-by-step wizard interface:
+
+1. **Space & Channel Selection**
+   - Select target space
+   - Select target channel
+
+2. **Participant Configuration**
+   - Add/remove participants
+   - Select users
+   - Configure roles with auto-populated context
+   - Define personality traits
+   - Load from presets
+
+3. **Context Configuration**
+   - Define scenario
+   - Set conversation duration
+
+4. **Review & Generate**
+   - Review all settings
+   - Generate messages
 
 ### Example Usage
 ```typescript
@@ -35,70 +55,31 @@ const conversationSeed = {
     { 
       userId: 'alice',
       conversationRole: {
-        description: 'New team member asking lots of questions about the codebase structure',
-        traits: ['curious', 'detail-oriented']
+        description: 'You are Alice Chen in the Engineering Team space in the project-apollo channel of a slack-like workspace. You are a new team member asking lots of questions about the codebase structure',
+        traits: 'curious, detail-oriented'
       }
     },
     { 
       userId: 'bob',
       conversationRole: {
-        description: 'Senior engineer helping onboard Alice by walking through the architecture',
-        traits: ['patient', 'thorough']
-      }
-    },
-    { 
-      userId: 'charlie',
-      conversationRole: {
-        description: 'Security-focused engineer jumping in occasionally with security considerations',
-        traits: ['precise', 'security-minded']
+        description: 'You are Bob Smith in the Engineering Team space in the project-apollo channel of a slack-like workspace. You are a senior engineer helping onboard Alice by walking through the architecture',
+        traits: 'patient, thorough'
       }
     }
   ],
   context: {
-    topic: 'Onboarding discussion about the codebase architecture',
-    tone: 'technical',
-    duration: 'long',
-    scenario: 'A new team member is being onboarded and asking questions about the codebase structure. A senior engineer is explaining the architecture while another engineer occasionally adds security-related context.'
+    scenario: 'A new team member is being onboarded and asking questions about the codebase structure. A senior engineer is explaining the architecture.',
+    duration: 'long'
   }
 }
 ```
 
-## Flow
+## Presets
+The system includes several conversation presets:
+- Scientific Breakthrough
+- Paranoid Monologue
+- Historical Figures Chat
+- Tech Discussion
+- Customer Support
 
-1. **Space Selection**
-   - Select target Space where messages will be seeded
-   - Validate Space exists and seeder has access
-
-2. **Channel Selection**
-   - Select target Channel (including DM channels)
-   - Validate Channel exists within Space
-   - Verify channel type (public, private, DM)
-
-3. **Participant Selection**
-   - Select users who will participate
-   - Must be existing members of the Space/Channel
-   - Write natural descriptions of each participant's role in the conversation
-   - Optionally add personality traits that influence their communication style
-
-4. **Context Definition**
-   - Define conversation topic
-   - Set conversation tone
-   - Determine approximate duration/length
-   - Optionally add detailed scenario description
-   - Define the narrative flow between participants
-
-5. **Message Generation**
-   - Generate messages based on context and role descriptions
-   - Maintain consistent character for each participant
-   - Respect defined traits and conversation tone
-   - Create natural flow based on role descriptions
-   - Maintain realistic timing between messages
-   - Include relevant message types (text, voice, etc.)
-
-## Next Steps
-
-1. Create seeder service interface
-2. Implement conversation generation logic
-3. Add timing and message distribution algorithms
-4. Create CLI or UI for easy seeding
-5. Add validation and error handling 
+Each preset includes predefined roles and context that can be customized. 
