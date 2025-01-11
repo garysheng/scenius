@@ -39,7 +39,7 @@ type Step = 'space' | 'participants' | 'context' | 'review';
 
 export default function MessageSeederPage() {
   const { toast } = useToast();
-  const { spaces, getChannelsForSpace, loading: loadingSpaces, error: spacesError } = useSpacesAndChannels();
+  const { spaces, getChannelsForSpace, loading: loadingSpaces } = useSpacesAndChannels();
   const [currentStep, setCurrentStep] = useState<Step>('space');
   const [spaceId, setSpaceId] = useState<string>('');
   const [channelId, setChannelId] = useState<string>('');
@@ -57,7 +57,7 @@ export default function MessageSeederPage() {
   const availableChannels = spaceId ? getChannelsForSpace(spaceId) : [];
   
   // Get users for selected space
-  const { users, loading: loadingUsers, error: usersError } = useSpaceUsers(spaceId);
+  const { users, loading: loadingUsers } = useSpaceUsers(spaceId);
 
   const handlePresetSelect = (presetId: string) => {
     const preset = CONVERSATION_PRESETS[presetId];
@@ -105,7 +105,21 @@ export default function MessageSeederPage() {
   const updateParticipant = (id: string, field: string, value: string) => {
     setParticipants(participants.map(p => {
       if (p.id === id) {
-        if (field === 'userId') return { ...p, userId: value };
+        if (field === 'userId') {
+          const user = users.find(u => u.id === value);
+          const userName = user ? (user.fullName || user.username) : 'Unnamed User';
+          const spaceName = spaces.find(s => s.id === spaceId)?.name || 'the space';
+          const channelName = availableChannels.find(c => c.id === channelId)?.name || 'the channel';
+          
+          return {
+            ...p,
+            userId: value,
+            role: {
+              ...p.role,
+              description: p.role.description || `You are ${userName} in the ${spaceName} space in the ${channelName} channel of a slack-like workspace`
+            }
+          };
+        }
         if (field === 'description') return { ...p, role: { ...p.role, description: value } };
         if (field === 'traits') return { ...p, role: { ...p.role, traits: value } };
       }
@@ -346,7 +360,10 @@ export default function MessageSeederPage() {
                     <Textarea
                       value={participant.role.description}
                       onChange={(e) => updateParticipant(participant.id, 'description', e.target.value)}
-                      placeholder="Describe the role this participant will play..."
+                      placeholder={participant.userId ? 
+                        `You are ${getUserDisplayName(participant.userId)} in the ${spaces.find(s => s.id === spaceId)?.name || 'the space'} space in the ${availableChannels.find(c => c.id === channelId)?.name || 'the channel'} channel of a slack-like workspace` :
+                        "First select a user, then describe their role in the conversation..."
+                      }
                     />
                   </div>
 
@@ -355,7 +372,10 @@ export default function MessageSeederPage() {
                     <Input
                       value={participant.role.traits}
                       onChange={(e) => updateParticipant(participant.id, 'traits', e.target.value)}
-                      placeholder="e.g., friendly, technical, curious"
+                      placeholder={participant.userId ? 
+                        `e.g., friendly, technical, curious - personality traits for ${getUserDisplayName(participant.userId)}` :
+                        "First select a user, then list their personality traits..."
+                      }
                     />
                   </div>
                 </div>

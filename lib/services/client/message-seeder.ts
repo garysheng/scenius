@@ -1,4 +1,3 @@
-import { ConversationContext } from '@/types/conversations';
 import { messageGeneratorService } from './message-generator';
 import { db } from '@/lib/firebase';
 import { collection, writeBatch, doc, Timestamp } from 'firebase/firestore';
