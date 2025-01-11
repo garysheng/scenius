@@ -3,6 +3,7 @@ import { streamText, tool } from 'ai';
 import { z } from 'zod';
 import { adminDb } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
+import { AI_MODELS } from '@/lib/constants/ai';
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -469,7 +470,7 @@ Remember: You MUST use tools to get context before responding to questions about
 
     console.log('Starting streamText with tools');
     const result = streamText({
-        model: openai('gpt-4o'),
+        model: openai(AI_MODELS.CHAT.GPT4o),
         messages: [systemMessage, ...messages],
         tools,
         maxSteps: 3, // Allow up to 3 steps for tool usage

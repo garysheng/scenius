@@ -48,6 +48,12 @@ class PlaybackManager {
    * @param startFromMessageId - Optional ID of message to start from
    */
   async startPlayback(messages: VoicePlaybackMessage[], spaceId: string, startFromMessageId?: string): Promise<void> {
+    console.log('🎵 PlaybackManager - Starting playback:', { 
+      messageCount: messages.length, 
+      spaceId, 
+      startFromMessageId 
+    });
+
     if (this.state.isPlaying) {
       await this.stopPlayback();
     }
@@ -75,7 +81,11 @@ class PlaybackManager {
     this.state.startTime = new Date();
 
     // Load voice assignments for all users in the space
+    console.log('🎙️ PlaybackManager - Loading voice assignments for space:', spaceId);
     this.state.voiceAssignments = await voiceAssignmentService.getSpaceAssignments(spaceId);
+    console.log('🎙️ PlaybackManager - Voice assignments loaded:', 
+      Object.fromEntries(this.state.voiceAssignments)
+    );
 
     // Start playing
     await this.playNextMessage();
@@ -199,15 +209,36 @@ class PlaybackManager {
 
     try {
       // Get or assign voice for the message author
+      console.log('🎙️ PlaybackManager - Getting voice for user:', { 
+        userId: message.userId, 
+        messageId: message.id 
+      });
+      
       let voiceId = this.state.voiceAssignments.get(message.userId);
+      console.log('🎙️ PlaybackManager - Cached voice assignment:', { 
+        userId: message.userId, 
+        voiceId 
+      });
+
       if (!voiceId) {
+        console.log('🎙️ PlaybackManager - No cached voice, requesting new assignment');
         voiceId = await voiceAssignmentService.getVoiceAssignment(message.userId, this.currentSpaceId);
         this.state.voiceAssignments.set(message.userId, voiceId);
+        console.log('🎙️ PlaybackManager - New voice assigned:', { 
+          userId: message.userId, 
+          voiceId 
+        });
       }
 
       // Get or generate audio for the message
       let audioBuffer = this.audioCache.get(message.id);
       if (!audioBuffer) {
+        console.log('🔊 PlaybackManager - Generating speech:', { 
+          messageId: message.id,
+          voiceId,
+          content: message.content.slice(0, 50) + '...'
+        });
+        
         audioBuffer = await deepgramService.generateSpeech(
           message.content,
           voiceId,

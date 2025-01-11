@@ -38,17 +38,6 @@ export class DeepgramService {
       throw error;
     }
   }
-
-  async getAvailableVoices(): Promise<string[]> {
-    // For now, return a static list of voice IDs
-    return [
-      'aura-asteria-en',
-      'aura-luna-en',
-      'aura-orion-en',
-      'aura-nova-en',
-      'aura-stella-en'
-    ];
-  }
 }
 
 export const deepgramService = new DeepgramService(); 

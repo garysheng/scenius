@@ -1,5 +1,6 @@
 import { SemanticTag } from '@/types/messages';
 import OpenAI from 'openai';
+import { AI_MODELS } from '@/lib/constants/ai';
 
 // Define the shape of the raw tag from GPT response
 interface RawTag {
@@ -32,7 +33,7 @@ export const messageAnalysisService = {
     
     try {
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: AI_MODELS.CHAT.GPT4o,
         messages: [
           {
             role: "system",

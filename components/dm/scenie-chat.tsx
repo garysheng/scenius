@@ -14,9 +14,10 @@ interface ScenieChatProps {
   spaceId: string;
   userId: string;
   className?: string;
+  userProfileUrl?: string;
 }
 
-export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
+export function ScenieChat({ spaceId, userId, className, userProfileUrl }: ScenieChatProps) {
   const [inputValue, setInputValue] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
@@ -85,8 +86,8 @@ export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
               >
                 {message.sender === 'scenie' && (
                   <Avatar className="h-8 w-8">
-                    <div className="flex h-full w-full items-center justify-center bg-primary text-primary-foreground text-sm">
-                      S
+                    <div className="flex h-full w-full items-center justify-center">
+                      <img src="/logo.png" alt="Scenie" className="object-cover" />
                     </div>
                   </Avatar>
                 )}
@@ -102,9 +103,15 @@ export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
                 </div>
                 {message.sender === 'user' && (
                   <Avatar className="h-8 w-8">
-                    <div className="flex h-full w-full items-center justify-center bg-secondary text-secondary-foreground text-sm">
-                      U
-                    </div>
+                    {userProfileUrl ? (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <img src={userProfileUrl} alt="User" className="h-full w-full object-cover rounded-full" />
+                      </div>
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-secondary text-secondary-foreground text-sm">
+                        U
+                      </div>
+                    )}
                   </Avatar>
                 )}
               </div>
@@ -113,8 +120,8 @@ export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
           {isLoading && (
             <div className="flex gap-3">
               <Avatar className="h-8 w-8">
-                <div className="flex h-full w-full items-center justify-center bg-primary text-primary-foreground text-sm">
-                  S
+                <div className="flex h-full w-full items-center justify-center">
+                  <img src="/logo.png" alt="Scenie" className="object-cover" />
                 </div>
               </Avatar>
               <div className="bg-muted rounded-lg p-3">

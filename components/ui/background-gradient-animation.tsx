@@ -1,6 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export const BackgroundGradientAnimation = ({
   gradientBackgroundStart = "rgb(108, 0, 162)",
@@ -39,7 +39,7 @@ export const BackgroundGradientAnimation = ({
   const [curY, setCurY] = useState(0);
   const [tgX, setTgX] = useState(0);
   const [tgY, setTgY] = useState(0);
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.body.style.setProperty(
       "--gradient-background-start",
       gradientBackgroundStart
@@ -63,15 +63,17 @@ export const BackgroundGradientAnimation = ({
       if (!interactiveRef.current) {
         return;
       }
-      setCurX(curX + (tgX - curX) / 20);
-      setCurY(curY + (tgY - curY) / 20);
-      interactiveRef.current.style.transform = `translate(${Math.round(
-        curX
-      )}px, ${Math.round(curY)}px)`;
+      setCurX(c => c + (tgX - c) / 20);
+      setCurY(c => c + (tgY - c) / 20);
+      if (interactiveRef.current) {
+        interactiveRef.current.style.transform = `translate(${Math.round(
+          curX
+        )}px, ${Math.round(curY)}px)`;
+      }
     }
 
     move();
-  }, [tgX, tgY]);
+  }, [tgX, tgY, curX, curY]);
 
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (interactiveRef.current) {
