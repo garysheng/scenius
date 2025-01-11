@@ -66,8 +66,7 @@ export function MessageItem({
                   user?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase() || 
                   '??';
 
-  const handleAvatarClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleAvatarClick = async () => {
     if (!user || !currentUser || user.id === currentUser.id) return;
 
     try {
@@ -313,11 +312,14 @@ export function MessageItem({
           "hover:backdrop-brightness-125",
           "cursor-pointer"
         )}
-        onClick={handleAvatarClick}
+        onClick={handleReply}
       >
         <div 
           className="relative w-8 h-8 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center flex-shrink-0 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-          onClick={handleAvatarClick}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleAvatarClick();
+          }}
         >
           {user?.avatarUrl ? (
             <Image

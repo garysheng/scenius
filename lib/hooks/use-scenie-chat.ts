@@ -1,5 +1,13 @@
+/**
+ * A custom hook that manages chat interactions with Scenie AI assistant, including:
+ * - Text and voice-based conversations
+ * - Message persistence and real-time updates
+ * - Voice synthesis using ElevenLabs
+ * - Integration with Vercel's AI SDK for chat functionality
+ * - Mode switching between text/voice chat
+ */
 import { useState, useEffect, useCallback } from 'react';
-import { useChat, Message as AiMessage } from 'ai/react';
+import { useChat } from 'ai/react';
 import { ElevenLabsClient, play } from 'elevenlabs';
 import {
   UseScenieChatOptions,
@@ -7,6 +15,7 @@ import {
   ScenieMessage,
   ScenieChatMode,
 } from '@/types/dm-scenie';
+import { scenieService } from '@/lib/services/client/scenie';
 
 const ELEVEN_LABS_CONFIG = {
   apiKey: process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY!,
@@ -26,6 +35,7 @@ export function useScenieChatHook({
 }: UseScenieChatOptions): UseScenieChatReturn {
   const [isVoiceChatActive, setIsVoiceChatActive] = useState(false);
   const [elevenlabsClient, setElevenlabsClient] = useState<ElevenLabsClient | null>(null);
+  const [persistedMessages, setPersistedMessages] = useState<ScenieMessage[]>([]);
 
   // Initialize Eleven Labs client for voice
   useEffect(() => {
@@ -36,9 +46,29 @@ export function useScenieChatHook({
     }
   }, [elevenlabsClient]);
 
+  // Load initial messages and subscribe to updates
+  useEffect(() => {
+    if (!spaceId || !userId) return;
+
+    // Initialize or get conversation
+    const initializeChat = async () => {
+      await scenieService.getOrCreateConversation(spaceId, userId);
+      const messages = await scenieService.getMessages(spaceId, userId);
+      setPersistedMessages(messages);
+    };
+
+    initializeChat();
+
+    // Subscribe to message updates
+    const unsubscribe = scenieService.subscribeToMessages(spaceId, userId, (messages) => {
+      setPersistedMessages(messages);
+    });
+
+    return () => unsubscribe();
+  }, [spaceId, userId]);
+
   // Use Vercel's AI SDK for chat
   const {
-    messages: aiMessages,
     isLoading,
     error: aiError,
     append,
@@ -55,6 +85,16 @@ export function useScenieChatHook({
     },
     onFinish: async (message) => {
       console.log('Message finished:', message);
+
+      // Persist the assistant's message
+      if (message.role === 'assistant' && spaceId && userId) {
+        await scenieService.addMessage(spaceId, userId, {
+          content: message.content,
+          sender: 'scenie',
+          mode: 'text'
+        });
+      }
+
       // Generate and play audio for Scenie's response
       if (elevenlabsClient && message.role === 'assistant') {
         try {
@@ -72,18 +112,22 @@ export function useScenieChatHook({
     },
   });
 
-  // Convert AI SDK messages to Scenie messages
-  const messages: ScenieMessage[] = aiMessages.map((m: AiMessage) => ({
-    id: m.id,
-    content: m.content,
-    timestamp: new Date(),
-    sender: m.role === 'user' ? 'user' : 'scenie',
-    mode: 'text',
-  }));
-
   const sendMessage = useCallback(async (content: string): Promise<void> => {
     console.log('Sending message:', content);
+    if (!spaceId || !userId) {
+      console.error('Missing spaceId or userId');
+      return;
+    }
+
     try {
+      // Persist the user's message first
+      await scenieService.addMessage(spaceId, userId, {
+        content,
+        sender: 'user',
+        mode: 'text'
+      });
+
+      // Then send to AI
       await append({
         content,
         role: 'user',
@@ -91,7 +135,7 @@ export function useScenieChatHook({
     } catch (err) {
       console.error('Error sending message:', err);
     }
-  }, [append]);
+  }, [append, spaceId, userId]);
 
   const startVoiceChat = useCallback(async (): Promise<void> => {
     setIsVoiceChatActive(true);
@@ -105,13 +149,9 @@ export function useScenieChatHook({
     onModeChange?.(newMode);
   }, [onModeChange]);
 
-  // Log messages for debugging
-  useEffect(() => {
-    console.log('Current messages:', messages);
-  }, [messages]);
-
+  // Return persisted messages instead of AI SDK messages
   return {
-    messages,
+    messages: persistedMessages,
     isLoading,
     error: aiError || null,
     sendMessage,

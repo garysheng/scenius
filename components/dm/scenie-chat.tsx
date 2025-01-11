@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Mic, MicOff, Send } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { GradientBackground } from '@/components/ui/gradient-background';
 
 interface ScenieChatProps {
   spaceId: string;
@@ -67,7 +68,9 @@ export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
   };
 
   return (
-    <div className={cn('flex flex-col bg-background', className)}>
+    <div className={cn('flex flex-col bg-background/80 relative', className)}>
+      <GradientBackground />
+      
       {/* Messages */}
       <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
         <div className="flex flex-col gap-4">
@@ -132,7 +135,7 @@ export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
       </ScrollArea>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="p-4 border-t flex gap-2">
+      <form onSubmit={handleSubmit} className="p-4 border-t border-border/50 bg-background/95 backdrop-blur flex gap-2">
         <Input
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}

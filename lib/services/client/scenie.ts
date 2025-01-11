@@ -6,10 +6,17 @@ import {
   getDocs, 
   addDoc, 
   Timestamp, 
-  limit 
+  limit,
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+  onSnapshot,
+  QueryConstraint
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { ChatSummary, VoiceDictation } from '@/types/scenie';
+import { ScenieMessage, ScenieConversation } from '@/types/dm-scenie';
 import OpenAI from 'openai';
 import { Message, MessageFrontend } from '@/types';
 import { searchService } from './search';
@@ -284,5 +291,122 @@ export const scenieService = {
       id: summaryDoc.id,
       ...summaryDoc.data()
     } as ChatSummary;
+  },
+
+  // Get or create a Scenie conversation for a space member
+  async getOrCreateConversation(spaceId: string, userId: string): Promise<ScenieConversation> {
+    const conversationRef = doc(db, 'spaces', spaceId, 'members', userId, 'scenieChatMessages', 'conversation');
+    const conversationDoc = await getDoc(conversationRef);
+
+    if (!conversationDoc.exists()) {
+      // Create new conversation
+      const newConversation: ScenieConversation = {
+        id: conversationRef.id,
+        userId,
+        messages: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        activeMode: 'text'
+      };
+
+      await setDoc(conversationRef, {
+        ...newConversation,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      return newConversation;
+    }
+
+    return {
+      ...conversationDoc.data(),
+      id: conversationDoc.id,
+      createdAt: conversationDoc.data()?.createdAt?.toDate(),
+      updatedAt: conversationDoc.data()?.updatedAt?.toDate()
+    } as ScenieConversation;
+  },
+
+  // Add a message to the conversation
+  async addMessage(spaceId: string, userId: string, message: Omit<ScenieMessage, 'id' | 'timestamp'>): Promise<ScenieMessage> {
+    const conversationRef = doc(db, 'spaces', spaceId, 'members', userId, 'scenieChatMessages', 'conversation');
+    const messagesRef = collection(conversationRef, 'messages');
+
+    // Add the message
+    const messageDoc = await addDoc(messagesRef, {
+      ...message,
+      timestamp: serverTimestamp()
+    });
+
+    // Update conversation's updatedAt
+    await setDoc(conversationRef, {
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    return {
+      ...message,
+      id: messageDoc.id,
+      timestamp: new Date()
+    };
+  },
+
+  // Get messages for a conversation with pagination
+  async getMessages(spaceId: string, userId: string, messageLimit: number = 50, beforeTimestamp?: Date): Promise<ScenieMessage[]> {
+    const messagesRef = collection(
+      db, 
+      'spaces', 
+      spaceId, 
+      'members', 
+      userId, 
+      'scenieChatMessages', 
+      'conversation',
+      'messages'
+    );
+
+    const constraints: QueryConstraint[] = [
+      orderBy('timestamp', 'asc'),
+      limit(messageLimit)
+    ];
+
+    if (beforeTimestamp) {
+      constraints.unshift(where('timestamp', '>', beforeTimestamp));
+    }
+
+    const messagesQuery = query(messagesRef, ...constraints);
+    const messagesDocs = await getDocs(messagesQuery);
+    return messagesDocs.docs.map(doc => ({
+      ...doc.data(),
+      id: doc.id,
+      timestamp: doc.data().timestamp?.toDate() || new Date()
+    })) as ScenieMessage[];
+  },
+
+  // Subscribe to new messages
+  subscribeToMessages(spaceId: string, userId: string, callback: (messages: ScenieMessage[]) => void): () => void {
+    const messagesRef = collection(
+      db, 
+      'spaces', 
+      spaceId, 
+      'members', 
+      userId, 
+      'scenieChatMessages', 
+      'conversation',
+      'messages'
+    );
+
+    const messagesQuery = query(
+      messagesRef,
+      orderBy('timestamp', 'asc'),
+      limit(50)
+    );
+
+    return onSnapshot(messagesQuery, (snapshot) => {
+      const messages = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id,
+        timestamp: doc.data().timestamp?.toDate() || new Date()
+      })) as ScenieMessage[];
+
+      callback(messages);
+    });
   }
 }; 

@@ -50,12 +50,9 @@ export function ThreadView({
 
   // Load user data for replies
   useEffect(() => {
-    const userIds = replies
+    const userIds = [parentMessage.userId, ...replies
       .map(m => m.userId)
-      .filter(id => !users[id]) // Only load users we don't have
-      .filter((id, index, self) => self.indexOf(id) === index);
-
-    if (userIds.length === 0) return;
+      .filter((id, index, self) => self.indexOf(id) === index)];
 
     const loadUsers = async () => {
       const newUsers: Record<string, UserFrontend> = {};
@@ -63,8 +60,13 @@ export function ThreadView({
       await Promise.all(
         userIds.map(async (userId) => {
           try {
-            const user = await usersService.getUser(userId);
-            newUsers[userId] = user;
+            // If this is the parent user and we have their data, use that
+            if (userId === parentMessage.userId && parentUser) {
+              newUsers[userId] = parentUser;
+            } else if (!users[userId]) { // Only load if we don't have the user data
+              const user = await usersService.getUser(userId);
+              newUsers[userId] = user;
+            }
           } catch (err) {
             console.error(`Failed to load user ${userId}:`, err);
           }
@@ -77,7 +79,7 @@ export function ThreadView({
     };
 
     loadUsers();
-  }, [replies, users]);
+  }, [replies, parentMessage.userId, parentUser]);
 
   const handleSendReply = useCallback(async (content: string) => {
     if (!currentUser) return;
