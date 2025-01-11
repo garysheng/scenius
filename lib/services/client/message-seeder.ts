@@ -13,7 +13,10 @@ interface MessageSeederRequest {
       traits: string;
     };
   }[];
-  context: ConversationContext;
+  context: {
+    scenario: string;
+    duration: 'short' | 'medium' | 'long';
+  };
 }
 
 class MessageSeederService {

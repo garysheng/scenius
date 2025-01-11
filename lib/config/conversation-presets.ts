@@ -2,10 +2,8 @@ export interface ConversationPreset {
   name: string;
   description: string;
   context: {
-    topic: string;
-    tone: 'casual' | 'formal' | 'technical';
-    duration: 'short' | 'medium' | 'long';
     scenario: string;
+    duration: 'short' | 'medium' | 'long';
   };
   participants: {
     role: string;
@@ -18,10 +16,8 @@ export const CONVERSATION_PRESETS: Record<string, ConversationPreset> = {
     name: 'Scientific Breakthrough',
     description: 'A scientist having a breakthrough moment, talking through their derivation',
     context: {
-      topic: 'Deriving a groundbreaking formula while talking through the process',
-      tone: 'technical',
-      duration: 'long',
-      scenario: 'A physicist is on the verge of a breakthrough, talking through their thought process as they derive a new formula that could change our understanding of the universe'
+      scenario: 'A physicist is on the verge of a breakthrough, talking through their thought process as they derive a new formula that could change our understanding of the universe',
+      duration: 'long'
     },
     participants: [
       {
@@ -34,10 +30,8 @@ export const CONVERSATION_PRESETS: Record<string, ConversationPreset> = {
     name: 'Paranoid Monologue',
     description: 'A person descending into paranoid thoughts, talking to themselves',
     context: {
-      topic: 'Crazy person ranting to himself',
-      tone: 'casual',
-      duration: 'long',
-      scenario: 'Gary is going insane talking to himself'
+      scenario: 'Gary is going insane talking to himself',
+      duration: 'long'
     },
     participants: [
       {
@@ -50,10 +44,8 @@ export const CONVERSATION_PRESETS: Record<string, ConversationPreset> = {
     name: 'Historical Figures Chat',
     description: 'A casual chat between historical figures in the Scenius Town Square',
     context: {
-      topic: "how crazy it is that we're able to talk to each other even through the afterlife thanks to Scenius.chat",
-      tone: 'casual',
-      duration: 'long',
-      scenario: 'Albert Einstein and Shakespeare join Gary for a chat in the Scenius Town Square Space on Scenius.Chat'
+      scenario: 'Albert Einstein and Shakespeare join Gary for a chat in the Scenius Town Square Space on Scenius.Chat',
+      duration: 'long'
     },
     participants: [
       {
@@ -74,10 +66,8 @@ export const CONVERSATION_PRESETS: Record<string, ConversationPreset> = {
     name: 'Tech Team Discussion',
     description: 'A technical discussion between team members about a new feature',
     context: {
-      topic: 'Implementing the new authentication system',
-      tone: 'technical',
-      duration: 'medium',
-      scenario: 'The development team discusses the implementation details of a new OAuth2 authentication system'
+      scenario: 'The development team discusses the implementation details of a new OAuth2 authentication system',
+      duration: 'medium'
     },
     participants: [
       {
@@ -98,10 +88,8 @@ export const CONVERSATION_PRESETS: Record<string, ConversationPreset> = {
     name: 'Customer Support Interaction',
     description: 'A support conversation between an agent and a customer',
     context: {
-      topic: 'Resolving account access issues',
-      tone: 'formal',
-      duration: 'short',
-      scenario: 'A customer is having trouble logging into their account and a support agent helps them resolve the issue'
+      scenario: 'A customer is having trouble logging into their account and a support agent helps them resolve the issue',
+      duration: 'short'
     },
     participants: [
       {

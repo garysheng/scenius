@@ -15,10 +15,11 @@ import {
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { messageSeederService } from '@/lib/services/client/message-seeder';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
 import { useSpacesAndChannels } from '@/lib/hooks/use-spaces-and-channels';
 import { useSpaceUsers } from '@/lib/hooks/use-space-users';
 import { CONVERSATION_PRESETS } from '@/lib/config/conversation-presets';
+import { cn } from '@/lib/utils';
 
 interface Participant {
   id: string;
@@ -30,15 +31,16 @@ interface Participant {
 }
 
 interface ConversationContext {
-  topic: string;
-  tone: 'casual' | 'formal' | 'technical';
-  duration: 'short' | 'medium' | 'long';
   scenario: string;
+  duration: 'short' | 'medium' | 'long';
 }
+
+type Step = 'space' | 'participants' | 'context' | 'review';
 
 export default function MessageSeederPage() {
   const { toast } = useToast();
   const { spaces, getChannelsForSpace, loading: loadingSpaces, error: spacesError } = useSpacesAndChannels();
+  const [currentStep, setCurrentStep] = useState<Step>('space');
   const [spaceId, setSpaceId] = useState<string>('');
   const [channelId, setChannelId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -47,10 +49,8 @@ export default function MessageSeederPage() {
     { id: '1', userId: '', role: { description: '', traits: '' } }
   ]);
   const [context, setContext] = useState<ConversationContext>({
-    topic: '',
-    tone: 'casual',
-    duration: 'medium',
-    scenario: ''
+    scenario: '',
+    duration: 'medium'
   });
 
   // Get channels for selected space
@@ -63,10 +63,11 @@ export default function MessageSeederPage() {
     const preset = CONVERSATION_PRESETS[presetId];
     if (!preset) return;
 
-    // Set context
-    setContext(preset.context);
-
-    // Set up participants with empty userIds but preset roles
+    setContext({
+      scenario: preset.context.scenario,
+      duration: preset.context.duration
+    });
+    
     setParticipants(
       preset.participants.map((p, index) => ({
         id: String(index + 1),
@@ -113,46 +114,10 @@ export default function MessageSeederPage() {
   };
 
   const handleSubmit = async () => {
-    // Validation
-    if (!spaceId || !channelId) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Please select a space and channel"
-      });
-      return;
-    }
-
-    if (participants.some(p => !p.userId || !p.role.description)) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Please fill in all participant details"
-      });
-      return;
-    }
-
-    if (!context.topic || !context.scenario) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Please provide conversation topic and scenario"
-      });
-      return;
-    }
-
     setIsLoading(true);
     setStatus('Starting message generation...');
 
     try {
-      // Log the request
-      console.log('Submitting message seed request:', {
-        spaceId,
-        channelId,
-        participants,
-        context
-      });
-
       const messageCount = await messageSeederService.seedMessages({
         spaceId,
         channelId,
@@ -174,7 +139,6 @@ export default function MessageSeederPage() {
         description: "Failed to generate messages"
       });
     } finally {
-      // Clear status after a delay
       setTimeout(() => {
         setStatus('');
         setIsLoading(false);
@@ -187,11 +151,10 @@ export default function MessageSeederPage() {
     setChannelId('');
     setParticipants([{ id: '1', userId: '', role: { description: '', traits: '' } }]);
     setContext({
-      topic: '',
-      tone: 'casual',
-      duration: 'medium',
-      scenario: ''
+      scenario: '',
+      duration: 'medium'
     });
+    setCurrentStep('space');
   };
 
   const getUserDisplayName = (userId: string) => {
@@ -199,107 +162,174 @@ export default function MessageSeederPage() {
     return user ? (user.fullName || user.username) : 'Unnamed User';
   };
 
+  const canProceed = () => {
+    switch (currentStep) {
+      case 'space':
+        return spaceId && channelId;
+      case 'participants':
+        return participants.every(p => p.userId && p.role.description);
+      case 'context':
+        return context.scenario;
+      case 'review':
+        return true;
+    }
+  };
+
+  const nextStep = () => {
+    if (!canProceed()) {
+      toast({
+        variant: "destructive",
+        title: "Cannot Proceed",
+        description: "Please fill in all required fields"
+      });
+      return;
+    }
+
+    switch (currentStep) {
+      case 'space':
+        setCurrentStep('participants');
+        break;
+      case 'participants':
+        setCurrentStep('context');
+        break;
+      case 'context':
+        setCurrentStep('review');
+        break;
+    }
+  };
+
+  const prevStep = () => {
+    switch (currentStep) {
+      case 'participants':
+        setCurrentStep('space');
+        break;
+      case 'context':
+        setCurrentStep('participants');
+        break;
+      case 'review':
+        setCurrentStep('context');
+        break;
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Message Seeder</h1>
-      
-      {/* Preset Selection */}
-      <Card className="p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Conversation Preset</h2>
-          <Select onValueChange={handlePresetSelect}>
-            <SelectTrigger className="w-[300px]">
-              <SelectValue placeholder="Select a preset conversation" />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(CONVERSATION_PRESETS).map(([id, preset]) => (
-                <SelectItem key={id} value={id}>
-                  <div>
-                    <div className="font-medium">{preset.name}</div>
-                    <div className="text-sm text-muted-foreground">{preset.description}</div>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </Card>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Space & Channel Selection */}
-        <Card className="p-4 space-y-4">
-          <h2 className="text-xl font-semibold">Step 1: Space & Channel</h2>
-          
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="space">Space</Label>
-              <Select value={spaceId} onValueChange={(value) => {
-                setSpaceId(value);
-                setChannelId(''); // Reset channel when space changes
-                // Reset participants when space changes
-                setParticipants([{ id: '1', userId: '', role: { description: '', traits: '' } }]);
-              }}>
-                <SelectTrigger>
-                  <SelectValue placeholder={loadingSpaces ? "Loading spaces..." : "Select a space"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {spaces.map(space => (
-                    <SelectItem key={space.id} value={space.id}>
-                      {space.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {spacesError && (
-                <p className="text-sm text-destructive">{spacesError}</p>
-              )}
-            </div>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Message Seeder</h1>
+        <Button variant="ghost" onClick={handleReset}>Reset</Button>
+      </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="channel">Channel</Label>
-              <Select 
-                value={channelId} 
-                onValueChange={setChannelId}
-                disabled={!spaceId || loadingSpaces}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={!spaceId ? "Select a space first" : "Select a channel"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableChannels.map(channel => (
-                    <SelectItem key={channel.id} value={channel.id}>
-                      {channel.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      {/* Progress Steps */}
+      <div className="flex justify-between mb-8 relative">
+        <div className="absolute top-1/2 left-0 right-0 h-1 bg-muted -translate-y-1/2" />
+        {(['space', 'participants', 'context', 'review'] as Step[]).map((step, index) => (
+          <div key={step} className="relative flex items-center">
+            <div 
+              className={cn(
+                "h-10 w-10 rounded-full flex items-center justify-center font-medium transition-colors relative z-10",
+                currentStep === step 
+                  ? "bg-primary text-primary-foreground shadow-lg" 
+                  : index < ['space', 'participants', 'context', 'review'].indexOf(currentStep)
+                    ? "bg-primary/90 text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+              )}
+            >
+              {index + 1}
             </div>
           </div>
-        </Card>
+        ))}
+      </div>
 
-        {/* Participant Selection */}
-        <Card className="p-4 space-y-4">
-          <h2 className="text-xl font-semibold">Step 2: Participants</h2>
-          
+      <Card className="p-6">
+        {/* Step 1: Space & Channel Selection */}
+        {currentStep === 'space' && (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Select Participants</Label>
+            <h2 className="text-xl font-semibold">Step 1: Select Space & Channel</h2>
+            <div className="space-y-4">
               <div className="space-y-2">
-                {participants.map((participant) => (
-                  <div key={participant.id} className="flex items-center space-x-2">
-                    <Select 
-                      value={participant.userId} 
+                <Label htmlFor="space">Space</Label>
+                <Select value={spaceId} onValueChange={(value) => {
+                  setSpaceId(value);
+                  setChannelId('');
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingSpaces ? "Loading spaces..." : "Select a space"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {spaces.map(space => (
+                      <SelectItem key={space.id} value={space.id}>
+                        {space.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="channel">Channel</Label>
+                <Select value={channelId} onValueChange={setChannelId} disabled={!spaceId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a channel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableChannels.map(channel => (
+                      <SelectItem key={channel.id} value={channel.id}>
+                        {channel.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Participant Selection */}
+        {currentStep === 'participants' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Step 2: Configure Participants</h2>
+              <Select onValueChange={handlePresetSelect}>
+                <SelectTrigger className="w-[300px]">
+                  <SelectValue placeholder="Load a preset" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(CONVERSATION_PRESETS).map(([id, preset]) => (
+                    <SelectItem key={id} value={id}>
+                      <div>
+                        <div className="font-medium">{preset.name}</div>
+                        <div className="text-sm text-muted-foreground">{preset.description}</div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-4">
+              {participants.map((participant, index) => (
+                <div key={participant.id} className="space-y-4 p-4 border rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-medium">Participant {index + 1}</h3>
+                    {participants.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeParticipant(participant.id)}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>User</Label>
+                    <Select
+                      value={participant.userId}
                       onValueChange={(value) => updateParticipant(participant.id, 'userId', value)}
-                      disabled={!spaceId || loadingUsers}
                     >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder={
-                          !spaceId 
-                            ? "Select a space first" 
-                            : loadingUsers 
-                              ? "Loading users..." 
-                              : "Select user"
-                        } />
+                      <SelectTrigger>
+                        <SelectValue placeholder={loadingUsers ? "Loading users..." : "Select a user"} />
                       </SelectTrigger>
                       <SelectContent>
                         {users.map(user => (
@@ -309,147 +339,151 @@ export default function MessageSeederPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    {participants.length > 1 && (
-                      <Button 
-                        variant="outline" 
-                        size="icon"
-                        onClick={() => removeParticipant(participant.id)}
-                      >
-                        -
-                      </Button>
-                    )}
-                    {participant.id === String(participants.length) && (
-                      <Button 
-                        variant="outline" 
-                        size="icon"
-                        onClick={addParticipant}
-                      >
-                        +
-                      </Button>
-                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Role Description</Label>
+                    <Textarea
+                      value={participant.role.description}
+                      onChange={(e) => updateParticipant(participant.id, 'description', e.target.value)}
+                      placeholder="Describe the role this participant will play..."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Traits</Label>
+                    <Input
+                      value={participant.role.traits}
+                      onChange={(e) => updateParticipant(participant.id, 'traits', e.target.value)}
+                      placeholder="e.g., friendly, technical, curious"
+                    />
+                  </div>
+                </div>
+              ))}
+
+              <Button onClick={addParticipant} variant="outline" className="w-full">
+                Add Participant
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Context Configuration */}
+        {currentStep === 'context' && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Step 3: Configure Context</h2>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Context</Label>
+                <Textarea
+                  value={context.scenario}
+                  onChange={(e) => setContext({ ...context, scenario: e.target.value })}
+                  placeholder="Describe the scenario and context for this conversation..."
+                  className="min-h-[100px]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Duration</Label>
+                <Select
+                  value={context.duration}
+                  onValueChange={(value: 'short' | 'medium' | 'long') => 
+                    setContext({ ...context, duration: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="short">Short (5-10 messages)</SelectItem>
+                    <SelectItem value="medium">Medium (10-20 messages)</SelectItem>
+                    <SelectItem value="long">Long (20-30 messages)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Review */}
+        {currentStep === 'review' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold">Step 4: Review & Generate</h2>
+
+            <div className="space-y-4">
+              <div className="p-4 border rounded-lg space-y-2">
+                <h3 className="font-medium">Space & Channel</h3>
+                <p>Space: {spaces.find(s => s.id === spaceId)?.name}</p>
+                <p>Channel: {availableChannels.find(c => c.id === channelId)?.name}</p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h3 className="font-medium">Participants</h3>
+                {participants.map((p, i) => (
+                  <div key={p.id} className="space-y-1">
+                    <p className="font-medium">Participant {i + 1}</p>
+                    <p>User: {getUserDisplayName(p.userId)}</p>
+                    <p>Role: {p.role.description}</p>
+                    <p>Traits: {p.role.traits}</p>
                   </div>
                 ))}
-                {usersError && (
-                  <p className="text-sm text-destructive">{usersError}</p>
-                )}
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h3 className="font-medium">Context</h3>
+                <p>Context: {context.scenario}</p>
+                <p>Duration: {context.duration}</p>
               </div>
             </div>
           </div>
-        </Card>
+        )}
 
-        {/* Conversation Context */}
-        <Card className="p-4 space-y-4">
-          <h2 className="text-xl font-semibold">Step 3: Context</h2>
+        {/* Navigation Buttons */}
+        <div className="flex justify-between mt-6">
+          {currentStep !== 'space' && (
+            <Button
+              variant="outline"
+              onClick={prevStep}
+              disabled={isLoading}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+          )}
           
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="topic">Topic</Label>
-              <Input 
-                id="topic" 
-                placeholder="Enter conversation topic"
-                value={context.topic}
-                onChange={(e) => setContext({ ...context, topic: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="tone">Tone</Label>
-              <Select value={context.tone} onValueChange={(value: 'casual' | 'formal' | 'technical') => setContext({ ...context, tone: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select tone" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="casual">Casual</SelectItem>
-                  <SelectItem value="formal">Formal</SelectItem>
-                  <SelectItem value="technical">Technical</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="duration">Duration</Label>
-              <Select value={context.duration} onValueChange={(value: 'short' | 'medium' | 'long') => setContext({ ...context, duration: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select duration" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="short">Short</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="long">Long</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </Card>
-
-        {/* Participant Roles */}
-        <Card className="p-4 space-y-4">
-          <h2 className="text-xl font-semibold">Step 4: Participant Roles</h2>
-          
-          <div className="space-y-4">
-            {participants.map((participant) => (
-              <div key={participant.id} className="space-y-2">
-                <Label>Role for {getUserDisplayName(participant.userId)}</Label>
-                <Textarea 
-                  placeholder="Describe this participant's role in the conversation..."
-                  className="h-24"
-                  value={participant.role.description}
-                  onChange={(e) => updateParticipant(participant.id, 'description', e.target.value)}
-                />
-                <Input 
-                  placeholder="Traits (comma-separated)"
-                  className="mt-2"
-                  value={participant.role.traits}
-                  onChange={(e) => updateParticipant(participant.id, 'traits', e.target.value)}
-                />
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      {/* Scenario Description */}
-      <Card className="p-4 space-y-4">
-        <h2 className="text-xl font-semibold">Step 5: Scenario</h2>
-        
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="scenario">Detailed Scenario Description</Label>
-            <Textarea 
-              id="scenario"
-              placeholder="Describe the conversation scenario in detail..."
-              className="h-32"
-              value={context.scenario}
-              onChange={(e) => setContext({ ...context, scenario: e.target.value })}
-            />
-          </div>
+          {currentStep === 'review' ? (
+            <Button
+              onClick={handleSubmit}
+              disabled={isLoading}
+              className="ml-auto"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                'Generate Messages'
+              )}
+            </Button>
+          ) : (
+            <Button
+              onClick={nextStep}
+              disabled={!canProceed() || isLoading}
+              className="ml-auto"
+            >
+              Next
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          )}
         </div>
       </Card>
 
-      {/* Action Buttons and Status */}
-      <div className="flex justify-between items-center">
-        <div className="text-sm text-muted-foreground">
-          {status && (
-            <div className="flex items-center gap-2">
-              {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-              <span>{status}</span>
-            </div>
-          )}
+      {status && (
+        <div className="text-center text-sm text-muted-foreground">
+          {status}
         </div>
-        <div className="flex space-x-4">
-          <Button variant="outline" onClick={handleReset} disabled={isLoading}>Reset</Button>
-          <Button onClick={handleSubmit} disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              'Generate Messages'
-            )}
-          </Button>
-        </div>
-      </div>
+      )}
     </div>
   );
 } 

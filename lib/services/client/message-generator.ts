@@ -28,7 +28,6 @@ class MessageGeneratorService {
     
     // Create a detailed system prompt
     const systemPrompt = `You are tasked with generating a natural ${context.duration} conversation between ${participants.length} participants.
-The conversation should be ${context.tone} in tone and focus on the topic: "${context.topic}"
 
 Scenario: ${context.scenario}
 
@@ -39,7 +38,7 @@ Traits: ${p.role.traits}`).join('\n\n')}
 Important guidelines:
 1. Generate messages that feel natural and flow well
 2. Stay true to each participant's defined role and traits
-3. Keep the conversation focused on the topic while allowing for natural tangents
+3. Keep the conversation focused on the scenario while allowing for natural tangents
 4. Maintain consistent personality and voice for each participant
 5. Include natural conversation elements like questions, reactions, and references to previous messages
 6. IMPORTANT: Format each message EXACTLY as: participant1|||[message] for first participant, participant2|||[message] for second, etc.
