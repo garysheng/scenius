@@ -1,0 +1,9 @@
+# Firebase Functions
+functions/
+
+# Firebase config
+firebase.json
+.firebaserc
+
+# Firebase local emulator files
+.firebase/ 

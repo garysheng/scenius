@@ -26,13 +26,17 @@ interface Message {
     id: string;
     content: string;
     spaceId: string;
+    channelId: string;
+    authorId: string;
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }
 
 interface VectorMetadata {
-    id: string;
+    messageId: string;
     spaceId: string;
+    channelId: string;
+    authorId: string;
     content: string;
     createdAt: string;
     updatedAt: string;
@@ -49,9 +53,8 @@ async function generateEmbedding(text: string): Promise<number[]> {
     });
 
     const response = await openai.embeddings.create({
-        model: "text-embedding-3-small",
-        input: text,
-        dimensions: 3072
+        model: "text-embedding-3-large",
+        input: text
     });
 
     const embedding = response.data[0].embedding;
@@ -81,8 +84,10 @@ async function vectorizeMessage(message: Message): Promise<void> {
         const embedding = await generateEmbedding(message.content);
 
         const metadata: VectorMetadata = {
-            id: message.id,
+            messageId: message.id,
             spaceId: message.spaceId,
+            channelId: message.channelId,
+            authorId: message.authorId,
             content: message.content,
             createdAt: message.createdAt.toDate().toISOString(),
             updatedAt: message.updatedAt.toDate().toISOString()
@@ -101,8 +106,8 @@ async function vectorizeMessage(message: Message): Promise<void> {
 }
 
 export const onMessageCreated = onDocumentCreated({
-  document: 'messages/{messageId}',
-  secrets: [PINECONE_API_KEY, OPENAI_API_KEY, LANGSMITH_API_KEY]
+    document: 'spaces/{spaceId}/channels/{channelId}/messages/{messageId}',
+    secrets: [PINECONE_API_KEY, OPENAI_API_KEY, LANGSMITH_API_KEY]
 }, async (event) => {
     const snapshot = event.data as DocumentSnapshot;
     if (!snapshot) {
@@ -110,64 +115,83 @@ export const onMessageCreated = onDocumentCreated({
         return;
     }
 
+    const { spaceId, channelId } = event.params;
+    const messageData = snapshot.data();
+    if (!messageData) {
+        console.log('No message data found');
+        return;
+    }
+
     const message = {
         id: snapshot.id,
-        ...snapshot.data()
+        spaceId,
+        channelId,
+        ...messageData
     } as Message;
 
     await vectorizeMessage(message);
 });
 
 export const processBatchMessages = onSchedule({
-  schedule: 'every day 00:00',
-  secrets: [PINECONE_API_KEY, OPENAI_API_KEY, LANGSMITH_API_KEY]
+    schedule: 'every day 00:00',
+    secrets: [PINECONE_API_KEY, OPENAI_API_KEY, LANGSMITH_API_KEY]
 }, async (event: ScheduledEvent) => {
     try {
         const lastProcessedRef = db.collection('system').doc('vectorSearchStatus');
         const lastProcessed = await lastProcessedRef.get();
+        const spaces = await db.collection('spaces').get();
 
-        let query = db.collection('messages')
-            .orderBy('createdAt', 'asc')
-            .limit(100);
+        for (const space of spaces.docs) {
+            const channels = await space.ref.collection('channels').get();
 
-        if (lastProcessed.exists) {
-            const lastTimestamp = lastProcessed.data()?.lastProcessedAt;
-            if (lastTimestamp) {
-                query = query.where('createdAt', '>', lastTimestamp);
+            for (const channel of channels.docs) {
+                let query = channel.ref.collection('messages')
+                    .orderBy('createdAt', 'asc')
+                    .limit(100);
+
+                if (lastProcessed.exists) {
+                    const lastTimestamp = lastProcessed.data()?.lastProcessedAt;
+                    if (lastTimestamp) {
+                        query = query.where('createdAt', '>', lastTimestamp);
+                    }
+                }
+
+                const messages = await query.get();
+
+                if (messages.empty) {
+                    console.log(`No new messages to process in channel ${channel.id}`);
+                    continue;
+                }
+
+                for (const doc of messages.docs) {
+                    const message = {
+                        id: doc.id,
+                        spaceId: space.id,
+                        channelId: channel.id,
+                        ...doc.data()
+                    } as Message;
+
+                    await vectorizeMessage(message);
+                }
+
+                const lastMessage = messages.docs[messages.docs.length - 1];
+                await lastProcessedRef.set({
+                    lastProcessedAt: lastMessage.data().createdAt,
+                    lastProcessedId: lastMessage.id,
+                    lastProcessedSpaceId: space.id,
+                    lastProcessedChannelId: channel.id,
+                    processedAt: Timestamp.now()
+                });
             }
         }
-
-        const messages = await query.get();
-
-        if (messages.empty) {
-            console.log('No new messages to process');
-            return;
-        }
-
-        for (const doc of messages.docs) {
-            const message = {
-                id: doc.id,
-                ...doc.data()
-            } as Message;
-
-            await vectorizeMessage(message);
-        }
-
-        const lastMessage = messages.docs[messages.docs.length - 1];
-        await lastProcessedRef.set({
-            lastProcessedAt: lastMessage.data().createdAt,
-            lastProcessedId: lastMessage.id,
-            processedAt: Timestamp.now()
-        });
-
     } catch (error) {
         console.error('Error processing batch messages:', error);
         throw error;
     }
 });
 
-export const reindexMessages = onCall({ 
-  secrets: [PINECONE_API_KEY, OPENAI_API_KEY, LANGSMITH_API_KEY] 
+export const reindexMessages = onCall({
+    secrets: [PINECONE_API_KEY, OPENAI_API_KEY, LANGSMITH_API_KEY]
 }, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'User must be authenticated');
@@ -184,30 +208,34 @@ export const reindexMessages = onCall({
     }
 
     try {
-        let query = db.collection('messages').where('spaceId', '==', spaceId);
-
-        if (!force) {
-            // Only process messages from the last 30 days if not forcing a full reindex
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-            query = query.where('createdAt', '>', Timestamp.fromDate(thirtyDaysAgo));
-        }
-
-        const messages = await query.get();
-
-        if (messages.empty) {
-            return { status: 'success', message: 'No messages to process' };
-        }
-
+        const channels = await db.collection('spaces').doc(spaceId).collection('channels').get();
         let processedCount = 0;
-        for (const doc of messages.docs) {
-            const message = {
-                id: doc.id,
-                ...doc.data()
-            } as Message;
 
-            await vectorizeMessage(message);
-            processedCount++;
+        for (const channel of channels.docs) {
+            const messagesRef = channel.ref.collection('messages');
+            
+            // Build query conditions
+            let baseQuery = messagesRef.orderBy('createdAt', 'asc');
+            if (!force) {
+                // Only process messages from the last 30 days if not forcing a full reindex
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                baseQuery = baseQuery.where('createdAt', '>', Timestamp.fromDate(thirtyDaysAgo));
+            }
+
+            const messages = await baseQuery.get();
+
+            for (const doc of messages.docs) {
+                const message = {
+                    id: doc.id,
+                    spaceId,
+                    channelId: channel.id,
+                    ...doc.data()
+                } as Message;
+
+                await vectorizeMessage(message);
+                processedCount++;
+            }
         }
 
         return {
