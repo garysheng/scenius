@@ -59,13 +59,16 @@ async function generateEmbedding(text: string): Promise<number[]> {
 
     const embedding = response.data[0].embedding;
 
-    // Track embedding generation in LangSmith
+    // Track embedding generation in LangSmith with proper run lifecycle
     try {
+        const startTime = Date.now();
         await langsmith.createRun({
             name: "generate_embedding",
             run_type: "embedding",
             inputs: { text },
-            outputs: { embedding }
+            outputs: { embedding },
+            start_time: startTime,
+            end_time: Date.now()
         });
     } catch (error) {
         console.error('Error tracking embedding in LangSmith:', error);
