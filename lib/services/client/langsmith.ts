@@ -27,7 +27,7 @@ export const langsmithService = {
     try {
       const startTime = Date.now();
       await client.createRun({
-        name: "generate_embedding",
+        name: "generate_embedding_post_message_search",
         run_type: "embedding",
         inputs: { text },
         outputs: { embedding },

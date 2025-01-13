@@ -63,7 +63,7 @@ async function generateEmbedding(text: string): Promise<number[]> {
     try {
         const startTime = Date.now();
         await langsmith.createRun({
-            name: "generate_embedding",
+            name: "generate_embedding_post_message_creation",
             run_type: "embedding",
             inputs: { text },
             outputs: { embedding },
