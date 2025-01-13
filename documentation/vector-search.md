@@ -1,30 +1,83 @@
 # Vector Search Implementation
 
 ## Overview
-This document outlines the implementation of vector search capabilities in Scenius using Pinecone for vector storage/search and Firestore's vector embeddings feature. The system will enable semantic search across messages, providing more intelligent and context-aware search results. All vector operations are tracked using LangSmith for monitoring and optimization.
+This document outlines the implementation of vector search capabilities in Scenius using Pinecone for vector storage/search and OpenAI's text-embedding-3-large model for embeddings. The system enables semantic search across messages, providing more intelligent and context-aware search results. All vector operations are tracked using LangSmith for monitoring and optimization.
 
 ## Architecture
 
 ### Components
 1. **Message Vectorization**
    - Each message is chunked (by entire message for simplicity)
-   - Embeddings are generated using Firestore's vector embeddings feature
+   - Embeddings are generated using OpenAI's text-embedding-3-large model
    - Embeddings are stored in Pinecone with metadata linking back to the original message
-   - All embedding generations are tracked in LangSmith
+   - All embedding generations are tracked in LangSmith with proper run lifecycle management
 
 2. **Cloud Functions**
-   - `vectorizeMessage`: Triggered on new message creation
-   - `vectorizeBatch`: Daily batch job to process any missed messages
-   - `reindexVectors`: Admin-triggered function to reindex all messages
+   - `onMessageCreated`: Triggered on new message creation to vectorize messages
+   - `processBatchMessages`: Daily batch job to process any missed messages
+   - `reindexMessages`: Admin-triggered function to reindex all messages (with 2GB memory, 540s timeout)
    - All functions integrate with LangSmith for monitoring
 
 3. **Search Flow**
    - User inputs search query
-   - Query is converted to embedding
+   - Query is converted to embedding using text-embedding-3-large
    - Pinecone performs similarity search
    - Results are enriched with Firestore data
    - URLs and snippets are returned to the user
    - Search operations are tracked in LangSmith
+
+## Implementation Status
+
+### Completed
+- [x] Set up Pinecone index for message storage
+- [x] Implemented Cloud Functions structure
+- [x] Created message vectorization pipeline
+- [x] Built basic search endpoint
+- [x] Added LangSmith integration for monitoring
+- [x] Created /dev/vector-search test page
+- [x] Implemented search UI components
+- [x] Added filtering capabilities
+- [x] Set up proper run lifecycle management in LangSmith
+
+### In Progress
+- [ ] Enhance result ranking
+- [ ] Add caching layer
+- [ ] Implement analytics tracking
+- [ ] Add rate limiting
+
+### LangSmith Integration Details
+All vector operations are tracked in LangSmith with proper run lifecycle management:
+
+1. **Embedding Generation**
+```typescript
+interface EmbeddingRun {
+  name: "generate_embedding";
+  run_type: "embedding";
+  inputs: { text: string };
+  outputs: { embedding: number[] };
+  start_time: number;  // Unix timestamp
+  end_time: number;    // Unix timestamp
+}
+```
+
+2. **Vector Search**
+```typescript
+interface SearchRun {
+  name: "vector_search";
+  run_type: "chain";
+  inputs: { query: string; spaceId: string };
+  outputs: { results: VectorSearchResult[] };
+  start_time: number;  // Unix timestamp
+  end_time: number;    // Unix timestamp
+}
+```
+
+### Cloud Function Configuration
+The reindexMessages function is configured with:
+- Memory: 2GB
+- Timeout: 540 seconds
+- Min instances: 0
+- Max instances: 10
 
 ## Data Model
 
@@ -59,30 +112,10 @@ interface VectorSearchResult {
 }
 ```
 
-## Implementation Phases
-
-### Phase 1: Basic Infrastructure
-- [x] Set up Pinecone index
-- [ ] Create Cloud Functions structure
-- [ ] Implement message vectorization
-- [ ] Basic search endpoint
-
-### Phase 2: Search Experience
-- [ ] Create /dev/vector-search test page
-- [ ] Implement search UI components
-- [ ] Add filtering capabilities
-- [ ] Enhance result ranking
-
-### Phase 3: Integration
-- [ ] Integrate with main search
-- [ ] Add analytics tracking
-- [ ] Optimize performance
-- [ ] Add caching layer
-
 ## API Endpoints
 
 ### Search Messages
-\`\`\`typescript
+```typescript
 POST /api/vector-search
 {
   query: string;
@@ -95,43 +128,16 @@ POST /api/vector-search
   };
   limit?: number;
 }
-\`\`\`
+```
 
 ### Reindex Messages (Admin Only)
-\`\`\`typescript
+```typescript
 POST /api/vector-search/reindex
 {
   spaceId: string;
   force?: boolean;
 }
-\`\`\`
-
-## Cloud Functions
-
-### Message Vectorization
-```typescript
-export interface MessageVectorization {
-  messageId: string;
-  content: string;
-  metadata: {
-    channelId: string;
-    spaceId: string;
-    authorId: string;
-    createdAt: string;
-  };
-}
 ```
-
-The function will:
-1. Generate embedding using Firestore
-2. Store vector in Pinecone
-3. Update message metadata in Firestore
-
-### Batch Processing
-Daily job that:
-1. Finds messages without vectors
-2. Processes in batches of 100
-3. Updates progress in admin dashboard
 
 ## Frontend Components
 
@@ -196,43 +202,7 @@ Daily job that:
      - Search degradation
      - Performance anomalies
 
-## LangSmith Integration
-
-### Overview
-LangSmith is used to track and monitor all vector operations, providing insights into embedding quality, search relevance, and system performance.
-
-### Tracked Operations
-
-1. **Embedding Generation**
-```typescript
-interface EmbeddingRun {
-  name: "generate_embedding";
-  run_type: "embedding";
-  inputs: {
-    text: string;
-  };
-  outputs: {
-    embedding: number[];
-  };
-}
-```
-
-2. **Vector Search**
-```typescript
-interface SearchRun {
-  name: "vector_search";
-  run_type: "chain";
-  inputs: {
-    query: string;
-    spaceId: string;
-  };
-  outputs: {
-    results: VectorSearchResult[];
-  };
-}
-```
-
-### Benefits
+## Benefits
 1. **Quality Monitoring**
    - Track embedding consistency
    - Monitor search relevance
@@ -247,14 +217,3 @@ interface SearchRun {
    - Identify common patterns
    - Detect areas for improvement
    - Guide model selection
-
-### Implementation
-1. **Client-Side**
-   - Track search operations
-   - Monitor user interactions
-   - Capture feedback signals
-
-2. **Server-Side**
-   - Track embedding generation
-   - Monitor batch operations
-   - Log system events 
