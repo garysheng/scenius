@@ -7,9 +7,10 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-// Export all functions
+import { onMessageCreated, processBatchMessages, reindexMessages } from './vectorize.js';
+
 export {
   onMessageCreated,
   processBatchMessages,
   reindexMessages
-} from './vectorize.js';
+};
