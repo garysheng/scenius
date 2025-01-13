@@ -41,6 +41,10 @@ export const urlService = {
     /** Get the URL for a specific message in a space */
     message: (spaceId: string, channelId: string, messageId: string) => 
       `/spaces/${spaceId}?${URL_PARAMS.SEARCH.CHANNEL}=${channelId}&${URL_PARAMS.SEARCH.MESSAGE}=${messageId}`,
+
+    /** Get the absolute URL for a specific message in a space */
+    messageAbsolute: (spaceId: string, channelId: string, messageId: string) => 
+      `${BASE_URL}/spaces/${spaceId}?${URL_PARAMS.SEARCH.CHANNEL}=${channelId}&${URL_PARAMS.SEARCH.MESSAGE}=${messageId}`,
   },
 
   /**

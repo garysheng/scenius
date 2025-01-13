@@ -11,6 +11,9 @@ import { cn } from '@/lib/utils';
 import { GradientBackground } from '@/components/ui/gradient-background';
 import Image from 'next/image';
 import { useAuth } from '@/lib/hooks/use-auth';
+import { VectorSearchToolCall } from '@/types/vector-search';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface ScenieChatProps {
   spaceId: string;
@@ -55,11 +58,21 @@ export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
     const trimmedInput = inputValue.trim();
     if (!trimmedInput) return;
 
+    const messageToSend = trimmedInput; // Store the message
+    setInputValue(''); // Clear input immediately
+
     try {
-      await sendMessage(trimmedInput);
-      setInputValue('');
+      await sendMessage(messageToSend); // Send the stored message
     } catch (err) {
       console.error('Error sending message:', err);
+      setInputValue(messageToSend); // Restore the input if sending fails
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
     }
   };
 
@@ -87,45 +100,89 @@ export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
               <div
                 key={message.id}
                 className={cn(
-                  'flex gap-3 max-w-[80%]',
+                  'flex flex-col gap-3 max-w-[80%]',
                   message.sender === 'user' ? 'ml-auto' : 'mr-auto'
                 )}
               >
-                {message.sender === 'scenie' && (
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/logo.png" alt="Scenie" className="object-cover" />
-                    <AvatarFallback>S</AvatarFallback>
-                  </Avatar>
-                )}
-                <div
-                  className={cn(
-                    'rounded-lg p-3',
-                    message.sender === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
+                <div className="flex gap-3">
+                  {message.sender === 'scenie' && (
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src="/logo.png" alt="Scenie" className="object-cover" />
+                      <AvatarFallback>S</AvatarFallback>
+                    </Avatar>
                   )}
-                >
-                  {message.content}
-                </div>
-                {message.sender === 'user' && (
-                  <Avatar className="h-8 w-8">
-                    {user?.avatarUrl ? (
-                      <div className="relative w-full h-full">
-                        <Image 
-                          src={user.avatarUrl} 
-                          alt="User"
-                          fill
-                          sizes="32px"
-                          className="rounded-full object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <AvatarFallback className="bg-secondary text-secondary-foreground">
-                        U
-                      </AvatarFallback>
+                  <div
+                    className={cn(
+                      'rounded-lg p-3 prose prose-invert max-w-none',
+                      message.sender === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted'
                     )}
-                  </Avatar>
-                )}
+                  >
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        // Override link rendering to open in new tab
+                        a: ({ ...props }) => (
+                          <a 
+                            {...props} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary-foreground underline"
+                          />
+                        ),
+                        // Style code blocks
+                        code: ({ ...props }) => (
+                          <code 
+                            {...props} 
+                            className="bg-background/20 rounded px-1 py-0.5"
+                          />
+                        ),
+                        // Style blockquotes
+                        blockquote: ({ ...props }) => (
+                          <blockquote 
+                            {...props} 
+                            className="border-l-4 border-primary/50 pl-4 italic"
+                          />
+                        ),
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
+                  {message.sender === 'user' && (
+                    <Avatar className="h-8 w-8">
+                      {user?.avatarUrl ? (
+                        <div className="relative w-full h-full">
+                          <Image 
+                            src={user.avatarUrl} 
+                            alt="User"
+                            fill
+                            sizes="32px"
+                            className="rounded-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <AvatarFallback className="bg-secondary text-secondary-foreground">
+                          U
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                  )}
+                </div>
+                {message.toolCalls?.map((toolCall: VectorSearchToolCall, index: number) => (
+                  <div key={index} className="mt-2 space-y-2">
+                    {toolCall.output && toolCall.output.map((result, i: number) => (
+                      <div key={i} className="text-sm text-muted-foreground">
+                        <span className="font-medium">Score: {result.score.toFixed(2)}</span>
+                        <p>{result.content}</p>
+                      </div>
+                    ))}
+                    {toolCall.error && (
+                      <p className="text-sm text-destructive">{toolCall.error}</p>
+                    )}
+                  </div>
+                ))}
               </div>
             )
           ))}
@@ -157,6 +214,7 @@ export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
         <Input
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Message Scenie..."
           className="flex-1"
         />

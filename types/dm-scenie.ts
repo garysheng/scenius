@@ -1,3 +1,5 @@
+import { VectorSearchToolCall } from './vector-search';
+
 export type ScenieChatMode = 'text' | 'voice';
 
 export interface ScenieMessage {
@@ -9,6 +11,7 @@ export interface ScenieMessage {
   contextType?: 'channel' | 'user' | 'space';
   contextId?: string;
   audioUrl?: string;
+  toolCalls?: VectorSearchToolCall[];
 }
 
 export interface ScenieConversation {

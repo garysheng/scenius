@@ -1,7 +1,7 @@
-import { openai } from '@ai-sdk/openai';
+import { openai as aisdkopenai } from '@ai-sdk/openai';
 import { streamText, tool } from 'ai';
 import { z } from 'zod';
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb, adminAuth } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 import { AI_MODELS } from '@/lib/constants/ai';
 
@@ -53,7 +53,7 @@ async function getHumanReadableDisplayNames(userIds: string[]): Promise<Map<stri
 async function buildUserReferenceMap(spaceId: string): Promise<Map<string, { id: string; name: string }>> {
     console.log('Building user reference map for space:', spaceId);
     const userRefs = new Map<string, { id: string; name: string }>();
-    
+
     // Get all users in the space
     console.log('Fetching members from space...');
     const membersSnapshot = await db.collection('spaces').doc(spaceId).collection('members').get();
@@ -110,9 +110,9 @@ async function findUserByReference(spaceId: string, nameRef: string): Promise<{ 
     console.log('Finding user by reference:', { spaceId, nameRef });
     const userRefs = await buildUserReferenceMap(spaceId);
     const searchTerm = nameRef.toLowerCase();
-    
+
     console.log('Searching for term:', searchTerm);
-    
+
     // Try exact match first
     if (userRefs.has(searchTerm)) {
         console.log('Found exact match:', userRefs.get(searchTerm));
@@ -144,43 +144,180 @@ async function findUserByReference(spaceId: string, nameRef: string): Promise<{ 
     return null;
 }
 
-// Define the tools Scenie can use
-const tools = {
-    getSpaceContext: tool({
-        description: 'Get recent activity across all channels in a space. Use this when asked about general space activity.',
-        parameters: z.object({
-            spaceId: z.string().describe('The space ID to get activity from'),
-            limit: z.number().optional().describe('Number of messages to retrieve per channel'),
+export async function POST(req: Request) {
+    const { messages, spaceId, channelId, userId } = await req.json();
+    console.log('Received request:', { spaceId, channelId, userId });
+
+    // Get the request origin or fallback to NEXT_PUBLIC_APP_URL
+    const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL;
+
+    const tools = {
+        vectorSearch: tool({
+            description: 'Search through message history using semantic vector search. Use this when asked to find or search for specific topics or content.',
+            parameters: z.object({
+                query: z.string().describe('The search query to find relevant messages'),
+                spaceId: z.string().describe('The space ID to search within'),
+                limit: z.number().optional().describe('Maximum number of results to return'),
+                filters: z.object({
+                    channelId: z.string().optional().describe('Filter results to a specific channel'),
+                    authorId: z.string().optional().describe('Filter results to a specific author'),
+                    startDate: z.string().optional().describe('Filter results after this date (ISO string)'),
+                    endDate: z.string().optional().describe('Filter results before this date (ISO string)'),
+                }).optional().describe('Optional filters to apply to the search'),
+            }),
+            execute: async ({ query, spaceId, limit = 10, filters }) => {
+                console.log('Executing vectorSearch:', { query, spaceId, limit, filters });
+                try {
+                    // Create a custom token for internal API calls
+                    const customToken = await adminAuth.createCustomToken('scenie-bot');
+                    
+                    const apiUrl = new URL('/api/vector-search', origin).toString();
+                    
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${customToken}`,
+                            'X-Internal-Call': 'true'
+                        },
+                        body: JSON.stringify({
+                            query,
+                            spaceId,
+                            limit,
+                            filters
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to perform vector search');
+                    }
+
+                    const data = await response.json();
+                    console.log('Vector search results:', data.results.length);
+                    return data.results;
+                } catch (error) {
+                    console.error('Error executing vector search:', error);
+                    return []; // Return empty array instead of throwing to avoid AI_MessageConversionError
+                }
+            },
         }),
-        execute: async ({ spaceId, limit = MAX_MESSAGES }) => {
-            console.log('Executing getSpaceContext for space:', spaceId);
-            try {
-                // Get all channels in the space
-                const channelsSnapshot = await db
-                    .collection('spaces')
-                    .doc(spaceId)
-                    .collection('channels')
-                    .get();
-
-                let allMessages: SpaceMessage[] = [];
-                const channelNames = new Map<string, string>();
-                const userIds = new Set<string>();
-
-                // Fetch messages from each channel
-                for (const channelDoc of channelsSnapshot.docs) {
-                    const channelData = channelDoc.data();
-                    channelNames.set(channelDoc.id, channelData.name || 'Unknown Channel');
-
-                    const messagesSnapshot = await channelDoc.ref
-                        .collection('messages')
-                        .orderBy('createdAt', 'desc')
-                        .limit(limit)
+        getSpaceContext: tool({
+            description: 'Get recent activity across all channels in a space. Use this when asked about general space activity.',
+            parameters: z.object({
+                spaceId: z.string().describe('The space ID to get activity from'),
+                limit: z.number().optional().describe('Number of messages to retrieve per channel'),
+            }),
+            execute: async ({ spaceId, limit = MAX_MESSAGES }) => {
+                console.log('Executing getSpaceContext for space:', spaceId);
+                try {
+                    // Get all channels in the space
+                    const channelsSnapshot = await db
+                        .collection('spaces')
+                        .doc(spaceId)
+                        .collection('channels')
                         .get();
 
+                    let allMessages: SpaceMessage[] = [];
+                    const channelNames = new Map<string, string>();
+                    const userIds = new Set<string>();
+
+                    // Fetch messages from each channel
+                    for (const channelDoc of channelsSnapshot.docs) {
+                        const channelData = channelDoc.data();
+                        channelNames.set(channelDoc.id, channelData.name || 'Unknown Channel');
+
+                        const messagesSnapshot = await channelDoc.ref
+                            .collection('messages')
+                            .orderBy('createdAt', 'desc')
+                            .limit(limit)
+                            .get();
+
+                        messagesSnapshot.docs.forEach(doc => {
+                            const data = doc.data();
+                            userIds.add(data.userId);
+                        });
+
+                        const messages = messagesSnapshot.docs.map(doc => {
+                            const data = doc.data();
+                            return {
+                                id: doc.id,
+                                content: data.content,
+                                userId: data.userId,
+                                userName: 'Unknown User', // Will be populated later
+                                channelId: channelDoc.id,
+                                channelName: channelData.name || 'Unknown Channel',
+                                createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
+                            };
+                        });
+
+                        allMessages = allMessages.concat(messages);
+                    }
+
+                    // Sort all messages by date and limit
+                    allMessages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                    allMessages = allMessages.slice(0, limit);
+
+                    // Get user names in batch
+                    const userNames = await getHumanReadableDisplayNames(Array.from(userIds));
+                    allMessages = allMessages.map(msg => ({
+                        ...msg,
+                        userName: userNames.get(msg.userId) || 'Unknown User',
+                    }));
+
+                    // Get space info
+                    const spaceDoc = await db.collection('spaces').doc(spaceId).get();
+                    const spaceData = spaceDoc.data();
+
+                    console.log('Retrieved messages:', allMessages.length);
+                    return {
+                        spaceId,
+                        spaceName: spaceData?.name || 'Unknown Space',
+                        channels: Array.from(channelNames.entries()).map(([id, name]) => ({ id, name })),
+                        messages: allMessages,
+                    };
+                } catch (error) {
+                    console.error('Error getting space context:', error);
+                    return {
+                        spaceId,
+                        error: 'Failed to retrieve space context',
+                        messages: [],
+                    };
+                }
+            },
+        }),
+
+        getChannelContext: tool({
+            description: 'Get recent messages from a specific channel. Use this when asked about activity in a particular channel.',
+            parameters: z.object({
+                spaceId: z.string().describe('The space ID that contains the channel'),
+                channelId: z.string().describe('The channel ID to get context from'),
+                limit: z.number().optional().describe('Number of messages to retrieve'),
+            }),
+            execute: async ({ spaceId, channelId, limit = 10 }) => {
+                console.log('Executing getChannelContext for space/channel:', spaceId, channelId);
+                try {
+                    // Get messages from the nested collection
+                    const messagesRef = db
+                        .collection('spaces')
+                        .doc(spaceId)
+                        .collection('channels')
+                        .doc(channelId)
+                        .collection('messages')
+                        .orderBy('createdAt', 'desc')
+                        .limit(limit);
+
+                    const messagesSnapshot = await messagesRef.get();
+                    const userIds = new Set<string>();
+
+                    // Collect user IDs
                     messagesSnapshot.docs.forEach(doc => {
                         const data = doc.data();
                         userIds.add(data.userId);
                     });
+
+                    // Get user names in batch
+                    const userNames = await getHumanReadableDisplayNames(Array.from(userIds));
 
                     const messages = messagesSnapshot.docs.map(doc => {
                         const data = doc.data();
@@ -188,257 +325,172 @@ const tools = {
                             id: doc.id,
                             content: data.content,
                             userId: data.userId,
-                            userName: 'Unknown User', // Will be populated later
-                            channelId: channelDoc.id,
-                            channelName: channelData.name || 'Unknown Channel',
+                            userName: userNames.get(data.userId) || 'Unknown User',
                             createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
                         };
                     });
 
-                    allMessages = allMessages.concat(messages);
+                    // Get channel info from the nested collection
+                    const channelDoc = await db
+                        .collection('spaces')
+                        .doc(spaceId)
+                        .collection('channels')
+                        .doc(channelId)
+                        .get();
+                    const channelData = channelDoc.data();
+
+                    console.log('Retrieved messages:', messages.length);
+                    return {
+                        spaceId,
+                        channelId,
+                        channelName: channelData?.name || 'Unknown Channel',
+                        messages,
+                    };
+                } catch (error) {
+                    console.error('Error getting channel context:', error);
+                    return {
+                        spaceId,
+                        channelId,
+                        error: 'Failed to retrieve channel context',
+                        messages: [],
+                    };
                 }
-
-                // Sort all messages by date and limit
-                allMessages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-                allMessages = allMessages.slice(0, limit);
-
-                // Get user names in batch
-                const userNames = await getHumanReadableDisplayNames(Array.from(userIds));
-                allMessages = allMessages.map(msg => ({
-                    ...msg,
-                    userName: userNames.get(msg.userId) || 'Unknown User',
-                }));
-
-                // Get space info
-                const spaceDoc = await db.collection('spaces').doc(spaceId).get();
-                const spaceData = spaceDoc.data();
-
-                console.log('Retrieved messages:', allMessages.length);
-                return {
-                    spaceId,
-                    spaceName: spaceData?.name || 'Unknown Space',
-                    channels: Array.from(channelNames.entries()).map(([id, name]) => ({ id, name })),
-                    messages: allMessages,
-                };
-            } catch (error) {
-                console.error('Error getting space context:', error);
-                return {
-                    spaceId,
-                    error: 'Failed to retrieve space context',
-                    messages: [],
-                };
-            }
-        },
-    }),
-
-    getChannelContext: tool({
-        description: 'Get recent messages from a specific channel. Use this when asked about activity in a particular channel.',
-        parameters: z.object({
-            spaceId: z.string().describe('The space ID that contains the channel'),
-            channelId: z.string().describe('The channel ID to get context from'),
-            limit: z.number().optional().describe('Number of messages to retrieve'),
+            },
         }),
-        execute: async ({ spaceId, channelId, limit = 10 }) => {
-            console.log('Executing getChannelContext for space/channel:', spaceId, channelId);
-            try {
-                // Get messages from the nested collection
-                const messagesRef = db
-                    .collection('spaces')
-                    .doc(spaceId)
-                    .collection('channels')
-                    .doc(channelId)
-                    .collection('messages')
-                    .orderBy('createdAt', 'desc')
-                    .limit(limit);
 
-                const messagesSnapshot = await messagesRef.get();
-                const userIds = new Set<string>();
+        getUserContext: tool({
+            description: 'Get information about a user and their recent activity. Use this when asked about specific users or user activity.',
+            parameters: z.object({
+                spaceId: z.string().describe('The space ID to get user activity from'),
+                userRef: z.string().describe('The user reference (name, username, etc.) to get context about'),
+                limit: z.number().optional().describe('Number of recent activities to retrieve'),
+            }),
+            execute: async ({ spaceId, userRef, limit = 10 }) => {
+                console.log('Executing getUserContext for user reference:', userRef);
+                try {
+                    // Find user by reference
+                    const userMatch = await findUserByReference(spaceId, userRef);
+                    if (!userMatch) {
+                        console.log('No user match found for reference:', userRef);
+                        return {
+                            error: `Could not find a user matching "${userRef}"`,
+                            activities: [],
+                        };
+                    }
 
-                // Collect user IDs
-                messagesSnapshot.docs.forEach(doc => {
-                    const data = doc.data();
-                    userIds.add(data.userId);
-                });
+                    const { id: userId, name: userName } = userMatch;
+                    console.log('Found user match:', { userId, userName });
 
-                // Get user names in batch
-                const userNames = await getHumanReadableDisplayNames(Array.from(userIds));
+                    console.log('Fetching user document...');
+                    const userDoc = await db.collection('users').doc(userId).get();
+                    const userData = userDoc.data();
+                    if (!userData) {
+                        console.log('No user data found for:', userId);
+                        return {
+                            error: 'User data not found',
+                            activities: [],
+                        };
+                    }
+                    console.log('User data:', userData);
 
-                const messages = messagesSnapshot.docs.map(doc => {
-                    const data = doc.data();
-                    return {
-                        id: doc.id,
-                        content: data.content,
-                        userId: data.userId,
-                        userName: userNames.get(data.userId) || 'Unknown User',
-                        createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
-                    };
-                });
+                    console.log('Fetching channels...');
+                    const channelsSnapshot = await db
+                        .collection('spaces')
+                        .doc(spaceId)
+                        .collection('channels')
+                        .get();
+                    console.log('Found channels:', channelsSnapshot.docs.length);
 
-                // Get channel info from the nested collection
-                const channelDoc = await db
-                    .collection('spaces')
-                    .doc(spaceId)
-                    .collection('channels')
-                    .doc(channelId)
-                    .get();
-                const channelData = channelDoc.data();
+                    let activities: UserActivity[] = [];
 
-                console.log('Retrieved messages:', messages.length);
-                return {
-                    spaceId,
-                    channelId,
-                    channelName: channelData?.name || 'Unknown Channel',
-                    messages,
-                };
-            } catch (error) {
-                console.error('Error getting channel context:', error);
-                return {
-                    spaceId,
-                    channelId,
-                    error: 'Failed to retrieve channel context',
-                    messages: [],
-                };
-            }
-        },
-    }),
+                    // Process each channel
+                    for (const channelDoc of channelsSnapshot.docs) {
+                        try {
+                            console.log('Processing channel:', channelDoc.id);
+                            const channelData = channelDoc.data();
 
-    getUserContext: tool({
-        description: 'Get information about a user and their recent activity. Use this when asked about specific users or user activity.',
-        parameters: z.object({
-            spaceId: z.string().describe('The space ID to get user activity from'),
-            userRef: z.string().describe('The user reference (name, username, etc.) to get context about'),
-            limit: z.number().optional().describe('Number of recent activities to retrieve'),
-        }),
-        execute: async ({ spaceId, userRef, limit = 10 }) => {
-            console.log('Executing getUserContext for user reference:', userRef);
-            try {
-                // Find user by reference
-                const userMatch = await findUserByReference(spaceId, userRef);
-                if (!userMatch) {
-                    console.log('No user match found for reference:', userRef);
-                    return {
-                        error: `Could not find a user matching "${userRef}"`,
-                        activities: [],
-                    };
-                }
+                            if (!channelData) {
+                                console.log('No channel data found for:', channelDoc.id);
+                                continue;
+                            }
 
-                const { id: userId, name: userName } = userMatch;
-                console.log('Found user match:', { userId, userName });
+                            console.log('Channel data:', channelData);
+                            console.log('Fetching messages for user in channel...');
 
-                console.log('Fetching user document...');
-                const userDoc = await db.collection('users').doc(userId).get();
-                const userData = userDoc.data();
-                if (!userData) {
-                    console.log('No user data found for:', userId);
-                    return {
-                        error: 'User data not found',
-                        activities: [],
-                    };
-                }
-                console.log('User data:', userData);
+                            const messagesSnapshot = await channelDoc.ref
+                                .collection('messages')
+                                .where('userId', '==', userId)
+                                .orderBy('createdAt', 'desc')
+                                .limit(limit)
+                                .get();
 
-                console.log('Fetching channels...');
-                const channelsSnapshot = await db
-                    .collection('spaces')
-                    .doc(spaceId)
-                    .collection('channels')
-                    .get();
-                console.log('Found channels:', channelsSnapshot.docs.length);
+                            console.log('Found messages:', messagesSnapshot.docs.length);
 
-                let activities: UserActivity[] = [];
-                
-                // Process each channel
-                for (const channelDoc of channelsSnapshot.docs) {
-                    try {
-                        console.log('Processing channel:', channelDoc.id);
-                        const channelData = channelDoc.data();
-                        
-                        if (!channelData) {
-                            console.log('No channel data found for:', channelDoc.id);
+                            // Process messages for this channel
+                            const validMessages = messagesSnapshot.docs
+                                .map(messageDoc => {
+                                    const messageData = messageDoc.data();
+                                    if (!messageData?.content || !messageData?.createdAt) {
+                                        console.log('Skipping invalid message:', messageDoc.id);
+                                        return null;
+                                    }
+
+                                    const message: UserActivity = {
+                                        id: messageDoc.id,
+                                        type: 'message',
+                                        content: messageData.content,
+                                        channelId: channelDoc.id,
+                                        channelName: channelData.name || 'Unknown Channel',
+                                        createdAt: (messageData.createdAt as Timestamp).toDate().toISOString(),
+                                    };
+                                    return message;
+                                })
+                                .filter((msg): msg is UserActivity => msg !== null);
+
+                            activities = [...activities, ...validMessages];
+                        } catch (err) {
+                            const error = err instanceof Error ? err : new Error('Unknown error');
+                            console.log('Error processing channel:', channelDoc.id, error.message);
+                            // Continue with next channel
                             continue;
                         }
-
-                        console.log('Channel data:', channelData);
-                        console.log('Fetching messages for user in channel...');
-                        
-                        const messagesSnapshot = await channelDoc.ref
-                            .collection('messages')
-                            .where('userId', '==', userId)
-                            .orderBy('createdAt', 'desc')
-                            .limit(limit)
-                            .get();
-
-                        console.log('Found messages:', messagesSnapshot.docs.length);
-
-                        // Process messages for this channel
-                        const validMessages = messagesSnapshot.docs
-                            .map(messageDoc => {
-                                const messageData = messageDoc.data();
-                                if (!messageData?.content || !messageData?.createdAt) {
-                                    console.log('Skipping invalid message:', messageDoc.id);
-                                    return null;
-                                }
-
-                                const message: UserActivity = {
-                                    id: messageDoc.id,
-                                    type: 'message',
-                                    content: messageData.content,
-                                    channelId: channelDoc.id,
-                                    channelName: channelData.name || 'Unknown Channel',
-                                    createdAt: (messageData.createdAt as Timestamp).toDate().toISOString(),
-                                };
-                                return message;
-                            })
-                            .filter((msg): msg is UserActivity => msg !== null);
-
-                        activities = [...activities, ...validMessages];
-                    } catch (err) {
-                        const error = err instanceof Error ? err : new Error('Unknown error');
-                        console.log('Error processing channel:', channelDoc.id, error.message);
-                        // Continue with next channel
-                        continue;
                     }
+
+                    // Sort all activities by date and limit
+                    activities.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                    activities = activities.slice(0, limit);
+
+                    console.log('Final activities count:', activities.length);
+
+                    const response = {
+                        userId,
+                        profile: {
+                            name: userName,
+                            email: userData.email,
+                            avatarUrl: userData.avatarUrl,
+                            status: userData.status,
+                            bio: userData.bio,
+                            personality: userData.personality,
+                        },
+                        activities,
+                    };
+
+                    console.log('Returning response:', JSON.stringify(response, null, 2));
+                    return response;
+                } catch (err) {
+                    const error = err instanceof Error ? err : new Error('Unknown error');
+                    console.error('Error in getUserContext:', error.message);
+                    if (error.stack) {
+                        console.error('Stack trace:', error.stack);
+                    }
+                    return {
+                        error: 'Failed to retrieve user context',
+                        activities: [],
+                    };
                 }
-
-                // Sort all activities by date and limit
-                activities.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-                activities = activities.slice(0, limit);
-
-                console.log('Final activities count:', activities.length);
-                
-                const response = {
-                    userId,
-                    profile: {
-                        name: userName,
-                        email: userData.email,
-                        avatarUrl: userData.avatarUrl,
-                        status: userData.status,
-                        bio: userData.bio,
-                        personality: userData.personality,
-                    },
-                    activities,
-                };
-
-                console.log('Returning response:', JSON.stringify(response, null, 2));
-                return response;
-            } catch (err) {
-                const error = err instanceof Error ? err : new Error('Unknown error');
-                console.error('Error in getUserContext:', error.message);
-                if (error.stack) {
-                    console.error('Stack trace:', error.stack);
-                }
-                return {
-                    error: 'Failed to retrieve user context',
-                    activities: [],
-                };
-            }
-        },
-    }),
-};
-
-export async function POST(req: Request) {
-    const { messages, spaceId, channelId, userId } = await req.json();
-    console.log('Received request:', { spaceId, channelId, userId });
+            },
+        }),
+    };
 
     // Add system message to provide context about Scenie's role
     const systemMessage = {
@@ -456,6 +508,25 @@ You MUST:
 3. Use getUserContext when asked about specific users
 4. Provide helpful responses about any topic using the context from tools
 
+When formatting vector search results:
+- Present each result in a clear markdown format
+- Include the message content, date, and channel info
+- Format dates in a human-readable way
+- Use markdown quote blocks (>) for message content
+- Include the message URL as a clickable link
+- Sort results by relevance (score)
+- Mention the total number of results found
+
+Example format for vector search results:
+"I found {n} messages related to your search:
+
+**Message 1** (Score: {score})
+> {content}
+📅 {date} | 📍 {channel}
+[View message]({url})
+
+..."
+
 Important instructions:
 - When asked about space activity, IMMEDIATELY call getSpaceContext with spaceId
 - When asked about a specific channel, use getChannelContext with spaceId and channelId
@@ -470,7 +541,7 @@ Remember: You MUST use tools to get context before responding to questions about
 
     console.log('Starting streamText with tools');
     const result = streamText({
-        model: openai(AI_MODELS.CHAT.GPT4o),
+        model: aisdkopenai(AI_MODELS.CHAT.GPT4o),
         messages: [systemMessage, ...messages],
         tools,
         maxSteps: 3, // Allow up to 3 steps for tool usage

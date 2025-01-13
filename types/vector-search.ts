@@ -13,8 +13,9 @@ export interface PineconeMetadata {
   spaceId: string;        // for filtering
   content: string;        // for snippet generation
   createdAt: string;      // ISO date string
-  authorId: string;       // for filtering by author
-  url: string;            // direct link to message
+  updatedAt?: string;
+  url?: string;
+  authorId?: string;
 }
 
 // Search Types
@@ -40,7 +41,7 @@ export interface VectorSearchResult {
   url: string;
   score: number;           // similarity score
   createdAt: Date;
-  authorId: string;
+  authorId?: string;
 }
 
 // Backend Types
@@ -84,4 +85,17 @@ export interface VectorSearchStats {
     query: string;
     count: number;
   }>;
+}
+
+// Scenie Chat Tool Types
+export interface VectorSearchToolCall {
+  type: 'vector_search';
+  input: {
+    query: string;
+    spaceId: string;
+    filters?: VectorSearchFilters;
+    limit?: number;
+  };
+  output?: VectorSearchResult[];
+  error?: string;
 } 

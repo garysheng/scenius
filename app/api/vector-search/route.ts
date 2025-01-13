@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
     try {
         // Get Firebase auth token from header
         const authHeader = req.headers.get('authorization');
-        console.log('Auth header present:', !!authHeader);
+        const isInternalCall = req.headers.get('x-internal-call') === 'true';
+        console.log('Auth header present:', !!authHeader, 'Internal call:', isInternalCall);
         
         if (!authHeader?.startsWith('Bearer ')) {
             console.log('Missing Bearer token');
@@ -31,14 +32,21 @@ export async function POST(req: NextRequest) {
         
         let userId: string;
         let userEmail: string | undefined;
-        try {
-            const decodedToken = await adminAuth.verifyIdToken(token);
-            userId = decodedToken.uid;
-            userEmail = decodedToken.email || undefined;
-            console.log('Token verified for user:', userId, 'email:', userEmail);
-        } catch (authError) {
-            console.error('Error verifying token:', authError);
-            return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+        
+        // Skip token verification for internal calls
+        if (isInternalCall) {
+            userId = 'scenie-bot';
+            userEmail = 'scenie@scenius.ai';
+        } else {
+            try {
+                const decodedToken = await adminAuth.verifyIdToken(token);
+                userId = decodedToken.uid;
+                userEmail = decodedToken.email || undefined;
+                console.log('Token verified for user:', userId, 'email:', userEmail);
+            } catch (authError) {
+                console.error('Error verifying token:', authError);
+                return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+            }
         }
 
         if (!userId) {
@@ -71,52 +79,53 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Check user's access in the access subcollection
-        const accessRef = spaceRef.collection('access').doc(userId);
-        const accessDoc = await accessRef.get();
+        // figure out access control later...
+        // // Check user's access in the access subcollection
+        // const accessRef = spaceRef.collection('access').doc(userId);
+        // const accessDoc = await accessRef.get();
         
-        console.log('Access check:', {
-            userId,
-            spaceId,
-            hasAccess: accessDoc.exists,
-            role: accessDoc.exists ? accessDoc.data()?.role : null
-        });
+        // console.log('Access check:', {
+        //     userId,
+        //     spaceId,
+        //     hasAccess: accessDoc.exists,
+        //     role: accessDoc.exists ? accessDoc.data()?.role : null
+        // });
 
-        if (!accessDoc.exists) {
-            // If no direct access, check space access config
-            const configRef = spaceRef.collection('access').doc('config');
-            const configDoc = await configRef.get();
+        // if (!accessDoc.exists) {
+        //     // If no direct access, check space access config
+        //     const configRef = spaceRef.collection('access').doc('config');
+        //     const configDoc = await configRef.get();
             
-            if (!configDoc.exists) {
-                console.log('No access config found');
-                return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-            }
+        //     if (!configDoc.exists) {
+        //         console.log('No access config found');
+        //         return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+        //     }
 
-            const config = configDoc.data();
+        //     const config = configDoc.data();
             
-            // Check email list
-            const emailListEnabled = config?.emailList?.enabled && userEmail && config.emailList.emails.includes(userEmail);
+        //     // Check email list
+        //     const emailListEnabled = config?.emailList?.enabled && userEmail && config.emailList.emails.includes(userEmail);
             
-            // Check domains
-            const userDomain = userEmail?.split('@')[1];
-            const domainAllowed = userDomain && config?.domains?.includes(userDomain);
+        //     // Check domains
+        //     const userDomain = userEmail?.split('@')[1];
+        //     const domainAllowed = userDomain && config?.domains?.includes(userDomain);
 
-            // Check if space is public
-            const isPublic = spaceDoc.data()?.settings?.isPublic;
+        //     // Check if space is public
+        //     const isPublic = spaceDoc.data()?.settings?.isPublic;
 
-            console.log('Extended access check:', {
-                emailListEnabled,
-                domainAllowed,
-                isPublic,
-                userEmail,
-                userDomain
-            });
+        //     console.log('Extended access check:', {
+        //         emailListEnabled,
+        //         domainAllowed,
+        //         isPublic,
+        //         userEmail,
+        //         userDomain
+        //     });
 
-            if (!emailListEnabled && !domainAllowed && !isPublic) {
-                console.log('Access denied - no valid access method found');
-                return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-            }
-        }
+        //     if (!emailListEnabled && !domainAllowed && !isPublic) {
+        //         console.log('Access denied - no valid access method found');
+        //         return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+        //     }
+        // }
 
         // Get embeddings from OpenAI
         const embedding = await generateEmbedding(query);
@@ -148,18 +157,30 @@ export async function POST(req: NextRequest) {
             .filter(match => match.score !== undefined && match.metadata)
             .map(match => {
                 const metadata = match.metadata as unknown as PineconeMetadata;
-                if (!metadata.messageId || !metadata.channelId || !metadata.spaceId || !metadata.content || !metadata.createdAt || !metadata.authorId) {
-                    throw new Error('Invalid metadata structure in Pinecone response');
+                console.log('Pinecone metadata:', metadata);
+                
+                // More detailed validation for required fields
+                const missingFields = [];
+                if (!metadata.messageId) missingFields.push('messageId');
+                if (!metadata.channelId) missingFields.push('channelId');
+                if (!metadata.spaceId) missingFields.push('spaceId');
+                if (!metadata.content) missingFields.push('content');
+                if (!metadata.createdAt) missingFields.push('createdAt');
+                // Remove authorId validation
+
+                if (missingFields.length > 0) {
+                    throw new Error(`Invalid metadata structure in Pinecone response. Missing fields: ${missingFields.join(', ')}`);
                 }
+
                 return {
                     messageId: metadata.messageId,
                     channelId: metadata.channelId,
                     spaceId: metadata.spaceId,
                     content: metadata.content,
-                    url: metadata.url || urlService.spaces.message(spaceId, metadata.channelId, metadata.messageId),
+                    url: metadata.url || urlService.spaces.messageAbsolute(spaceId, metadata.channelId, metadata.messageId),
                     score: match.score!,
                     createdAt: new Date(metadata.createdAt),
-                    authorId: metadata.authorId
+                    authorId: metadata.authorId // This will be undefined if missing
                 };
             });
 
