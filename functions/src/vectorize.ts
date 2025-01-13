@@ -191,7 +191,11 @@ export const processBatchMessages = onSchedule({
 });
 
 export const reindexMessages = onCall({
-    secrets: [PINECONE_API_KEY, OPENAI_API_KEY, LANGSMITH_API_KEY]
+    secrets: [PINECONE_API_KEY, OPENAI_API_KEY, LANGSMITH_API_KEY],
+    memory: '2GiB',
+    timeoutSeconds: 540,
+    minInstances: 0,
+    maxInstances: 10
 }, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'User must be authenticated');
