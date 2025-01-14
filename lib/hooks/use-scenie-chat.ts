@@ -41,6 +41,13 @@ export function useScenieChatHook({
     }
   }, []);
 
+  const stopTTS = useCallback(() => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      audioPlayerRef.current.currentTime = 0;
+    }
+  }, []);
+
   // Load initial messages and subscribe to updates
   useEffect(() => {
     if (!spaceId || !userId) return;
@@ -83,11 +90,15 @@ export function useScenieChatHook({
 
       // Persist the assistant's message
       if (message.role === 'assistant' && spaceId && userId) {
-        await scenieService.addMessage(spaceId, userId, {
+        const assistantMessage = await scenieService.addMessage(spaceId, userId, {
           content: message.content,
           sender: 'scenie',
           mode: 'text'
         });
+
+        // Emit a custom event for the UI to scroll to the new message
+        const scrollEvent = new CustomEvent('newMessage', { detail: { messageId: assistantMessage.id } });
+        window.dispatchEvent(scrollEvent);
 
         // Generate and play audio for Scenie's response
         try {
@@ -126,11 +137,15 @@ export function useScenieChatHook({
 
     try {
       // Persist the user's message first
-      await scenieService.addMessage(spaceId, userId, {
+      const userMessage = await scenieService.addMessage(spaceId, userId, {
         content,
         sender: 'user',
         mode: 'text'
       });
+
+      // Emit a custom event for the UI to scroll to the new message
+      const scrollEvent = new CustomEvent('newMessage', { detail: { messageId: userMessage.id } });
+      window.dispatchEvent(scrollEvent);
 
       // Then send to AI
       await append({
@@ -144,6 +159,9 @@ export function useScenieChatHook({
 
   const startVoiceChat = useCallback(async (): Promise<void> => {
     try {
+      // Stop any ongoing TTS playback
+      stopTTS();
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
       
@@ -190,7 +208,7 @@ export function useScenieChatHook({
     } catch (err) {
       console.error('Error starting voice chat:', err);
     }
-  }, [sendMessage]);
+  }, [stopTTS, sendMessage]);
 
   const stopVoiceChat = useCallback(async (): Promise<void> => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -229,5 +247,6 @@ export function useScenieChatHook({
     isVoiceChatActive,
     switchMode,
     clearMessages,
+    stopTTS,
   };
 } 

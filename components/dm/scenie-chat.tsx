@@ -47,10 +47,25 @@ export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
     hasAvatar: !!user?.avatarUrl
   });
 
-  // Scroll to bottom when new messages arrive
+  // Scroll to position new messages at the top
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    if (scrollAreaRef.current && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      const messageElement = document.getElementById(lastMessage.id);
+      
+      if (messageElement) {
+        // Get the scroll container's padding
+        const scrollContainer = scrollAreaRef.current;
+        const containerPadding = parseInt(getComputedStyle(scrollContainer).paddingTop);
+        
+        // Calculate position to show message at top of viewport
+        const scrollPosition = messageElement.offsetTop - containerPadding;
+        
+        scrollAreaRef.current.scrollTo({
+          top: scrollPosition,
+          behavior: 'smooth'
+        });
+      }
     }
   }, [messages]);
 
@@ -117,6 +132,7 @@ export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
             message.content && (
               <div
                 key={message.id}
+                id={message.id}
                 className={cn(
                   'flex flex-col gap-3 max-w-[80%]',
                   message.sender === 'user' ? 'ml-auto' : 'mr-auto'
