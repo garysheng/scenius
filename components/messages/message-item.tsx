@@ -330,7 +330,7 @@ export function MessageItem({
     <ErrorBoundary>
       <div 
         className={cn(
-          "group flex items-start gap-3 p-2 rounded-lg transition-all duration-300 relative message-group",
+          "group/message flex items-start gap-3 p-2 rounded-lg transition-all duration-300 relative",
           "hover:bg-primary/10",
           "hover:shadow-[0_0_20px_rgba(147,51,234,0.15)]",
           "hover:backdrop-brightness-125",
@@ -520,7 +520,7 @@ export function MessageItem({
           )}
         </div>
 
-        <div className="opacity-0 message-group-hover:opacity-100 transition-opacity absolute right-2 top-2">
+        <div className="opacity-0 group-hover/message:opacity-100 transition-opacity absolute right-2 top-2">
           <MessageActions
             messageId={message.id}
             onReaction={handleReaction}

@@ -51,14 +51,7 @@ class VoiceAssignmentService {
   }
 
   async getVoiceAssignment(userId: string, spaceId: string): Promise<string> {
-    const docRef = doc(db, this.COLLECTION, `${spaceId}_${userId}`);
-    const docSnap = await getDoc(docRef);
-
-    if (docSnap.exists()) {
-      return docSnap.data().voiceId;
-    }
-
-    // If no assignment exists, create one
+    // Always create a new assignment
     return this.assignVoice(userId, spaceId);
   }
 
@@ -79,40 +72,8 @@ class VoiceAssignmentService {
         hasUserData: !!userData 
       });
 
-      // First get all channels in the space
-      const channelsRef = collection(db, 'spaces', spaceId, 'channels');
-      const channelsSnapshot = await getDocs(channelsRef);
-      console.log('📚 Found channels:', { count: channelsSnapshot.size });
-      
-      // Get messages from all channels
-      let allMessages: string[] = [];
-      const messagesByChannel: Record<string, number> = {};
-
-      await Promise.all(channelsSnapshot.docs.map(async (channelDoc) => {
-        const channelId = channelDoc.id;
-        console.log(`🔍 Searching messages in channel: ${channelId}`);
-        
-        const messagesRef = collection(db, 'spaces', spaceId, 'channels', channelId, 'messages');
-        const messagesQuery = query(messagesRef, where('userId', '==', userId));
-        const messagesSnapshot = await getDocs(messagesQuery);
-        
-        const channelMessages = messagesSnapshot.docs.map(doc => doc.data().content);
-        messagesByChannel[channelId] = channelMessages.length;
-        allMessages = allMessages.concat(channelMessages);
-        
-        console.log(`📝 Channel ${channelId}:`, { 
-          messagesFound: channelMessages.length,
-          firstMessage: channelMessages[0]?.slice(0, 50) 
-        });
-      }));
-      
-      console.log('📊 Message distribution:', messagesByChannel);
-      console.log('📝 Total messages found:', allMessages.length);
-      
-      const messages = allMessages.join('\n');
-
-      if (!messages && !username && !fullName) {
-        console.log('⚠️ No data available for analysis, using random assignment');
+      if (!username && !fullName) {
+        console.log('⚠️ No user data available, using random assignment');
         return {
           gender: Math.random() > 0.5 ? 'male' : 'female',
           style: Math.random() > 0.5 ? 'professional' : 'casual'
@@ -120,8 +81,6 @@ class VoiceAssignmentService {
       }
 
       console.log('🤖 Sending to GPT for analysis:', {
-        hasMessages: !!messages,
-        messageLength: messages.length,
         username,
         fullName
       });
@@ -138,39 +97,33 @@ class VoiceAssignmentService {
               You will be given:
               - Their username
               - Their full name (if available)
-              - Their messages (if available)
               
               Return ONLY a JSON object with these two fields.
               Example: {"gender": "female", "style": "professional"}
               
               For gender detection:
-              - Common male names: John, Michael, David, Albert, Gary, William, etc.
-              - Common female names: Sarah, Emily, Jessica, Elizabeth, etc.
-              - If the name is clearly male (like Albert Einstein, Gary Smith), assign male
-              - If the name is clearly female (like Sarah Johnson), assign female
-              - For ambiguous names or usernames, use message content if available
-              - Only default to random if absolutely no clear indicators
+              - If the name is Albert, Gary, William, John, Michael, David, etc. -> ALWAYS assign male
+              - If the name is Sarah, Emily, Jessica, Elizabeth, etc. -> ALWAYS assign female
+              - For usernames containing 'mr', 'guy', 'boy', 'man', 'dude' -> assign male
+              - For usernames containing 'mrs', 'ms', 'girl', 'lady', 'woman' -> assign female
+              - For ambiguous names or usernames, default to male
               
               Weight the analysis:
-              1. Messages content (highest weight if available)
-              2. Full name (medium weight if available)
-              3. Username (lowest weight)
+              1. Exact name matches from the lists above (highest priority)
+              2. Username gender indicators
+              3. Default to male if no clear indicators
               
               Example analyses:
-              - Full name "Albert Einstein", no messages -> {"gender": "male", "style": "professional"}
-              - Full name "Gary Smith", casual messages -> {"gender": "male", "style": "casual"}
-              - Username "coolcoder123", no name, professional messages -> base gender on message content
+              - Full name "Albert Einstein" -> {"gender": "male", "style": "professional"}
+              - Full name "Gary Smith" -> {"gender": "male", "style": "casual"}
+              - Username "coolcoder123" -> default male
               
-              If data is conflicting, prioritize the higher weighted sources.
-              
-              IMPORTANT: For names like 'Albert Einstein' or 'Gary', ALWAYS assign male gender unless there is VERY strong evidence otherwise from message content.`
+              IMPORTANT: Names like 'Albert', 'Gary', 'William', etc. should ALWAYS be assigned male gender.`
           },
           {
             role: "user",
             content: `Username: ${username}
-            Full Name: ${fullName}
-            Messages:
-            ${messages}`
+            Full Name: ${fullName}`
           }
         ],
         temperature: 0.1,
@@ -201,7 +154,12 @@ class VoiceAssignmentService {
         throw new Error('Invalid analysis format');
       }
 
-      return rawAnalysis;
+      // Randomize the style since we're not analyzing messages
+      return {
+        gender: rawAnalysis.gender,
+        style: Math.random() > 0.5 ? 'professional' : 'casual'
+      };
+
     } catch (error) {
       console.error('❌ Failed to analyze user:', error);
       // Default to random assignment if analysis fails

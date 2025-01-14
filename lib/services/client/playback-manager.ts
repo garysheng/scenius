@@ -48,10 +48,10 @@ class PlaybackManager {
    * @param startFromMessageId - Optional ID of message to start from
    */
   async startPlayback(messages: VoicePlaybackMessage[], spaceId: string, startFromMessageId?: string): Promise<void> {
-    console.log('🎵 PlaybackManager - Starting playback:', { 
-      messageCount: messages.length, 
-      spaceId, 
-      startFromMessageId 
+    console.log('🎵 PlaybackManager - Starting playback:', {
+      messageCount: messages.length,
+      spaceId,
+      startFromMessageId
     });
 
     if (this.state.isPlaying) {
@@ -60,7 +60,7 @@ class PlaybackManager {
 
     this.allMessages = messages;
     this.currentSpaceId = spaceId;
-    
+
     // Find the starting index
     if (startFromMessageId) {
       this.currentMessageIndex = this.allMessages.findIndex(m => m.id === startFromMessageId);
@@ -72,9 +72,9 @@ class PlaybackManager {
     }
 
     // Queue up messages from the current index
-    this.messageQueue = this.allMessages.slice(this.currentMessageIndex).map(msg => ({ 
-      ...msg, 
-      status: 'queued' as const 
+    this.messageQueue = this.allMessages.slice(this.currentMessageIndex).map(msg => ({
+      ...msg,
+      status: 'queued' as const
     }));
 
     this.state.isPlaying = true;
@@ -83,7 +83,7 @@ class PlaybackManager {
     // Load voice assignments for all users in the space
     console.log('🎙️ PlaybackManager - Loading voice assignments for space:', spaceId);
     this.state.voiceAssignments = await voiceAssignmentService.getSpaceAssignments(spaceId);
-    console.log('🎙️ PlaybackManager - Voice assignments loaded:', 
+    console.log('🎙️ PlaybackManager - Voice assignments loaded:',
       Object.fromEntries(this.state.voiceAssignments)
     );
 
@@ -142,7 +142,7 @@ class PlaybackManager {
     if (messageIndex === -1) return;
 
     this.currentMessageIndex = messageIndex;
-    
+
     // Reset status of all messages
     this.messageQueue.forEach(msg => {
       this.updateMessageStatus(msg.id, 'queued');
@@ -153,7 +153,7 @@ class PlaybackManager {
       ...msg,
       status: 'queued' as const
     }));
-    
+
     if (this.currentAudio) {
       this.currentAudio.pause();
       this.currentAudio = null;
@@ -209,36 +209,34 @@ class PlaybackManager {
 
     try {
       // Get or assign voice for the message author
-      console.log('🎙️ PlaybackManager - Getting voice for user:', { 
-        userId: message.userId, 
-        messageId: message.id 
-      });
-      
-      let voiceId = this.state.voiceAssignments.get(message.userId);
-      console.log('🎙️ PlaybackManager - Cached voice assignment:', { 
-        userId: message.userId, 
-        voiceId 
+      console.log('🎙️ PlaybackManager - Getting voice for user:', {
+        userId: message.userId,
+        messageId: message.id
       });
 
-      if (!voiceId) {
-        console.log('🎙️ PlaybackManager - No cached voice, requesting new assignment');
-        voiceId = await voiceAssignmentService.getVoiceAssignment(message.userId, this.currentSpaceId);
-        this.state.voiceAssignments.set(message.userId, voiceId);
-        console.log('🎙️ PlaybackManager - New voice assigned:', { 
-          userId: message.userId, 
-          voiceId 
-        });
-      }
+      // let voiceId = this.state.voiceAssignments.get(message.userId);
+      // console.log('🎙️ PlaybackManager - Cached voice assignment:', { 
+      //   userId: message.userId, 
+      //   voiceId 
+      // });
+
+      console.log('🎙️ PlaybackManager - No cached voice, requesting new assignment');
+      const voiceId = await voiceAssignmentService.getVoiceAssignment(message.userId, this.currentSpaceId);
+      this.state.voiceAssignments.set(message.userId, voiceId);
+      console.log('🎙️ PlaybackManager - New voice assigned:', {
+        userId: message.userId,
+        voiceId
+      });
 
       // Get or generate audio for the message
       let audioBuffer = this.audioCache.get(message.id);
       if (!audioBuffer) {
-        console.log('🔊 PlaybackManager - Generating speech:', { 
+        console.log('🔊 PlaybackManager - Generating speech:', {
           messageId: message.id,
           voiceId,
           content: message.content.slice(0, 50) + '...'
         });
-        
+
         audioBuffer = await deepgramService.generateSpeech(
           message.content,
           voiceId,
@@ -253,7 +251,7 @@ class PlaybackManager {
       // Play the audio
       const blob = new Blob([audioBuffer], { type: 'audio/mp3' });
       const url = URL.createObjectURL(blob);
-      
+
       this.currentAudio = new Audio(url);
       this.currentAudio.addEventListener('ended', () => {
         URL.revokeObjectURL(url);
