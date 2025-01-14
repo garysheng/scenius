@@ -93,8 +93,9 @@ export function useScenieChatHook({
         try {
           const speechResponse = await openai.audio.speech.create({
             model: "tts-1",
-            voice: "alloy",
+            voice: "nova",
             input: message.content,
+            speed: 1.1, // Slightly faster for more energy
           });
 
           const blob = await speechResponse.blob();
