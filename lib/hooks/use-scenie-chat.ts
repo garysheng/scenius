@@ -8,7 +8,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useChat } from 'ai/react';
-import { ElevenLabsClient, play } from 'elevenlabs';
+import OpenAI from 'openai';
 import {
   UseScenieChatOptions,
   UseScenieChatReturn,
@@ -17,15 +17,10 @@ import {
 } from '@/types/dm-scenie';
 import { scenieService } from '@/lib/services/client/scenie';
 
-const ELEVEN_LABS_CONFIG = {
-  apiKey: process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY!,
-  voiceId: process.env.NEXT_PUBLIC_ELEVEN_LABS_VOICE_ID!,
-  model: 'eleven_multilingual_v2' as const,
-  voice: {
-    stability: 0.5,
-    similarity_boost: 0.75,
-  },
-};
+const openai = new OpenAI({
+  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+  dangerouslyAllowBrowser: true
+});
 
 export function useScenieChatHook({
   spaceId,
@@ -34,19 +29,17 @@ export function useScenieChatHook({
   onModeChange,
 }: UseScenieChatOptions): UseScenieChatReturn {
   const [isVoiceChatActive, setIsVoiceChatActive] = useState(false);
-  const [elevenlabsClient, setElevenlabsClient] = useState<ElevenLabsClient | null>(null);
   const [persistedMessages, setPersistedMessages] = useState<ScenieMessage[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
-  // Initialize Eleven Labs client for voice
+  // Initialize audio player
   useEffect(() => {
-    if (!elevenlabsClient && ELEVEN_LABS_CONFIG.apiKey) {
-      setElevenlabsClient(new ElevenLabsClient({
-        apiKey: ELEVEN_LABS_CONFIG.apiKey,
-      }));
+    if (!audioPlayerRef.current) {
+      audioPlayerRef.current = new Audio();
     }
-  }, [elevenlabsClient]);
+  }, []);
 
   // Load initial messages and subscribe to updates
   useEffect(() => {
@@ -95,20 +88,29 @@ export function useScenieChatHook({
           sender: 'scenie',
           mode: 'text'
         });
-      }
 
-      // Generate and play audio for Scenie's response
-      if (elevenlabsClient && message.role === 'assistant') {
+        // Generate and play audio for Scenie's response
         try {
-          const audio = await elevenlabsClient.generate({
-            voice: ELEVEN_LABS_CONFIG.voiceId,
-            text: message.content,
-            model_id: ELEVEN_LABS_CONFIG.model,
-            voice_settings: ELEVEN_LABS_CONFIG.voice,
+          const speechResponse = await openai.audio.speech.create({
+            model: "tts-1",
+            voice: "alloy",
+            input: message.content,
           });
-          await play(audio);
+
+          const blob = await speechResponse.blob();
+          const url = URL.createObjectURL(blob);
+          
+          if (audioPlayerRef.current) {
+            audioPlayerRef.current.src = url;
+            await audioPlayerRef.current.play();
+            
+            // Clean up the URL after playing
+            audioPlayerRef.current.onended = () => {
+              URL.revokeObjectURL(url);
+            };
+          }
         } catch (err) {
-          console.error('Failed to generate audio:', err);
+          console.error('Failed to generate or play audio:', err);
         }
       }
     },
