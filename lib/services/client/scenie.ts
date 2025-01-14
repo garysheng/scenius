@@ -412,13 +412,21 @@ export const scenieService = {
   },
 
   async clearMessages(spaceId: string, userId: string): Promise<void> {
-    const conversationRef = doc(db, 'spaces', spaceId, 'conversations', userId);
-    const messagesRef = collection(conversationRef, 'messages');
+    const messagesRef = collection(
+      db, 
+      'spaces', 
+      spaceId, 
+      'members', 
+      userId, 
+      'scenieChatMessages', 
+      'conversation',
+      'messages'
+    );
     
     // Get all messages
     const messagesSnapshot = await getDocs(messagesRef);
     
-    // Delete each message
+    // Delete each message in a batch
     const batch = writeBatch(db);
     messagesSnapshot.docs.forEach((doc) => {
       batch.delete(doc.ref);

@@ -23,9 +23,7 @@ interface ScenieChatProps {
 
 export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
   const [inputValue, setInputValue] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
   
   const {

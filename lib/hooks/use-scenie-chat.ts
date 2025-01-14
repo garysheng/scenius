@@ -6,7 +6,7 @@
  * - Integration with Vercel's AI SDK for chat functionality
  * - Mode switching between text/voice chat
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useChat } from 'ai/react';
 import { ElevenLabsClient, play } from 'elevenlabs';
 import {
@@ -36,6 +36,8 @@ export function useScenieChatHook({
   const [isVoiceChatActive, setIsVoiceChatActive] = useState(false);
   const [elevenlabsClient, setElevenlabsClient] = useState<ElevenLabsClient | null>(null);
   const [persistedMessages, setPersistedMessages] = useState<ScenieMessage[]>([]);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   // Initialize Eleven Labs client for voice
   useEffect(() => {
@@ -138,10 +140,60 @@ export function useScenieChatHook({
   }, [append, spaceId, userId]);
 
   const startVoiceChat = useCallback(async (): Promise<void> => {
-    setIsVoiceChatActive(true);
-  }, []);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        audioChunksRef.current = []; // Clear for next recording
+
+        // Convert audio to text using OpenAI Whisper
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'audio.webm');
+        formData.append('model', 'whisper-1');
+
+        try {
+          const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
+            },
+            body: formData
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to transcribe audio');
+          }
+
+          const data = await response.json();
+          if (data.text) {
+            await sendMessage(data.text);
+          }
+        } catch (err) {
+          console.error('Error transcribing audio:', err);
+        }
+      };
+
+      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.start();
+      setIsVoiceChatActive(true);
+    } catch (err) {
+      console.error('Error starting voice chat:', err);
+    }
+  }, [sendMessage]);
 
   const stopVoiceChat = useCallback(async (): Promise<void> => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+    }
     setIsVoiceChatActive(false);
   }, []);
 
