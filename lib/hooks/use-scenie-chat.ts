@@ -179,6 +179,7 @@ export function useScenieChatHook({
         const formData = new FormData();
         formData.append('file', audioBlob, 'audio.webm');
         formData.append('model', 'whisper-1');
+        formData.append('prompt', 'This transcript may contain the word "Scenie" (pronounced "SEE-nee"), which is the name of an AI assistant.');
 
         try {
           const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
@@ -194,8 +195,10 @@ export function useScenieChatHook({
           }
 
           const data = await response.json();
-          if (data.text) {
-            await sendMessage(data.text);
+          // Replace common misspellings of Scenie
+          const correctedText = data.text.replace(/\b(seeny|seenie|scene-e|scene e|scenic)\b/gi, 'Scenie');
+          if (correctedText) {
+            await sendMessage(correctedText);
           }
         } catch (err) {
           console.error('Error transcribing audio:', err);
