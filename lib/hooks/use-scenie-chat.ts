@@ -149,6 +149,20 @@ export function useScenieChatHook({
     onModeChange?.(newMode);
   }, [onModeChange]);
 
+  const clearMessages = useCallback(async (): Promise<void> => {
+    if (!spaceId || !userId) {
+      console.error('Missing spaceId or userId');
+      return;
+    }
+
+    try {
+      await scenieService.clearMessages(spaceId, userId);
+      setPersistedMessages([]); // Clear local state
+    } catch (err) {
+      console.error('Error clearing messages:', err);
+    }
+  }, [spaceId, userId]);
+
   // Return persisted messages instead of AI SDK messages
   return {
     messages: persistedMessages,
@@ -159,5 +173,6 @@ export function useScenieChatHook({
     stopVoiceChat,
     isVoiceChatActive,
     switchMode,
+    clearMessages,
   };
 } 

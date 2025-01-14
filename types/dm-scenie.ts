@@ -95,6 +95,7 @@ export interface UseScenieChatReturn {
   stopVoiceChat: () => Promise<void>;
   isVoiceChatActive: boolean;
   switchMode: (mode: ScenieChatMode) => void;
+  clearMessages: () => Promise<void>;
 }
 
 // Service Types

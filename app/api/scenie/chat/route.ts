@@ -165,7 +165,7 @@ export async function POST(req: Request) {
                     endDate: z.string().optional().describe('Filter results before this date (ISO string)'),
                 }).optional().describe('Optional filters to apply to the search'),
             }),
-            execute: async ({ query, spaceId, limit = 10, filters }) => {
+            execute: async ({ query, spaceId, limit = 5, filters }) => {
                 console.log('Executing vectorSearch:', { query, spaceId, limit, filters });
                 try {
                     // Create a custom token for internal API calls
@@ -518,9 +518,9 @@ When formatting vector search results:
 - Mention the total number of results found
 
 Example format for vector search results:
-"I found {n} messages related to your search:
+"I found {n} messages related to your search from most relevant to least:
 
-**Message 1** (Score: {score})
+**Message 1**
 > {content}
 📅 {date} | 📍 {channel}
 [View message]({url})

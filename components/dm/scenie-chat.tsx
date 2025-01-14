@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Mic, MicOff, Send } from 'lucide-react';
+import { Mic, MicOff, Send, Trash2 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { GradientBackground } from '@/components/ui/gradient-background';
@@ -23,14 +23,11 @@ interface ScenieChatProps {
 
 export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
   const [inputValue, setInputValue] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
   
-  console.log('User data in ScenieChat:', {
-    avatarUrl: user?.avatarUrl,
-    hasAvatar: !!user?.avatarUrl
-  });
-
   const {
     messages,
     isLoading,
@@ -39,11 +36,17 @@ export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
     startVoiceChat,
     stopVoiceChat,
     isVoiceChatActive,
+    clearMessages,
   } = useScenieChatHook({
     spaceId,
     userId,
     mode: 'text',
     onModeChange: (mode) => console.log('Mode changed:', mode),
+  });
+
+  console.log('User data in ScenieChat:', {
+    avatarUrl: user?.avatarUrl,
+    hasAvatar: !!user?.avatarUrl
   });
 
   // Scroll to bottom when new messages arrive
@@ -88,9 +91,26 @@ export function ScenieChat({ spaceId, userId, className }: ScenieChatProps) {
     }
   };
 
+  const clearHistory = () => {
+    clearMessages();
+    setInputValue('');
+  };
+
   return (
     <div className={cn('flex flex-col bg-background/80 relative', className)}>
       <GradientBackground />
+      
+      <div className="flex items-center justify-between p-4 border-b">
+        <h2 className="text-lg font-semibold">Chat with Scenie</h2>
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={clearHistory}
+          title="Clear chat history"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
       
       {/* Messages */}
       <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">

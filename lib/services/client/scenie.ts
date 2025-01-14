@@ -12,7 +12,8 @@ import {
   setDoc,
   serverTimestamp,
   onSnapshot,
-  QueryConstraint
+  QueryConstraint,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { ChatSummary, VoiceDictation } from '@/types/scenie';
@@ -408,5 +409,21 @@ export const scenieService = {
 
       callback(messages);
     });
+  },
+
+  async clearMessages(spaceId: string, userId: string): Promise<void> {
+    const conversationRef = doc(db, 'spaces', spaceId, 'conversations', userId);
+    const messagesRef = collection(conversationRef, 'messages');
+    
+    // Get all messages
+    const messagesSnapshot = await getDocs(messagesRef);
+    
+    // Delete each message
+    const batch = writeBatch(db);
+    messagesSnapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    
+    await batch.commit();
   }
 }; 
