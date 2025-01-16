@@ -22,7 +22,7 @@ const fetchWithTimeout = async (url: string, options: RequestInit, timeout: numb
   }
 };
 
-export function useAutoResponse(
+export function useAutoRespondToDM(
   messages: MessageFrontend[],
   spaceId: string,
   channelId: string,
