@@ -9,6 +9,8 @@ const openai = new OpenAI({
 });
 
 const GARY_USER_ID = process.env.NEXT_PUBLIC_GARY_USER_ID;
+const GARY_TEMPLATE_ID = process.env.NEXT_PUBLIC_HEYGEN_TEMPLATE_ID;
+const GARY_OUTGOING_TEMPLATE_ID = 'd5382d443092447f8f6ba8acf111edc2';
 const pendingResponses: Record<string, boolean> = {};
 
 export const autoResponseService = {
@@ -27,7 +29,7 @@ export const autoResponseService = {
       isTest: options?.isTest
     });
 
-    // Skip if not a DM with Gary or if it's Gary's own message
+    // Skip if not a DM with Gary
     if (!options?.isTest) {
       console.log('🔍 [AutoResponse] Checking channel type and permissions');
       const channelRef = doc(db, 'spaces', spaceId, 'channels', channelId);
@@ -45,9 +47,17 @@ export const autoResponseService = {
         participantCount: channelData.metadata?.participantIds?.length
       });
       
-      if (channelData.kind !== 'DM' || 
-          !channelData.metadata?.participantIds?.includes(GARY_USER_ID) ||
-          userId === GARY_USER_ID) {
+      // Check if it's a DM and either:
+      // 1. Message is TO Gary (participantIds includes Gary and sender is not Gary)
+      // 2. Message is FROM Gary (sender is Gary and it's a DM)
+      const isToGary = channelData.kind === 'DM' && 
+                      channelData.metadata?.participantIds?.includes(GARY_USER_ID) &&
+                      userId !== GARY_USER_ID;
+      
+      const isFromGary = channelData.kind === 'DM' && 
+                        userId === GARY_USER_ID;
+
+      if (!isToGary && !isFromGary) {
         console.log('🚫 [AutoResponse] Skipping - Not a valid Gary DM');
         return;
       }
@@ -173,9 +183,11 @@ export const autoResponseService = {
         response: response
       });
       
-      // Generate video with the response
+      // Generate video with the response, using appropriate template
       console.log('🎥 [AutoResponse] Starting video generation');
-      const videoResult = await heygenService.generateVideo(response);
+      const templateId = userId === GARY_USER_ID ? GARY_OUTGOING_TEMPLATE_ID : GARY_TEMPLATE_ID;
+      console.log('🎬 [AutoResponse] Using template:', templateId);
+      const videoResult = await heygenService.generateVideo(response, templateId);
       console.log('🎬 [AutoResponse] Video generated:', videoResult);
 
       console.log('✅ [AutoResponse] Message handler completed successfully');
@@ -209,43 +221,68 @@ export const autoResponseService = {
 
     // Format recent messages for immediate context
     const recentContext = recentMessages
-      .map(msg => `${msg.userId === GARY_USER_ID ? 'Gary' : 'User'}: ${msg.content}`)
+      .map(msg => `${msg.userId === GARY_USER_ID ? 'Gary' : userName}: ${msg.content}`)
       .join('\n');
 
     // Format all space messages for broader context
     const spaceContext = allSpaceMessages
-      .map(msg => `[Channel: ${msg.channelId}] ${msg.userId === GARY_USER_ID ? 'Gary' : 'User'}: ${msg.content}`)
+      .map(msg => `[Channel: ${msg.channelId}] ${msg.userId === GARY_USER_ID ? 'Gary' : (msg.userId === recentMessages[0].userId ? userName : 'Other User')}: ${msg.content}`)
       .join('\n');
+
+    // Get all messages from this user to understand their personality
+    const userMessages = allSpaceMessages
+      .filter(msg => msg.userId === recentMessages[0].userId)
+      .map(msg => msg.content);
 
     console.log('📝 [AutoResponse] Context prepared:', {
       recentContextLength: recentContext.length,
-      spaceContextLength: spaceContext.length
+      spaceContextLength: spaceContext.length,
+      userMessageCount: userMessages.length
     });
+
+    const systemPrompt = recentMessages[0].userId === GARY_USER_ID 
+      ? `You are responding to Gary Sheng, a Forbes 30 Under 30 technologist and creator focused on building tools and systems for human flourishing. Based on analyzing the conversation history and space context, craft a response that:
+
+1. Shows deep understanding of Gary's work and vision
+2. Engages thoughtfully with his ideas and perspectives
+3. Offers unique insights or perspectives that could be valuable
+4. Maintains a professional yet warm tone
+5. Is concise (max 3-5 sentences)
+6. Demonstrates active listening by referencing specific points
+
+Remember to:
+- Acknowledge and build upon Gary's expertise in technology and human development
+- Connect ideas across different conversations and channels
+- Be specific and substantive in your responses
+- Show genuine interest in his work and vision
+- Quote relevant messages using "You mentioned: [quote]" format
+- Keep responses focused and impactful`
+      : `You are crafting a response to ${userName}. Based on analyzing their messages and conversation style from the following context:
+
+${userMessages.slice(-10).map((msg, i) => `${i + 1}. "${msg}"`).join('\n')}
+
+Develop a personality profile and respond in a way that:
+1. Matches their communication style and interests
+2. Shows understanding of their perspective and background
+3. Engages with their specific points and ideas
+4. Maintains appropriate tone and formality level
+5. Is concise (max 3-5 sentences)
+6. Builds genuine connection
+
+Remember to:
+- Mirror their language style while staying authentic
+- Reference patterns in their communication
+- Quote specific messages when relevant using "You mentioned: [quote]" format
+- Connect ideas across different conversations
+- Show understanding of their unique viewpoint
+- Keep responses natural and engaging`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
         {
           role: "system",
-          content: `You are Gary Sheng, a Forbes 30 Under 30 technologist and creator focused on building tools and systems for human flourishing. You're having a conversation with ${userName}.
-
-Your responses should be:
-1. Natural and conversational
-2. Informed by both the immediate context and broader space history
-3. Aligned with your expertise in technology and human development
-4. Engaging and thought-provoking
-5. Concise (max 3-5 sentences)
-6. Focused on building genuine connection
-
-Remember to:
-- Show genuine interest in the user's perspective
-- Share relevant insights from your experience
-- Keep the tone warm and professional
-- Avoid generic platitudes
-- Be specific and personal in your responses
-- Quote specific messages from the conversation or Space or channel history when relevant, using "You mentioned earlier: [quote]" format
-- Draw connections between current and past messages to show active listening
-- Reference and build upon themes from previous conversations`
+          content: systemPrompt
         },
         {
           role: "user", 

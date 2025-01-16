@@ -1,20 +1,21 @@
 export const heygenService = {
-  async generateVideo(message: string) {
-    const templateId = process.env.NEXT_PUBLIC_HEYGEN_TEMPLATE_ID;
+  async generateVideo(message: string, templateId?: string) {
+    const defaultTemplateId = process.env.NEXT_PUBLIC_HEYGEN_TEMPLATE_ID;
+    const finalTemplateId = templateId || defaultTemplateId;
     const apiKey = process.env.HEYGEN_API_KEY;
 
-    if (!templateId || !apiKey) {
+    if (!finalTemplateId || !apiKey) {
       throw new Error('Missing HeyGen configuration');
     }
 
     console.log('Starting video generation with:', {
-      templateId,
+      templateId: finalTemplateId,
       messageLength: message.length,
       hasApiKey: !!apiKey
     });
 
     // Generate video using template
-    const generateResponse = await fetch(`https://api.heygen.com/v2/template/${templateId}/generate`, {
+    const generateResponse = await fetch(`https://api.heygen.com/v2/template/${finalTemplateId}/generate`, {
       method: 'POST',
       headers: {
         'X-Api-Key': apiKey,

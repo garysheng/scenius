@@ -65,7 +65,7 @@ export interface Message {
   channelId: string;
   userId: string;
   content: string;
-  type: 'TEXT' | 'VOICE';
+  type: 'TEXT' | 'VOICE' | 'VIDEO';
   createdAt: Timestamp;
   updatedAt: Timestamp;
   deleted?: boolean;

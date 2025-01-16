@@ -1,14 +1,32 @@
 import { useEffect, useRef } from 'react';
 import { MessageFrontend } from '@/types';
 
-const AUTO_RESPONSE_DELAY = 10000; // 10 seconds
-const GARY_USER_ID = process.env.NEXT_PUBLIC_GARY_USER_ID;
+const AUTO_RESPONSE_DELAY = 30000; // 30 seconds
+const API_TIMEOUT = 300000; // 5 minutes
+
+// Helper function to timeout a fetch call
+const fetchWithTimeout = async (url: string, options: RequestInit, timeout: number) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+};
 
 export function useAutoResponse(
   messages: MessageFrontend[],
   spaceId: string,
   channelId: string,
-  isGaryDM: boolean
+  isDM: boolean
 ) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -17,8 +35,7 @@ export function useAutoResponse(
       messageCount: messages.length,
       spaceId,
       channelId,
-      isGaryDM,
-      GARY_USER_ID
+      isDM
     });
 
     // Clear any existing timeout when messages change
@@ -27,9 +44,9 @@ export function useAutoResponse(
       clearTimeout(timeoutRef.current);
     }
 
-    // Only proceed if this is a DM with Gary
-    if (!isGaryDM) {
-      console.log('🚫 [AutoResponse] Skipping - Not a Gary DM');
+    // Only proceed if this is a DM
+    if (!isDM) {
+      console.log('🚫 [AutoResponse] Skipping - Not a DM');
       return;
     }
 
@@ -44,12 +61,14 @@ export function useAutoResponse(
       id: latestMessage.id,
       content: latestMessage.content,
       userId: latestMessage.userId,
+      type: latestMessage.type,
+      hasAttachments: !!latestMessage.metadata?.attachments?.length,
       timestamp: latestMessage.createdAt
     });
 
-    // Don't respond to Gary's own messages
-    if (latestMessage.userId === GARY_USER_ID) {
-      console.log('🚫 [AutoResponse] Skipping - Message is from Gary');
+    // Skip if the latest message has a video attachment
+    if (latestMessage.metadata?.attachments?.some(a => a.mimeType?.startsWith('video/'))) {
+      console.log('🚫 [AutoResponse] Skipping - Latest message has a video attachment');
       return;
     }
 
@@ -59,7 +78,7 @@ export function useAutoResponse(
     timeoutRef.current = setTimeout(async () => {
       console.log('🎬 [AutoResponse] Timer complete, generating response');
       try {
-        const response = await fetch('/api/auto-response', {
+        const response = await fetchWithTimeout('/api/auto-response', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -70,7 +89,7 @@ export function useAutoResponse(
             message: latestMessage.content,
             userId: latestMessage.userId
           }),
-        });
+        }, API_TIMEOUT);
 
         if (!response.ok) {
           const data = await response.json();
@@ -78,8 +97,12 @@ export function useAutoResponse(
         }
 
         console.log('✅ [AutoResponse] Response generated and sent successfully');
-      } catch (error) {
-        console.error('❌ [AutoResponse] Error generating response:', error);
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          console.error('❌ [AutoResponse] Request timed out after', API_TIMEOUT / 1000, 'seconds');
+        } else {
+          console.error('❌ [AutoResponse] Error generating response:', error);
+        }
       }
     }, AUTO_RESPONSE_DELAY);
 
@@ -90,5 +113,5 @@ export function useAutoResponse(
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [messages, spaceId, channelId, isGaryDM]);
-} 
+  }, [messages, spaceId, channelId, isDM]);
+}

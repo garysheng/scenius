@@ -11,7 +11,8 @@ export const messagesService = {
     channelId: string, 
     content: string, 
     userId: string,
-    attachments?: FileAttachment[]
+    attachments?: FileAttachment[],
+    type: 'TEXT' | 'VOICE' | 'VIDEO' = 'TEXT'
   ): Promise<MessageFrontend> {
     console.log('MessagesService - Starting sendMessage:', { spaceId, channelId, content, userId });
     
@@ -31,7 +32,7 @@ export const messagesService = {
         channelId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        type: 'TEXT',
+        type,
         threadId: null,
         metadata: {
           reactions: {},
