@@ -9,8 +9,6 @@ const openai = new OpenAI({
 });
 
 const GARY_USER_ID = process.env.NEXT_PUBLIC_GARY_USER_ID;
-const AUTO_RESPONSE_COOLDOWN = 3600000; // 1 hour in milliseconds
-const lastResponseTime: Record<string, number> = {};
 const pendingResponses: Record<string, boolean> = {};
 
 export const autoResponseService = {
@@ -51,22 +49,6 @@ export const autoResponseService = {
           !channelData.metadata?.participantIds?.includes(GARY_USER_ID) ||
           userId === GARY_USER_ID) {
         console.log('🚫 [AutoResponse] Skipping - Not a valid Gary DM');
-        return;
-      }
-
-      // Check cooldown
-      const now = Date.now();
-      const lastResponse = lastResponseTime[channelId] || 0;
-      const timeSinceLastResponse = now - lastResponse;
-      console.log('⏲️ [AutoResponse] Checking cooldown:', {
-        lastResponse,
-        timeSinceLastResponse,
-        cooldownPeriod: AUTO_RESPONSE_COOLDOWN,
-        isInCooldown: timeSinceLastResponse < AUTO_RESPONSE_COOLDOWN
-      });
-
-      if (timeSinceLastResponse < AUTO_RESPONSE_COOLDOWN) {
-        console.log('🚫 [AutoResponse] Skipping - Cooldown active');
         return;
       }
 
@@ -195,12 +177,6 @@ export const autoResponseService = {
       console.log('🎥 [AutoResponse] Starting video generation');
       const videoResult = await heygenService.generateVideo(response);
       console.log('🎬 [AutoResponse] Video generated:', videoResult);
-
-      if (!options?.isTest) {
-        // Update cooldown
-        console.log('⏲️ [AutoResponse] Updating cooldown timestamp');
-        lastResponseTime[channelId] = Date.now();
-      }
 
       console.log('✅ [AutoResponse] Message handler completed successfully');
       return {
