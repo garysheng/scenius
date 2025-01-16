@@ -23,7 +23,7 @@ export const heygenService = {
       },
       body: JSON.stringify({
         caption: false,
-        title: 'Gary\'s Scenius Response',
+        title: 'Scenius Chat Auto-Generated Video Message',
         dimension: {
           width: 1280,
           height: 720

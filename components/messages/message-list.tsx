@@ -48,8 +48,10 @@ export function MessageList({
   const isGaryDM = GARY_USER_ID && channelKind === 'DM' && 
                    channelParticipantIds?.includes(GARY_USER_ID) || false;
 
-  // Initialize auto-response
-  useAutoResponse(messages, spaceId, channelId, isGaryDM);
+  if (isGaryDM) {
+    // Initialize auto-response
+    useAutoResponse(messages, spaceId, channelId, isGaryDM);
+  }
 
   useEffect(() => {
     if (messageId && messageRefs.current[messageId]) {

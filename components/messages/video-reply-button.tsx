@@ -6,6 +6,7 @@ import { MessageFrontend } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { messagesService } from '@/lib/services/client/messages';
 import { useAuth } from '@/lib/hooks/use-auth';
+import { channelsService } from '@/lib/services/client/channels';
 
 interface VideoReplyButtonProps {
   spaceId: string;
@@ -29,7 +30,15 @@ export function VideoReplyButton({
   const { user } = useAuth();
 
   const handleGenerateVideo = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('No user found, aborting video generation');
+      return;
+    }
+
+    if (!spaceId || !channelId) {
+      console.log('Missing spaceId or channelId', { spaceId, channelId });
+      return;
+    }
     
     try {
       setIsGenerating(true);
@@ -38,51 +47,57 @@ export function VideoReplyButton({
       // Use transcript if available (even if empty), otherwise use latest message
       const content = transcript !== undefined ? transcript : latestMessage?.content;
 
+      if (!content) {
+        console.log('No content available for video generation');
+        toast({
+          title: "Error",
+          description: "Please enter a message or select a message to respond to",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Only show toast if we're actually going to make the request
       toast({
         title: "Generating Video Response",
         description: "Your video response is being generated. This may take a few minutes.",
       });
 
-      console.log('Generating video for message:', {
-        spaceId,
-        channelId,
-        content,
-        userId: latestMessage?.userId,
-        hasTranscript: !!transcript,
-        transcriptLength: transcript?.length,
-        messagesLength: messages.length
-      });
+      console.log('Sending request to /api/video-generate:', { content });
 
-      const response = await fetch('/api/auto-response', {
+      const response = await fetch('/api/video-generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          spaceId,
-          channelId,
-          content,
-          userId: user.id,
-          useHistory: !transcript // Only use history if no transcript provided
-        }),
+        body: JSON.stringify({ content, isSenderGary: user.id === process.env.NEXT_PUBLIC_GARY_ID }),
       });
 
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to generate video reply');
       }
 
-      console.log('Video reply generated:', data);
+      if (!data.video_url) {
+        throw new Error('No video URL returned from generation');
+      }
+
+      console.log('Video reply generated successfully:', {
+        videoUrl: data.video_url,
+        hasVideo: !!data.video_url
+      });
 
       // Create video attachment
       const videoAttachment = {
         id: crypto.randomUUID(),
         fileUrl: data.video_url,
-        fileName: 'video-response.mp4',
-        fileSize: 0, // Size unknown at this point
+        fileName: 'Video Response',
+        fileSize: 0,
         mimeType: 'video/mp4',
+        thumbnailUrl: '',
         uploadStatus: 'complete' as const,
         uploadProgress: 100
       };
@@ -91,24 +106,26 @@ export function VideoReplyButton({
       await messagesService.sendMessage(
         spaceId,
         channelId,
-        data.transcript || 'Here\'s my video response:', // Use transcript from response or default text
+        content,
         user.id,
-        [videoAttachment]
+        [videoAttachment],
+        'VIDEO'
       );
 
-      // Clear input on success
-      onMessageSent?.();
- 
-      // Show success toast
       toast({
-        title: "Success",
-        description: "Video response has been generated and sent.",
+        title: "Video Response Sent",
+        description: "Your video response has been generated and sent.",
       });
+
+      if (onMessageSent) {
+        onMessageSent();
+      }
+
     } catch (error) {
-      console.error('Failed to generate video:', error);
+      console.error('Error generating video reply:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to generate video response",
+        description: error instanceof Error ? error.message : "Failed to generate video reply",
         variant: "destructive",
       });
     } finally {

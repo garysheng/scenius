@@ -453,7 +453,7 @@ export function MessageItem({
             </div>
           ) : (
             <div className="space-y-2">
-              {message.type === 'TEXT' && (
+              {(message.type === 'TEXT' || message.type === 'VIDEO') && (
                 <div className="space-y-2">
                   {isEditing ? (
                     <div className="relative">
@@ -482,12 +482,13 @@ export function MessageItem({
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm mt-1 text-foreground whitespace-pre-wrap break-words">
-                      {message.content}
-                    </p>
+                    <>
+                      <p className="text-sm mt-1 text-foreground whitespace-pre-wrap break-words">
+                        {message.content}
+                      </p>
+                      {renderAttachments()}
+                    </>
                   )}
-                  
-                  {renderAttachments()}
                   
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {Object.entries(message.metadata.reactions || {}).map(([emoji, userIds]) => {
