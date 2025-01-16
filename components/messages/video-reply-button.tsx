@@ -62,14 +62,24 @@ export function VideoReplyButton({
         description: "Your video response is being generated. This may take a few minutes.",
       });
 
-      console.log('Sending request to /api/video-generate:', { content });
+      const GARY_ID = process.env.NEXT_PUBLIC_GARY_USER_ID;
+      console.log('Gary ID Check:', {
+        userId: user.id,
+        GARY_ID,
+        isGary: user.id === GARY_ID
+      });
+
+      console.log('Sending request to /api/video-generate:', { content, isSenderGary: user.id === GARY_ID });
 
       const response = await fetch('/api/video-generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ content, isSenderGary: user.id === process.env.NEXT_PUBLIC_GARY_ID }),
+        body: JSON.stringify({ 
+          content, 
+          isSenderGary: user.id === GARY_ID 
+        }),
       });
 
       console.log('Response status:', response.status);
