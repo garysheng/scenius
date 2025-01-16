@@ -237,6 +237,7 @@ export function ThreadView({
           onSendVoiceMessage={handleSendVoiceReply}
           spaceId={spaceId}
           channelId={channelId}
+          messages={replies}
         />
       </div>
     </div>

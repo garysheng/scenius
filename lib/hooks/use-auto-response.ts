@@ -97,11 +97,15 @@ export function useAutoResponse(
         }
 
         console.log('✅ [AutoResponse] Response generated and sent successfully');
-      } catch (error: any) {
-        if (error.name === 'AbortError') {
-          console.error('❌ [AutoResponse] Request timed out after', API_TIMEOUT / 1000, 'seconds');
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          if (error.name === 'AbortError') {
+            console.error('❌ [AutoResponse] Request timed out after', API_TIMEOUT / 1000, 'seconds');
+          } else {
+            console.error('❌ [AutoResponse] Error generating response:', error.message);
+          }
         } else {
-          console.error('❌ [AutoResponse] Error generating response:', error);
+          console.error('❌ [AutoResponse] Unknown error generating response');
         }
       }
     }, AUTO_RESPONSE_DELAY);

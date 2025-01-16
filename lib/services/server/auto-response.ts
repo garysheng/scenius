@@ -13,68 +13,112 @@ const GARY_TEMPLATE_ID = process.env.NEXT_PUBLIC_HEYGEN_TEMPLATE_ID;
 const GARY_OUTGOING_TEMPLATE_ID = 'd5382d443092447f8f6ba8acf111edc2';
 const pendingResponses: Record<string, boolean> = {};
 
+interface AutoResponseOptions {
+  isTest?: boolean;
+  useHistory?: boolean;
+}
+
 export const autoResponseService = {
   async handleIncomingMessage(
     spaceId: string,
     channelId: string,
-    triggerMessage: string,
+    content: string,
     userId: string,
-    options?: { isTest?: boolean }
+    options: AutoResponseOptions = {}
   ) {
-    console.log('🚀 [AutoResponse] Starting message handler:', {
-      spaceId,
-      channelId,
-      messageLength: triggerMessage.length,
-      userId,
-      isTest: options?.isTest
-    });
-
-    // Skip if not a DM with Gary
-    if (!options?.isTest) {
-      console.log('🔍 [AutoResponse] Checking channel type and permissions');
-      const channelRef = doc(db, 'spaces', spaceId, 'channels', channelId);
-      const channelDoc = await getDoc(channelRef);
-      
-      if (!channelDoc.exists()) {
-        console.log('🚫 [AutoResponse] Channel not found');
-        return;
-      }
-
-      const channelData = channelDoc.data();
-      console.log('📋 [AutoResponse] Channel data:', {
-        kind: channelData.kind,
-        hasParticipants: !!channelData.metadata?.participantIds,
-        participantCount: channelData.metadata?.participantIds?.length
-      });
-      
-      // Check if it's a DM and either:
-      // 1. Message is TO Gary (participantIds includes Gary and sender is not Gary)
-      // 2. Message is FROM Gary (sender is Gary and it's a DM)
-      const isToGary = channelData.kind === 'DM' && 
-                      channelData.metadata?.participantIds?.includes(GARY_USER_ID) &&
-                      userId !== GARY_USER_ID;
-      
-      const isFromGary = channelData.kind === 'DM' && 
-                        userId === GARY_USER_ID;
-
-      if (!isToGary && !isFromGary) {
-        console.log('🚫 [AutoResponse] Skipping - Not a valid Gary DM');
-        return;
-      }
-
-      // Check if response is already pending
-      console.log('🔄 [AutoResponse] Checking pending status:', {
-        isPending: pendingResponses[channelId]
-      });
-      if (pendingResponses[channelId]) {
-        console.log('🚫 [AutoResponse] Skipping - Response already pending');
-        return;
-      }
-
-      pendingResponses[channelId] = true;
-    }
-
     try {
+      // If useHistory is true, we'll generate a response based on the conversation history
+      if (options.useHistory) {
+        // Get all messages from the channel
+        const channelRef = doc(db, 'spaces', spaceId, 'channels', channelId);
+        const channelDoc = await getDoc(channelRef);
+        
+        if (!channelDoc.exists()) {
+          throw new Error('Channel not found');
+        }
+
+        // Get user details
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (!userDoc.exists()) {
+          throw new Error('User not found');
+        }
+        const userName = userDoc.data().name || 'User';
+
+        // Format recent messages for context
+        const messagesRef = collection(db, 'spaces', spaceId, 'channels', channelId, 'messages');
+        const messagesQuery = query(messagesRef, orderBy('createdAt', 'desc'), limit(10));
+        const messagesSnapshot = await getDocs(messagesQuery);
+        
+        const recentMessages = messagesSnapshot.docs.map(doc => {
+          const data = doc.data() as Omit<Message, 'id'>;
+          return {
+            ...data,
+            id: doc.id
+          } as Message;
+        });
+
+        // Generate response based on message history
+        content = await this.generateResponse(
+          content || 'Generate a response based on the conversation.',
+          userName,
+          recentMessages,
+          recentMessages // Use recent messages as all messages for simplicity
+        );
+      }
+
+      console.log('🚀 [AutoResponse] Starting message handler:', {
+        spaceId,
+        channelId,
+        messageLength: content.length,
+        userId,
+        isTest: options?.isTest
+      });
+
+      // Skip if not a DM with Gary
+      if (!options?.isTest) {
+        console.log('🔍 [AutoResponse] Checking channel type and permissions');
+        const channelRef = doc(db, 'spaces', spaceId, 'channels', channelId);
+        const channelDoc = await getDoc(channelRef);
+        
+        if (!channelDoc.exists()) {
+          console.log('🚫 [AutoResponse] Channel not found');
+          return;
+        }
+
+        const channelData = channelDoc.data();
+        console.log('📋 [AutoResponse] Channel data:', {
+          kind: channelData.kind,
+          hasParticipants: !!channelData.metadata?.participantIds,
+          participantCount: channelData.metadata?.participantIds?.length
+        });
+        
+        // Check if it's a DM and either:
+        // 1. Message is TO Gary (participantIds includes Gary and sender is not Gary)
+        // 2. Message is FROM Gary (sender is Gary and it's a DM)
+        const isToGary = channelData.kind === 'DM' && 
+                        channelData.metadata?.participantIds?.includes(GARY_USER_ID) &&
+                        userId !== GARY_USER_ID;
+        
+        const isFromGary = channelData.kind === 'DM' && 
+                          userId === GARY_USER_ID;
+
+        if (!isToGary && !isFromGary) {
+          console.log('🚫 [AutoResponse] Skipping - Not a valid Gary DM');
+          return;
+        }
+
+        // Check if response is already pending
+        console.log('🔄 [AutoResponse] Checking pending status:', {
+          isPending: pendingResponses[channelId]
+        });
+        if (pendingResponses[channelId]) {
+          console.log('🚫 [AutoResponse] Skipping - Response already pending');
+          return;
+        }
+
+        pendingResponses[channelId] = true;
+      }
+
       // Get all messages from all channels in the space
       console.log('📚 [AutoResponse] Fetching all space messages');
       const allChannelsRef = collection(db, 'spaces', spaceId, 'channels');
@@ -177,7 +221,7 @@ export const autoResponseService = {
 
       // Generate a contextual response
       console.log('💭 [AutoResponse] Generating response');
-      const response = await this.generateResponse(triggerMessage, userName, recentMessages, allMessages);
+      const response = await this.generateResponse(content, userName, recentMessages, allMessages);
       console.log('✍️ [AutoResponse] Generated response:', {
         length: response.length,
         response: response

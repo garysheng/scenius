@@ -7,9 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { VoiceRecorder } from './voice-recorder';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { filesService } from '@/lib/services/client/files';
-import { FileAttachment } from '@/types';
+import { FileAttachment, MessageFrontend } from '@/types';
 import { EmojiPicker } from './emoji-picker';
 import { Portal } from '@/components/ui/portal';
+import { VideoReplyButton } from './video-reply-button';
 
 interface MessageInputProps {
   placeholder?: string;
@@ -18,6 +19,7 @@ interface MessageInputProps {
   className?: string;
   spaceId: string;
   channelId: string;
+  messages: MessageFrontend[];
 }
 
 export function MessageInput({ 
@@ -26,7 +28,8 @@ export function MessageInput({
   onSendVoiceMessage,
   className,
   spaceId,
-  channelId
+  channelId,
+  messages
 }: MessageInputProps) {
   const [messageInput, setMessageInput] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -143,6 +146,12 @@ export function MessageInput({
     }
   };
 
+  const handleVideoMessageSend = () => {
+    // Implement video message sending logic here
+    console.log('Video message sending logic');
+    setMessageInput('');
+  };
+
   return (
     <div className={className}>
       {attachments.length > 0 && (
@@ -213,6 +222,13 @@ export function MessageInput({
               <div className="h-6 w-[1px] bg-border/50" />
             </>
           )}
+          <VideoReplyButton
+            spaceId={spaceId}
+            channelId={channelId}
+            messages={messages}
+            transcript={messageInput}
+            onMessageSent={()=>handleVideoMessageSend()}
+          />
           <Button
             variant="ghost"
             size="icon"

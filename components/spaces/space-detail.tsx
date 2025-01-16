@@ -721,6 +721,7 @@ export function SpaceDetail({ id }: SpaceDetailProps) {
                           onSendVoiceMessage={handleSendVoiceMessage}
                           spaceId={id}
                           channelId={selectedChannel.id}
+                          messages={messages}
                         />
                       </div>
                       {/* Global Push to Talk */}
