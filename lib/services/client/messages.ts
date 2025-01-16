@@ -3,6 +3,7 @@ import { ref, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 import { FileAttachment, MessageFrontend } from '@/types';
 import { messageAnalysisService } from './message-analysis';
+import { autoResponseService } from './auto-response';
 
 export const messagesService = {
   async sendMessage(
@@ -175,7 +176,7 @@ export const messagesService = {
     const messagesRef = collection(db, 'spaces', spaceId, 'channels', channelId, 'messages');
     const messagesQuery = query(
       messagesRef,
-      where('threadId', '==', null), // In Firestore, this matches both null and non-existent fields
+      where('threadId', '==', null),
       orderBy('createdAt', 'asc')
     );
 
@@ -188,7 +189,7 @@ export const messagesService = {
           content: data.content,
           userId: data.userId,
           type: data.type,
-          threadId: null, // Ensure threadId is null for top-level messages
+          threadId: null,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           metadata: {
@@ -200,6 +201,19 @@ export const messagesService = {
             }
           }
         } as MessageFrontend;
+      });
+
+      // Process new messages for auto-response
+      snapshot.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          const message = change.doc.data();
+          autoResponseService.handleIncomingMessage(
+            spaceId,
+            channelId,
+            message.content,
+            message.userId
+          );
+        }
       });
 
       callback(messages);

@@ -6,9 +6,13 @@ import { MessageItem } from './message-item';
 import { useSearchParams } from 'next/navigation';
 import { URL_PARAMS } from '@/lib/constants/url-params';
 import { useMessagePlayback } from '@/lib/hooks/use-message-playback';
+import { useAutoResponse } from '@/lib/hooks/use-auto-response';
 import { Button } from '@/components/ui/button';
 import { VolumeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// Access environment variable directly from Next.js
+const GARY_USER_ID = process.env.NEXT_PUBLIC_GARY_USER_ID;
 
 interface MessageListProps {
   messages: MessageFrontend[];
@@ -19,6 +23,8 @@ interface MessageListProps {
   isThread?: boolean;
   spaceRole?: 'owner' | 'admin' | 'member';
   channelId: string;
+  channelKind?: 'CHANNEL' | 'DM';
+  channelParticipantIds?: string[];
 }
 
 export function MessageList({ 
@@ -29,12 +35,21 @@ export function MessageList({
   onThreadOpen,
   isThread = false,
   spaceRole,
-  channelId
+  channelId,
+  channelKind,
+  channelParticipantIds
 }: MessageListProps) {
   const searchParams = useSearchParams();
   const messageId = searchParams.get(URL_PARAMS.SEARCH.MESSAGE);
   const messageRefs = useRef<Record<string, HTMLDivElement>>({});
   const { isPlaying, stopPlayback } = useMessagePlayback(spaceId);
+
+  // Check if this is a DM with Gary
+  const isGaryDM = GARY_USER_ID && channelKind === 'DM' && 
+                   channelParticipantIds?.includes(GARY_USER_ID) || false;
+
+  // Initialize auto-response
+  useAutoResponse(messages, spaceId, channelId, isGaryDM);
 
   useEffect(() => {
     if (messageId && messageRefs.current[messageId]) {

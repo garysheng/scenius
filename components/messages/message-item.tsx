@@ -13,6 +13,7 @@ import { MessageActions } from './message-actions';
 import { Textarea } from '@/components/ui/textarea';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { VoicePlaybackMessage } from '@/lib/types/voice-playback';
+import { VideoPlayer } from '@/components/messages/video-player';
 
 interface MessageItemProps {
   message: MessageFrontend;
@@ -165,6 +166,18 @@ export function MessageItem({
       <div className="flex flex-wrap gap-3 mt-2">
         {message.metadata.attachments.map((attachment, index) => {
           const isImage = attachment.mimeType?.startsWith('image/');
+          const isVideo = attachment.mimeType?.startsWith('video/');
+
+          if (isVideo) {
+            return (
+              <div key={`${message.id}-attachment-${index}-${attachment.fileUrl}`} className="w-full max-w-md">
+                <VideoPlayer 
+                  src={attachment.fileUrl || ''} 
+                  className="aspect-video"
+                />
+              </div>
+            );
+          }
 
           if (isImage) {
             return (
@@ -333,10 +346,8 @@ export function MessageItem({
           "group/message flex items-start gap-3 p-2 rounded-lg transition-all duration-300 relative",
           "hover:bg-primary/10",
           "hover:shadow-[0_0_20px_rgba(147,51,234,0.15)]",
-          "hover:backdrop-brightness-125",
-          "cursor-pointer"
+          "hover:backdrop-brightness-125"
         )}
-        onClick={handleReply}
       >
         <div 
           className="relative w-8 h-8 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center flex-shrink-0 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
