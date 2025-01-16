@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     const notGaryTemplateId = Math.random() < 0.5 ? 'b0ae4802dc374745a6272e71a213f9c7' : 'd5382d443092447f8f6ba8acf111edc2';
     
     console.log('Calling heygenService.generateVideo with:', { content });
-    const result = await heygenService.generateVideo(content, notGaryTemplateId);
+    const result = await heygenService.generateVideo(content, isSenderGary ? GARY_TEMPLATE_ID : notGaryTemplateId);
     console.log('Video generation result:', result);
 
     return NextResponse.json(result);

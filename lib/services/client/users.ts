@@ -7,6 +7,9 @@ interface UpdateUserData {
   username?: string;
   fullName?: string;
   avatarUrl?: string;
+  settings?: {
+    autoResponseEnabled?: boolean;
+  };
 }
 
 interface UserService {

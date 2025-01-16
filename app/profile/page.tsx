@@ -2,112 +2,103 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Pencil, Check, X, Upload } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { User, Pencil, Check, X, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { usersService } from '@/lib/services/client/users';
-import { TwinklingStars } from '@/components/effects/twinkling-stars';
-import { CursorStars } from '@/components/effects/cursor-stars';
-import { LoadingStars } from '@/components/ui/loading-stars';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [autoResponseEnabled, setAutoResponseEnabled] = useState(false);
 
   useEffect(() => {
     if (user) {
       setDisplayName(user.fullName || '');
       setUsername(user.username || '');
+      setAutoResponseEnabled(user.settings?.autoResponseEnabled || false);
     }
   }, [user]);
 
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/signin');
-    }
-  }, [isLoading, isAuthenticated, router]);
-
-  const handleUpdateProfile = async () => {
+  const handleAutoResponseToggle = async (enabled: boolean) => {
     if (!user || isUpdating) return;
-    if (!username.trim()) {
-      setError('Username is required');
-      return;
-    }
 
     try {
       setIsUpdating(true);
       setError(null);
       await usersService.updateUser(user.id, {
-        username: username.trim(),
-        fullName: displayName.trim() || undefined
+        settings: {
+          ...user.settings,
+          autoResponseEnabled: enabled
+        }
       });
-      setIsEditing(false);
-      router.refresh();
+      setAutoResponseEnabled(enabled);
+      toast({
+        title: 'Settings updated',
+        description: `Auto-response has been ${enabled ? 'enabled' : 'disabled'}.`,
+      });
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
+        toast({
+          title: 'Error',
+          description: err.message,
+          variant: 'destructive',
+        });
       } else {
-        setError('Failed to update profile');
+        setError('Failed to update auto-response settings');
+        toast({
+          title: 'Error',
+          description: 'Failed to update auto-response settings',
+          variant: 'destructive',
+        });
       }
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setError('Please upload an image file');
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Image must be less than 5MB');
-      return;
-    }
-
-    try {
-      setIsUpdating(true);
-      setError(null);
-      await usersService.uploadProfilePicture(user.id, file);
-      router.refresh();
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Failed to upload profile picture');
-      }
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleRemoveProfilePicture = async () => {
+  const handleUpdateProfile = async () => {
     if (!user || isUpdating) return;
 
     try {
       setIsUpdating(true);
       setError(null);
-      await usersService.removeProfilePicture(user.id);
-      router.refresh();
+      await usersService.updateUser(user.id, {
+        username,
+        fullName: displayName,
+      });
+      setIsEditing(false);
+      toast({
+        title: 'Profile updated',
+        description: 'Your profile has been updated successfully.',
+      });
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
+        toast({
+          title: 'Error',
+          description: err.message,
+          variant: 'destructive',
+        });
       } else {
-        setError('Failed to remove profile picture');
+        setError('Failed to update profile');
+        toast({
+          title: 'Error',
+          description: 'Failed to update profile',
+          variant: 'destructive',
+        });
       }
     } finally {
       setIsUpdating(false);
@@ -116,169 +107,137 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen cosmic-bg">
-        <div className="flex h-screen items-center justify-center">
-          <LoadingStars size="lg" text="Loading profile..." />
-        </div>
-      </main>
+      <div className="flex items-center justify-center min-h-screen bg-black">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+      </div>
     );
   }
 
-  if (!user) return null;
+  if (!isAuthenticated || !user) {
+    router.push('/sign-in');
+    return null;
+  }
 
   return (
-    <main className="min-h-screen relative overflow-hidden">
-      <div className="fixed inset-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--background-dark))] via-[hsl(var(--background))] to-[hsl(var(--background-light))]" />
-        <TwinklingStars />
-        <CursorStars />
-      </div>
-
-      <div className="relative z-10 max-w-2xl mx-auto px-4 py-12">
-        <div className="group relative">
-          <div className="absolute -inset-1 bg-gradient-to-r from-[hsl(var(--accent-nebula))] to-[hsl(var(--accent-aurora))] rounded-[20px] blur opacity-25 group-hover:opacity-40 transition duration-1000" />
-          <div className="relative p-8 rounded-[18px] border border-white/20 ring-1 ring-[hsl(var(--border-dim))] group-hover:ring-[hsl(var(--border-glow))] transition-all duration-300 bg-white/80 backdrop-blur-sm">
-            <div className="text-center">
-              <div className="w-32 h-32 mx-auto relative group">
-                {user.avatarUrl ? (
-                  <div className="relative group w-full h-full">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-[hsl(var(--human-primary))] to-[hsl(var(--human-secondary))] rounded-full blur opacity-25 group-hover:opacity-40 transition duration-1000" />
-                    <div className="relative w-full h-full">
-                      <Image
-                        src={user.avatarUrl}
-                        alt={user.username || 'Profile'}
-                        fill
-                        sizes="128px"
-                        className="rounded-full object-cover ring-2 ring-[hsl(var(--border-glow))]"
-                      />
+    <div className="min-h-screen bg-black">
+      <div className="container max-w-2xl mx-auto py-8 px-4">
+        <div className="bg-zinc-900 rounded-lg shadow-xl overflow-hidden border border-zinc-800">
+          <div className="p-8">
+            <div className="flex flex-col items-center">
+              <div className="relative mb-4">
+                <div className="w-24 h-24 rounded-full overflow-hidden bg-zinc-800">
+                  {user?.avatarUrl ? (
+                    <Image
+                      src={user.avatarUrl}
+                      alt={user.fullName || user.username}
+                      width={96}
+                      height={96}
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <User className="w-12 h-12 text-zinc-400" />
                     </div>
-                    <button
-                      onClick={handleRemoveProfilePicture}
-                      disabled={isUpdating}
-                      className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-6 h-6 text-white" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="relative group">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-[hsl(var(--human-primary))] to-[hsl(var(--human-secondary))] rounded-full blur opacity-25 group-hover:opacity-40 transition duration-1000" />
-                    <div className="relative w-full h-full rounded-full bg-gray-100 ring-2 ring-[hsl(var(--border-glow))] flex items-center justify-center">
-                      <User className="w-16 h-16 text-gray-400" />
-                    </div>
-                    <button
-                      onClick={() => document.getElementById('profile-picture-input')?.click()}
-                      disabled={isUpdating}
-                      className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Upload className="w-6 h-6 text-white" />
-                    </button>
-                  </div>
-                )}
-                <input
-                  id="profile-picture-input"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
+                  )}
+                </div>
               </div>
 
-              <div className="mt-6 space-y-4">
+              <div className="text-center">
                 {isEditing ? (
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="username" className="text-gray-700">Username</Label>
-                      <Input
-                        id="username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        className="bg-white border-gray-200"
-                        placeholder="Enter your username"
-                        disabled={isUpdating}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="displayName" className="text-gray-700">Display Name</Label>
+                    <div>
+                      <Label htmlFor="displayName" className="text-zinc-200">Display Name</Label>
                       <Input
                         id="displayName"
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
-                        className="bg-white border-gray-200"
+                        className="mt-1 bg-zinc-800 border-zinc-700 text-zinc-200"
                         placeholder="Enter your display name"
-                        disabled={isUpdating}
                       />
                     </div>
-
-                    <div className="flex gap-2 justify-center">
+                    <div>
+                      <Label htmlFor="username" className="text-zinc-200">Username</Label>
+                      <Input
+                        id="username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="mt-1 bg-zinc-800 border-zinc-700 text-zinc-200"
+                        placeholder="Enter your username"
+                      />
+                    </div>
+                    <div className="flex gap-2 justify-center mt-4">
                       <Button
                         onClick={handleUpdateProfile}
-                        disabled={isUpdating || !username.trim()}
-                        className="shrink-0 bg-primary hover:bg-primary/90"
+                        disabled={isUpdating}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground"
                       >
                         <Check className="w-4 h-4 mr-2" />
-                        Save Changes
+                        Save
                       </Button>
                       <Button
-                        variant="outline"
                         onClick={() => {
                           setIsEditing(false);
-                          setDisplayName(user.fullName || '');
-                          setUsername(user.username || '');
+                          setDisplayName(user?.fullName || '');
+                          setUsername(user?.username || '');
                         }}
+                        variant="outline"
                         disabled={isUpdating}
-                        className="shrink-0 border-gray-200 text-gray-700 hover:bg-gray-100"
+                        className="border-zinc-700 hover:bg-zinc-800 text-zinc-200"
                       >
                         <X className="w-4 h-4 mr-2" />
                         Cancel
                       </Button>
                     </div>
-
                     {error && (
-                      <p className="text-xs text-red-500">{error}</p>
+                      <p className="text-red-400 text-xs">{error}</p>
                     )}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2">
-                    <h1 className="text-2xl font-semibold bg-gradient-to-r from-purple-500 to-purple-900 bg-clip-text text-transparent">
-                      {user.fullName || user.username}
+                    <h1 className="text-2xl font-semibold text-zinc-200">
+                      {user?.fullName || user?.username}
                     </h1>
-                    {user.fullName && (
-                      <p className="text-gray-500">
-                        @{user.username}
+                    {user?.fullName && (
+                      <p className="text-zinc-400">
+                        @{user?.username}
                       </p>
                     )}
                     <Button
-                      size="icon"
-                      variant="ghost"
+                      variant="outline"
                       onClick={() => setIsEditing(true)}
-                      className="h-8 w-8 mt-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                      disabled={isUpdating}
+                      className="mt-2 border-zinc-700 hover:bg-zinc-800 text-zinc-200"
                     >
-                      <Pencil className="w-4 h-4" />
+                      <Pencil className="w-4 h-4 mr-2" />
+                      Edit Profile
                     </Button>
                   </div>
                 )}
               </div>
-              
-              <p className="text-gray-500 mt-2">
-                {user.email}
-              </p>
 
-              <div className="mt-8 space-y-4">
-                <Button 
-                  asChild 
-                  variant="outline" 
-                  className="w-full text-white border-gray-200 hover:bg-red-50 hover:text-black hover:border-black transition-colors"
-                >
-                  <Link href="/signout">Sign Out</Link>
-                </Button>
+              {/* Auto-response Settings Section */}
+              <div className="mt-8 pt-8 border-t border-zinc-800 w-full">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-primary" />
+                      <h3 className="font-medium text-zinc-200">Auto-Response</h3>
+                    </div>
+                    <p className="text-sm text-zinc-400">
+                      Allow AI to automatically respond to direct messages with video responses
+                    </p>
+                  </div>
+                  <Switch
+                    checked={autoResponseEnabled}
+                    onCheckedChange={handleAutoResponseToggle}
+                    disabled={isUpdating}
+                  />
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 } 

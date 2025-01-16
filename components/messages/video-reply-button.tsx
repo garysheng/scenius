@@ -6,7 +6,6 @@ import { MessageFrontend } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { messagesService } from '@/lib/services/client/messages';
 import { useAuth } from '@/lib/hooks/use-auth';
-import { channelsService } from '@/lib/services/client/channels';
 
 interface VideoReplyButtonProps {
   spaceId: string;

@@ -37,6 +37,9 @@ export interface User {
     theme: 'dark' | 'light';
     language: string;
   };
+  settings?: {
+    autoResponseEnabled?: boolean;
+  };
   walletAddresses?: string[];
 }
 
