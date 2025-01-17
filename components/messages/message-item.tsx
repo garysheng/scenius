@@ -14,6 +14,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { VoicePlaybackMessage } from '@/lib/types/voice-playback';
 import { VideoPlayer } from '@/components/messages/video-player';
+import { MessagePlaybackHighlight } from './message-playback-highlight';
+import { useMessagePlayback } from '@/lib/hooks/use-message-playback';
 
 interface MessageItemProps {
   message: MessageFrontend;
@@ -46,7 +48,7 @@ export function MessageItem({
   allMessages,
   channelId
 }: MessageItemProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLocalPlaying, setIsLocalPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -54,6 +56,10 @@ export function MessageItem({
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Get global playback state
+  const { isPlaying: isGlobalPlaying, currentMessageId } = useMessagePlayback(spaceId);
+  const isMessagePlaying = (isGlobalPlaying && currentMessageId === message.id) || isLocalPlaying;
 
   useEffect(() => {
     if (isEditing && editInputRef.current) {
@@ -96,7 +102,7 @@ export function MessageItem({
       if (audioRef.current) {
         audioRef.current.src = url;
         audioRef.current.play();
-        setIsPlaying(true);
+        setIsLocalPlaying(true);
       }
     } catch (error) {
       console.error('Failed to download audio:', error);
@@ -108,15 +114,15 @@ export function MessageItem({
   const toggleAudio = async () => {
     if (!audioRef.current) return;
 
-    if (isPlaying) {
+    if (isLocalPlaying) {
       audioRef.current.pause();
-      setIsPlaying(false);
+      setIsLocalPlaying(false);
     } else {
       if (!audioUrl) {
         await downloadAndPlayAudio();
       } else {
         audioRef.current.play();
-        setIsPlaying(true);
+        setIsLocalPlaying(true);
       }
     }
   };
@@ -130,7 +136,7 @@ export function MessageItem({
   }, [audioUrl]);
 
   const handleAudioEnded = () => {
-    setIsPlaying(false);
+    setIsLocalPlaying(false);
   };
 
   const handleReaction = useCallback(async (emoji: string) => {
@@ -341,213 +347,215 @@ export function MessageItem({
 
   return (
     <ErrorBoundary>
-      <div 
-        className={cn(
-          "group/message flex items-start gap-3 p-2 rounded-lg transition-all duration-300 relative",
-          "hover:bg-primary/10",
-          "hover:shadow-[0_0_20px_rgba(147,51,234,0.15)]",
-          "hover:backdrop-brightness-125"
-        )}
-      >
+      <MessagePlaybackHighlight isPlaying={isMessagePlaying}>
         <div 
-          className="relative w-8 h-8 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center flex-shrink-0 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleAvatarClick();
-          }}
-        >
-          {user?.avatarUrl ? (
-            <Image
-              src={user.avatarUrl}
-              alt={user.username || 'User avatar'}
-              fill
-              className="object-cover"
-              sizes="32px"
-            />
-          ) : (
-            <span className="text-sm font-medium text-muted-foreground">
-              {initials}
-            </span>
+          className={cn(
+            "group/message flex items-start gap-3 p-2 rounded-lg transition-all duration-300 relative",
+            "hover:bg-primary/10",
+            "hover:shadow-[0_0_20px_rgba(147,51,234,0.15)]",
+            "hover:backdrop-brightness-125"
           )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-foreground">
-              {user?.fullName || user?.username || 'Unknown User'}
-              {user?.fullName && user?.username && (
-                <span className="text-muted-foreground text-xs ml-1">@{user.username}</span>
-              )}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {formatMessageTime(message.createdAt)}
-            </span>
-            {message.metadata.edited && (
-              <span className="text-xs text-muted-foreground">(edited)</span>
+        >
+          <div 
+            className="relative w-8 h-8 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center flex-shrink-0 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleAvatarClick();
+            }}
+          >
+            {user?.avatarUrl ? (
+              <Image
+                src={user.avatarUrl}
+                alt={user.username || 'User avatar'}
+                fill
+                className="object-cover"
+                sizes="32px"
+              />
+            ) : (
+              <span className="text-sm font-medium text-muted-foreground">
+                {initials}
+              </span>
             )}
           </div>
-          {message.type === 'VOICE' ? (
-            <div className="mt-2 flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-foreground hover:text-foreground/80"
-                  onClick={toggleAudio}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  ) : isPlaying ? (
-                    <Pause className="h-4 w-4" />
-                  ) : (
-                    <Play className="h-4 w-4" />
-                  )}
-                </Button>
-                <Volume2 className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm text-foreground">
-                  {message.content}
-                </p>
-                <audio
-                  ref={audioRef}
-                  onEnded={handleAudioEnded}
-                  className="hidden"
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-1.5">
-                {Object.entries(message.metadata.reactions || {}).map(([emoji, userIds]) => {
-                  if (userIds.length === 0) return null;
-                  return (
-                    <button
-                      key={`${message.id}-reaction-${emoji}`}
-                      onClick={() => handleReaction(emoji)}
-                      className={cn(
-                        "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors",
-                        "bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted))]/80",
-                        userIds.includes(currentUser?.id || '') && "ring-1 ring-[hsl(var(--primary))]"
-                      )}
-                    >
-                      <span>{emoji}</span>
-                      <span className="text-muted-foreground">{userIds.length}</span>
-                    </button>
-                  );
-                })}
-
-                {/* Thread Reply Count - Only show if there are replies */}
-                {!isThread && message.metadata.threadInfo && message.metadata.threadInfo.replyCount > 0 && (
-                  <button
-                    onClick={handleReply}
-                    className={cn(
-                      "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs transition-colors",
-                      "bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted))]/80",
-                      "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <MessageSquare className="h-3 w-3" />
-                    <span>
-                      {message.metadata.threadInfo.replyCount} {message.metadata.threadInfo.replyCount === 1 ? 'reply' : 'replies'} • {message.metadata.threadInfo.participantIds.length} {message.metadata.threadInfo.participantIds.length === 1 ? 'person' : 'people'}
-                    </span>
-                  </button>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-foreground">
+                {user?.fullName || user?.username || 'Unknown User'}
+                {user?.fullName && user?.username && (
+                  <span className="text-muted-foreground text-xs ml-1">@{user.username}</span>
                 )}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {(message.type === 'TEXT' || message.type === 'VIDEO') && (
-                <div className="space-y-2">
-                  {isEditing ? (
-                    <div className="relative">
-                      <Textarea
-                        ref={editInputRef}
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        className="min-h-[60px] pr-16"
-                        placeholder="Edit your message..."
-                      />
-                      <div className="absolute right-2 bottom-2 flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setIsEditing(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={handleSaveEdit}
-                        >
-                          Save
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <p className="text-sm mt-1 text-foreground whitespace-pre-wrap break-words">
-                        {message.content}
-                      </p>
-                      {renderAttachments()}
-                    </>
-                  )}
-                  
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {Object.entries(message.metadata.reactions || {}).map(([emoji, userIds]) => {
-                      if (userIds.length === 0) return null;
-                      return (
-                        <button
-                          key={`${message.id}-reaction-${emoji}`}
-                          onClick={() => handleReaction(emoji)}
-                          className={cn(
-                            "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors",
-                            "bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted))]/80",
-                            userIds.includes(currentUser?.id || '') && "ring-1 ring-[hsl(var(--primary))]"
-                          )}
-                        >
-                          <span>{emoji}</span>
-                          <span className="text-muted-foreground">{userIds.length}</span>
-                        </button>
-                      );
-                    })}
-
-                    {/* Thread Reply Count - Only show if there are replies */}
-                    {!isThread && message.metadata.threadInfo && message.metadata.threadInfo.replyCount > 0 && (
-                      <button
-                        onClick={handleReply}
-                        className={cn(
-                          "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs transition-colors",
-                          "bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted))]/80",
-                          "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        <MessageSquare className="h-3 w-3" />
-                        <span>
-                          {message.metadata.threadInfo.replyCount} {message.metadata.threadInfo.replyCount === 1 ? 'reply' : 'replies'} • {message.metadata.threadInfo.participantIds.length} {message.metadata.threadInfo.participantIds.length === 1 ? 'person' : 'people'}
-                        </span>
-                      </button>
-                    )}
-                  </div>
-                </div>
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {formatMessageTime(message.createdAt)}
+              </span>
+              {message.metadata.edited && (
+                <span className="text-xs text-muted-foreground">(edited)</span>
               )}
             </div>
-          )}
-        </div>
+            {message.type === 'VOICE' ? (
+              <div className="mt-2 flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-foreground hover:text-foreground/80"
+                    onClick={toggleAudio}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    ) : isLocalPlaying ? (
+                      <Pause className="h-4 w-4" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Volume2 className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-sm text-foreground">
+                    {message.content}
+                  </p>
+                  <audio
+                    ref={audioRef}
+                    onEnded={handleAudioEnded}
+                    className="hidden"
+                  />
+                </div>
 
-        <div className="opacity-0 group-hover/message:opacity-100 transition-opacity absolute right-2 top-2">
-          <MessageActions
-            messageId={message.id}
-            onReaction={handleReaction}
-            onReply={handleReply}
-            canDelete={canDeleteValue}
-            canEdit={canEditValue}
-            onDelete={handleDelete}
-            onEdit={handleEdit}
-            spaceId={spaceId}
-            channelId={channelId}
-            message={voicePlaybackMessage}
-            allMessages={allVoicePlaybackMessages}
-          />
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(message.metadata.reactions || {}).map(([emoji, userIds]) => {
+                    if (userIds.length === 0) return null;
+                    return (
+                      <button
+                        key={`${message.id}-reaction-${emoji}`}
+                        onClick={() => handleReaction(emoji)}
+                        className={cn(
+                          "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors",
+                          "bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted))]/80",
+                          userIds.includes(currentUser?.id || '') && "ring-1 ring-[hsl(var(--primary))]"
+                        )}
+                      >
+                        <span>{emoji}</span>
+                        <span className="text-muted-foreground">{userIds.length}</span>
+                      </button>
+                    );
+                  })}
+
+                  {/* Thread Reply Count - Only show if there are replies */}
+                  {!isThread && message.metadata.threadInfo && message.metadata.threadInfo.replyCount > 0 && (
+                    <button
+                      onClick={handleReply}
+                      className={cn(
+                        "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs transition-colors",
+                        "bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted))]/80",
+                        "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <MessageSquare className="h-3 w-3" />
+                      <span>
+                        {message.metadata.threadInfo.replyCount} {message.metadata.threadInfo.replyCount === 1 ? 'reply' : 'replies'} • {message.metadata.threadInfo.participantIds.length} {message.metadata.threadInfo.participantIds.length === 1 ? 'person' : 'people'}
+                      </span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {(message.type === 'TEXT' || message.type === 'VIDEO') && (
+                  <div className="space-y-2">
+                    {isEditing ? (
+                      <div className="relative">
+                        <Textarea
+                          ref={editInputRef}
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          className="min-h-[60px] pr-16"
+                          placeholder="Edit your message..."
+                        />
+                        <div className="absolute right-2 bottom-2 flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setIsEditing(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleSaveEdit}
+                          >
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm mt-1 text-foreground whitespace-pre-wrap break-words">
+                          {message.content}
+                        </p>
+                        {renderAttachments()}
+                      </>
+                    )}
+                    
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {Object.entries(message.metadata.reactions || {}).map(([emoji, userIds]) => {
+                        if (userIds.length === 0) return null;
+                        return (
+                          <button
+                            key={`${message.id}-reaction-${emoji}`}
+                            onClick={() => handleReaction(emoji)}
+                            className={cn(
+                              "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors",
+                              "bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted))]/80",
+                              userIds.includes(currentUser?.id || '') && "ring-1 ring-[hsl(var(--primary))]"
+                            )}
+                          >
+                            <span>{emoji}</span>
+                            <span className="text-muted-foreground">{userIds.length}</span>
+                          </button>
+                        );
+                      })}
+
+                      {/* Thread Reply Count - Only show if there are replies */}
+                      {!isThread && message.metadata.threadInfo && message.metadata.threadInfo.replyCount > 0 && (
+                        <button
+                          onClick={handleReply}
+                          className={cn(
+                            "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs transition-colors",
+                            "bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted))]/80",
+                            "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <MessageSquare className="h-3 w-3" />
+                          <span>
+                            {message.metadata.threadInfo.replyCount} {message.metadata.threadInfo.replyCount === 1 ? 'reply' : 'replies'} • {message.metadata.threadInfo.participantIds.length} {message.metadata.threadInfo.participantIds.length === 1 ? 'person' : 'people'}
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="opacity-0 group-hover/message:opacity-100 transition-opacity absolute right-2 top-2">
+            <MessageActions
+              messageId={message.id}
+              onReaction={handleReaction}
+              onReply={handleReply}
+              canDelete={canDeleteValue}
+              canEdit={canEditValue}
+              onDelete={handleDelete}
+              onEdit={handleEdit}
+              spaceId={spaceId}
+              channelId={channelId}
+              message={voicePlaybackMessage}
+              allMessages={allVoicePlaybackMessages}
+            />
+          </div>
         </div>
-      </div>
+      </MessagePlaybackHighlight>
     </ErrorBoundary>
   );
 } 

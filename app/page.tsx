@@ -1,9 +1,9 @@
 'use client';
 
 import {
-  Bot,
+  Users,
   Shield,
-  Mic,
+  MessageSquare,
   Brain
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -76,11 +76,11 @@ export default function Home() {
         <div className="text-center space-y-6 max-w-4xl">
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
             <span className="bg-gradient-to-r from-white via-purple-400 to-white bg-clip-text text-transparent animate-gradient">
-              For Communities Building & Embracing The Future
+              Where Communities Thrive Together
             </span>
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-            Scenius is an AI-powered community platform where members can communicate securely with voice anonymization, deploy AI agents, and collaborate effectively using advanced tools for knowledge sharing and decision making.
+            Scenius is a modern community platform that brings people together through rich conversations, voice messaging, and powerful collaboration tools.
           </p>
           <div className="flex items-center justify-center gap-4 pt-4">
             <Button
@@ -104,26 +104,26 @@ export default function Home() {
         {/* Feature Cards Grid */}
         <div id="features" className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-5xl">
           <FeatureCard
-            title="Community AI Assistants"
-            description="Deploy AI assistants that help manage your community, provide support, and enhance collaboration between members."
-            icon={Bot}
+            title="Vibrant Communities"
+            description="Create spaces where people can connect, share ideas, and build meaningful relationships through text and voice conversations."
+            icon={Users}
             glowColor="bg-gradient-to-r from-primary/50 to-accent/50"
+          />
+          <FeatureCard
+            title="Rich Conversations"
+            description="Express yourself naturally with voice messages, reactions, threads, and multimedia sharing in a beautiful, intuitive interface."
+            icon={MessageSquare}
+            glowColor="bg-gradient-to-r from-secondary/80 via-blue-500/80 to-primary/80"
           />
           <FeatureCard
             title="Flexible Access Control"
             description="Gate your community your way. Combine email domains, whitelists, and role-based permissions to create the perfect entry criteria."
             icon={Shield}
-            glowColor="bg-gradient-to-r from-secondary/80 via-blue-500/80 to-primary/80"
-          />
-          <FeatureCard
-            title="Voice-First Experience"
-            description="Natural voice conversations with privacy-first features. Keep your identity private with voice anonymization, custom voice filters, and secure audio processing."
-            icon={Mic}
             glowColor="bg-gradient-to-r from-primary/80 via-indigo-500/80 to-accent/80"
           />
           <FeatureCard
             title="Collective Intelligence"
-            description="Harness your community's knowledge with AI-powered tools. Automatically organize discussions, surface insights, and make better decisions together."
+            description="Harness your community's knowledge with powerful organization tools. Surface insights and make better decisions together."
             icon={Brain}
             glowColor="bg-gradient-to-r from-accent/80 via-fuchsia-500/80 to-secondary/80"
           />

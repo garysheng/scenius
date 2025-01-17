@@ -15,12 +15,12 @@ export function MessagePlaybackHighlight({
     <div
       className={cn(
         'relative transition-all duration-300',
-        isPlaying && 'animate-pulse',
+        isPlaying && 'bg-primary/5',
         className
       )}
     >
       {isPlaying && (
-        <div className="absolute inset-0 rounded-lg bg-primary/10 animate-glow" />
+        <div className="absolute inset-0 rounded-lg bg-primary/5" />
       )}
       {children}
     </div>
