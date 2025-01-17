@@ -9,25 +9,25 @@ import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: "Scenius",
-  description: "An AI & crypto-first community platform where members earn points and tokens for valuable contributions, and deploy blockchain-integrated AI agents that represent and take actions on behalf of the community.",
+  description: "An AI-first community platform that helps teams collaborate, share knowledge, and make better decisions together.",
   metadataBase: urlService.config.getMetadataBase(),
   openGraph: {
     title: 'Scenius',
-    description: 'An AI & crypto-first community platform where members earn points and tokens for valuable contributions, and deploy blockchain-integrated AI agents that represent and take actions on behalf of the community.',
+    description: 'An AI-first community platform that helps teams collaborate, share knowledge, and make better decisions together.',
     type: 'website',
     images: [
       {
         url: '/share.png',
         width: 1920,
         height: 1080,
-        alt: 'Scenius - AI & crypto-first community platform'
+        alt: 'Scenius - AI-first community platform'
       }
     ]
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Scenius',
-    description: 'An AI & crypto-first community platform where members earn points and tokens for valuable contributions, and deploy blockchain-integrated AI agents that represent and take actions on behalf of the community.',
+    description: 'An AI-first community platform that helps teams collaborate, share knowledge, and make better decisions together.',
     images: ['/share.png']
   }
 };
