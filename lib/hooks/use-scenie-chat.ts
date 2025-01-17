@@ -8,7 +8,6 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useChat } from 'ai/react';
-import OpenAI from 'openai';
 import {
   UseScenieChatOptions,
   UseScenieChatReturn,
@@ -16,11 +15,6 @@ import {
   ScenieChatMode,
 } from '@/types/dm-scenie';
 import { scenieService } from '@/lib/services/client/scenie';
-
-const openai = new OpenAI({
-  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true
-});
 
 export function useScenieChatHook({
   spaceId,
@@ -100,19 +94,29 @@ export function useScenieChatHook({
         const scrollEvent = new CustomEvent('newMessage', { detail: { messageId: assistantMessage.id } });
         window.dispatchEvent(scrollEvent);
 
-        // Generate and play audio for Scenie's response
+        // Generate and play audio for Scenie's response using our API
         try {
-          const speechResponse = await openai.audio.speech.create({
-            model: "tts-1",
-            voice: "nova",
-            input: message.content,
-            speed: 1.1, // Slightly faster for more energy
+          const response = await fetch('/api/tts-11labs', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              text: message.content
+            })
           });
 
-          const blob = await speechResponse.blob();
-          const url = URL.createObjectURL(blob);
-          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const audioBlob = await response.blob();
+          const url = URL.createObjectURL(audioBlob);
+
           if (audioPlayerRef.current) {
+            // Stop any currently playing audio
+            stopTTS();
+            // Play the new audio
             audioPlayerRef.current.src = url;
             await audioPlayerRef.current.play();
             
@@ -121,8 +125,9 @@ export function useScenieChatHook({
               URL.revokeObjectURL(url);
             };
           }
-        } catch (err) {
-          console.error('Failed to generate or play audio:', err);
+        } catch (error: any) {
+          console.error('Failed to generate or play audio:', error);
+          console.log('Error details:', error.response?.data || error);
         }
       }
     },
