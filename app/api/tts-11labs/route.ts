@@ -51,11 +51,23 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'audio/mpeg'
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('TTS Error:', error);
+    
+    let errorMessage = 'An unknown error occurred';
+    let errorDetails: unknown = error;
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const apiError = error as { response?: { data: unknown } };
+        errorDetails = apiError.response?.data || error;
+      }
+    }
+
     return new Response(JSON.stringify({ 
-      error: error.message,
-      details: error.response?.data || error 
+      error: errorMessage,
+      details: errorDetails 
     }), {
       status: 500,
       headers: {

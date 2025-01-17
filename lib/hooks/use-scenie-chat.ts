@@ -125,9 +125,14 @@ export function useScenieChatHook({
               URL.revokeObjectURL(url);
             };
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('Failed to generate or play audio:', error);
-          console.log('Error details:', error.response?.data || error);
+          if (error && typeof error === 'object' && 'response' in error) {
+            const err = error as { response?: { data: unknown } };
+            console.log('Error details:', err.response?.data || error);
+          } else {
+            console.log('Error details:', error);
+          }
         }
       }
     },
