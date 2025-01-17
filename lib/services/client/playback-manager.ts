@@ -214,19 +214,23 @@ class PlaybackManager {
         messageId: message.id
       });
 
-      // let voiceId = this.state.voiceAssignments.get(message.userId);
-      // console.log('🎙️ PlaybackManager - Cached voice assignment:', { 
-      //   userId: message.userId, 
-      //   voiceId 
-      // });
-
-      console.log('🎙️ PlaybackManager - No cached voice, requesting new assignment');
-      const voiceId = await voiceAssignmentService.getVoiceAssignment(message.userId, this.currentSpaceId);
-      this.state.voiceAssignments.set(message.userId, voiceId);
-      console.log('🎙️ PlaybackManager - New voice assigned:', {
-        userId: message.userId,
-        voiceId
-      });
+      // Check for existing voice assignment first
+      let voiceId = this.state.voiceAssignments.get(message.userId);
+      
+      if (voiceId) {
+        console.log('🎙️ PlaybackManager - Using cached voice assignment:', { 
+          userId: message.userId, 
+          voiceId 
+        });
+      } else {
+        console.log('🎙️ PlaybackManager - No cached voice, requesting new assignment');
+        voiceId = await voiceAssignmentService.getVoiceAssignment(message.userId, this.currentSpaceId);
+        this.state.voiceAssignments.set(message.userId, voiceId);
+        console.log('🎙️ PlaybackManager - New voice assigned:', {
+          userId: message.userId,
+          voiceId
+        });
+      }
 
       // Get or generate audio for the message
       let audioBuffer = this.audioCache.get(message.id);
